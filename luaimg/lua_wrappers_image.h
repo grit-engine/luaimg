@@ -19,21 +19,22 @@
  * THE SOFTWARE.
  */
 
-#ifndef INTERPRETER_H
-#define INTERPRETER_H
+#ifndef LUAWRAPPERS_IMAGE_H
+#define LUAWRAPPERS_IMAGE_H
 
-#include <string>
-#include <vector>
+extern "C" {
+    #include "lua.h"
+    #include "lauxlib.h"
+    #include "lualib.h"
+}
 
-void interpreter_init (void);
-void interpreter_shutdown (void);
+#include "Image.h"
 
-void interpreter_interrupt_probe (void);
+#define IMAGE_TAG "Image"
 
-bool interpreter_exec_file (const std::string &fname, const std::vector<std::string> &args);
+void lua_push_image (lua_State *L, ImageBase *b);
 
-bool interpreter_exec_snippet (const std::string &str, const std::vector<std::string> &args, const std::string &name);
-
-void interpreter_exec_interactively (const std::string &prompt);
+void lua_wrappers_image_init (lua_State *L);
+void lua_wrappers_image_shutdown (lua_State *L);
 
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) David Cunningham and the Grit Game Engine project 2012
+/* Copyright (c) David Cunningham and the Grit Game Engine project 2013
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -53,6 +53,7 @@ const char *usage =
     "where <opt> ::= -h | --help                     This message\n"
     "              | --                              End of commandline options\n"
     "              | -i | --interactive              Enter interactive mode after processing -e and -f\n"
+    "              | -p <str> | --prompt <str>       Override the interactive prompt (default \"luaimg> \")\n"
     "              | -f <file> | --file <file>       Execute the given file containing Lua code\n"
     "              | -F <file> | --File <file>       Short-hand for -f <file> --\n"
     "              | -e <snippet> | --exec <snippet> Execute the given Lua snippet\n"
@@ -88,6 +89,7 @@ int main (int argc, char **argv)
     int so_far = 1; 
     bool no_more_switches = false;
     std::vector<std::string> args;
+    std::string prompt = "luaimg> ";
     while (so_far<argc) {
         std::string arg = next_arg(so_far, argc, argv);
         if (no_more_switches) {
@@ -96,25 +98,28 @@ int main (int argc, char **argv)
             std::cout<<info<<std::endl;
             std::cout<<usage<<std::endl;
             exit(EXIT_SUCCESS);
-        } else if (arg=="-e" || arg=="--exec") {
-            work.push_back(std::pair<FileOrSnippet,std::string>(S, next_arg(so_far,argc,argv)));
+        } else if (arg=="--") {
+            no_more_switches = true;
+        } else if (arg=="-i" || arg=="--interactive") {
+            interactive = true;
+        } else if (arg=="-p" || arg=="--prompt") {
+            prompt = next_arg(so_far,argc,argv);
         } else if (arg=="-f" || arg=="--file") {
             work.push_back(std::pair<FileOrSnippet,std::string>(F, next_arg(so_far,argc,argv)));
         } else if (arg=="-F" || arg=="--File") {
             work.push_back(std::pair<FileOrSnippet,std::string>(F, next_arg(so_far,argc,argv)));
             no_more_switches = true;
-        } else if (arg=="--") {
-            no_more_switches = true;
-        } else if (arg=="-i" || arg=="--interactive") {
-            interactive = true;
+        } else if (arg=="-e" || arg=="--exec") {
+            work.push_back(std::pair<FileOrSnippet,std::string>(S, next_arg(so_far,argc,argv)));
         } else {
             args.push_back(arg);
         }
     }
 
     if (work.size()==0 && !interactive) {
-        std::cerr<<"ERROR: You did not specify anything to do."<<std::endl;
-        std::cerr<<"(see --help)"<<std::endl;
+        std::cerr<<"You did not specify anything to do, so entering interactive mode."<<std::endl;
+        std::cerr<<"(Use -i to suppress this message or --help for more options)"<<std::endl;
+        interactive = true;
     }
 
 
@@ -145,11 +150,11 @@ int main (int argc, char **argv)
     }
 
     if (interactive) {
-        interpreter_exec_interactively();
+        interpreter_exec_interactively(prompt);
     } 
 
 /*
-    Image *my_image = image_load(argv[1]);
+    Image *my_image = image_load("derp.png");
     if (my_image == NULL) {
         std::cerr << "A load error has occured." << std::endl;
         return EXIT_FAILURE;

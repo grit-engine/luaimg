@@ -1,4 +1,4 @@
-/* Copyright (c) David Cunningham and the Grit Game Engine project 2012
+/* Copyright (c) David Cunningham and the Grit Game Engine project 2013
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@ extern "C" {
 }
 
 #include "interpreter.h"
+#include "lua_wrappers_image.h"
 
 static lua_State *L;
 
@@ -135,8 +136,16 @@ bool interpreter_exec_file (const std::string &fname, const std::vector<std::str
 
     if (status == 0) {
         status = execute_code(args);
-        lua_settop(L, 0);
-        return status == 0;
+        if (status == 0) {
+            lua_settop(L, 0);
+            return true;
+        } else {
+            const char *msg = lua_tostring(L, -1);
+            std::cerr << "Could not execute Lua file: \"" << fname << "\"" << std::endl;
+            std::cerr << msg << std::endl;
+            lua_pop(L, 1);      
+            return false;
+        }
     } else if (status == LUA_ERRFILE) {
         const char *msg = lua_tostring(L, -1);
         std::cerr << "Could not load Lua file: \"" << fname << "\"" << std::endl;
@@ -207,17 +216,24 @@ bool interpreter_exec_snippet (const std::string &str, const std::vector<std::st
 
     if (status == 0) {
         status = execute_code(args);
-        if (status != 0) return false;
-        print_stack();
-        return true;
+        if (status == 0) {
+            print_stack();
+            return true;
+        } else {
+            const char *msg = lua_tostring(L, -1);
+            std::cerr << "Error executing Lua snippet: \"" << str << "\"" << std::endl;
+            std::cerr << msg << std::endl;
+            lua_pop(L, 1);      
+            return false;
+        }
     } else if (status == LUA_ERRSYNTAX) {
         const char *msg = lua_tostring(L, -1);
-        std::cerr << "Syntax error while parsing Lua code: \"" << str << "\"" << std::endl;
+        std::cerr << "Syntax error while parsing Lua snippet: \"" << str << "\"" << std::endl;
         std::cerr << msg << std::endl;
         lua_pop(L, 1);      
         return false;
     } else if (status == LUA_ERRMEM) {
-        std::cerr << "ERROR: Out of memory while parsing Lua code: \"" << str << "\"" << std::endl;
+        std::cerr << "ERROR: Out of memory while parsing Lua snippet: \"" << str << "\"" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -225,7 +241,7 @@ bool interpreter_exec_snippet (const std::string &str, const std::vector<std::st
 }
 
 
-void interpreter_exec_interactively ()
+void interpreter_exec_interactively (const std::string &prompt)
 {
     // STACK: []
 
@@ -239,17 +255,23 @@ void interpreter_exec_interactively ()
             char buffer[LUA_MAXINPUT];
             char *b = buffer;
 
-            if (lua_readline(L, b, "luaimg> ") == 0) {
+            if (lua_readline(L, b, prompt.c_str()) == 0) {
                 // end of stdin, exit cleanly
                 break;
             }
             input = b;
         }
 
+        if (input == "") continue;
+
         // trim newline if it has one
         if (input.back() == '\n') input.erase(input.length()-1);
 
         if (input == "") continue;
+
+        lua_pushstring(L, input.c_str());
+        lua_saveline(L, -1);
+        lua_pop(L, 1);
 
         ///////////
         // PARSE //
@@ -278,6 +300,9 @@ void interpreter_exec_interactively ()
             } else {
 
                 // STACK: [err]
+                const char *msg = lua_tostring(L, -1);
+                std::cerr << msg << std::endl;
+
                 lua_pop(L, 1);
 
                 // STACK: []
@@ -309,10 +334,14 @@ void interpreter_init (void)
     }       
                 
     luaL_openlibs(L);
+
+    lua_wrappers_image_init(L);
 }
 
 void interpreter_shutdown (void)
 {
+    lua_wrappers_image_shutdown(L);
+
     lua_close(L);
     L = NULL;
 }

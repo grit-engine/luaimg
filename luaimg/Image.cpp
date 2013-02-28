@@ -27,7 +27,7 @@
 #include "Image.h"
 
 
-Image *image_load (const std::string &filename)
+ImageBase *image_load (const std::string &filename)
 {
 
     FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(filename.c_str(), 0);
@@ -48,15 +48,15 @@ Image *image_load (const std::string &filename)
         return NULL;
     }
 
-    Image *my_image = new Image(FreeImage_GetWidth(input), FreeImage_GetHeight(input));
+    Image<3> *my_image = new Image<3>(FreeImage_GetWidth(input), FreeImage_GetHeight(input));
 
     for (unsigned y=0 ; y<my_image->height ; ++y) {
         for (unsigned x=0 ; x<my_image->width ; ++x) {
             RGBQUAD pixel;
             FreeImage_GetPixelColor(input, x, y, &pixel);
-            my_image->pixel(x, y).r = pixel.rgbRed;
-            my_image->pixel(x, y).g = pixel.rgbGreen;
-            my_image->pixel(x, y).b = pixel.rgbBlue;
+            my_image->pixel(x, y)[0] = pixel.rgbRed;
+            my_image->pixel(x, y)[1] = pixel.rgbGreen;
+            my_image->pixel(x, y)[2] = pixel.rgbBlue;
         }
     }
             

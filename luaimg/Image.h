@@ -19,30 +19,57 @@
  * THE SOFTWARE.
  */
 
+#include <ostream>
 #include <string>
 
-struct RGB;
-class Image;
+template<int ch> struct Pixel;
+template<int ch> class Image;
+class ImageBase;
 
 #ifndef IMAGE_H
 #define IMAGE_H
 
-struct RGB {
-    float r, g, b;
+/* Main purpose of this is to avoid C/C++ stupid array type syntax. */
+template<int ch> struct Pixel {
+    float v[ch];
+    const float &operator[] (int i) const { return v[i]; }
+    float &operator[] (int i) { return v[i]; }
 };
 
+static inline std::ostream &operator<<(std::ostream &o, const Pixel<3> &p)
+{
+    o << "(" << p[0] << ", " << p[1] << ", " << p[2] << ")";
+    return o;
+}
 
-class Image {
 
-    RGB * data;
+class ImageBase {
 
     public:
 
-    const unsigned height, width;
-    Image (unsigned height, unsigned width)
-      : height(height), width(width)
+    const unsigned width, height;
+    ImageBase (unsigned width, unsigned height)
+      : width(width), height(height)
     {
-        data = new RGB[size()];
+    }
+
+    unsigned long numPixels() { return (unsigned long)(height) * width; };
+
+    virtual ~ImageBase (void) { }
+
+    virtual int channels() = 0;
+};
+
+template<int ch> class Image : public ImageBase {
+
+    Pixel<ch> * data;
+
+    public:
+
+    Image (unsigned width, unsigned height)
+      : ImageBase(width, height)
+    {
+        data = new Pixel<ch>[numPixels()];
     }
 
     ~Image (void)
@@ -50,17 +77,27 @@ class Image {
         delete data;
     }
 
-    unsigned long size() { return (unsigned long)(height) * width; };
+    Pixel<ch> &pixel (unsigned x, unsigned y) { return data[y*width+x]; }
 
-    RGB &pixel (unsigned x, unsigned y) { return data[y*width+x]; }
+    int channels (void) { return ch; }
 };
 
-Image *image_load (const std::string &filename);
+ImageBase *image_load (const std::string &filename);
 
-static inline std::ostream &operator<<(std::ostream &o, const RGB &p)
+template<int ch> Image<ch> *image_make (unsigned width, unsigned height, float (&init)[ch])
 {
-    o << "(" << p.r << ", " << p.g << ", " << p.b << ")";
-    return o;
+    Image<ch> *my_image = new Image<ch>(width, height);
+
+    for (unsigned y=0 ; y<my_image->height ; ++y) {
+        for (unsigned x=0 ; x<my_image->width ; ++x) {
+            for (unsigned c=0 ; c<ch ; ++c) {
+                my_image->pixel(x, y)[c] = init[c];
+            }
+        }
+    }
+
+    return my_image;
+    
 }
 
 #endif
