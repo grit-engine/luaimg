@@ -247,7 +247,7 @@ void interpreter_exec_interactively ()
         }
 
         // trim newline if it has one
-        if (input.back() == '\n') input.pop_back();
+        if (input.back() == '\n') input.erase(input.length()-1);
 
         if (input == "") continue;
 
