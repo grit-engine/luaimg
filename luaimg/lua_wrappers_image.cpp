@@ -164,10 +164,25 @@ static int image_index (lua_State *L)
 
 static int image_call (lua_State *L)
 {
-    check_args(L,3);
+    float x_, y_;
+    unsigned x;
+    unsigned y;
+    switch (lua_gettop(L)) {
+        case 2:
+        lua_checkvector2(L, 2, &x_, &y_);
+        x = x_ < 0 ? 0 : x_ > 65535 ? 65535 : x_;
+        y = y_ < 0 ? 0 : y_ > 65535 ? 65535 : y_;
+        break;
+        case 3:
+        x = check_t<unsigned>(L, 2);
+        y = check_t<unsigned>(L, 3);
+        break;
+        default:
+        my_lua_error(L, "Only allowed: image(x,y) or image(vector2(x,y))");
+        return 1;
+    }
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    unsigned x = check_t<unsigned>(L, 2);
-    unsigned y = check_t<unsigned>(L, 3);
+
     if (x>self->width || y>self->height) {
         std::stringstream ss;
         ss << "Pixel coordinates out of range: (" << x << "," << y << ")";
@@ -268,14 +283,14 @@ static int global_make (lua_State *L)
                                 } else {
                                     delete my_image;
                                     std::stringstream ss;
-                                    ss << "While making an array at position (" << x << "," << y << "): returned value was not a vector3.";
+                                    ss << "While initialising the image at (" << x << "," << y << "): returned value was not a vector3.";
                                     my_lua_error(L, ss.str());
                                 }
                             } else {
                                 const char *msg = lua_tostring(L, -1);
                                 delete my_image;
                                 std::stringstream ss;
-                                ss << "While making an array at position (" << x << "," << y << "): " << msg;
+                                ss << "While initialising the image at (" << x << "," << y << "): " << msg;
                                 my_lua_error(L, ss.str());
                             }
                             lua_pop(L, 1);
@@ -299,8 +314,18 @@ static int global_make (lua_State *L)
     return 1;
 }
 
+static int global_open (lua_State *L)
+{
+    check_args(L,1);
+    std::string filename = luaL_checkstring(L,1);
+    ImageBase *image = image_load(filename);
+    lua_push_image(L, image);
+    return 1;
+}
+
 static const luaL_reg global[] = {
     {"make", global_make},
+    {"open", global_open},
 
     {NULL, NULL}
 };
