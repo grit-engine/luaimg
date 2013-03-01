@@ -26,7 +26,7 @@
 #include <sstream>
 #include <iostream>
 
-#include <FreeImage.h>
+#include <FreeImagePlus.h>
 
 extern "C" {
     #include "lua.h"

@@ -22,18 +22,18 @@
 #include <ostream>
 #include <string>
 
-template<int ch> struct Pixel;
-template<int ch> class Image;
+template<unsigned ch> struct Pixel;
+template<unsigned ch> class Image;
 class ImageBase;
 
 #ifndef IMAGE_H
 #define IMAGE_H
 
 /* Main purpose of this is to avoid C/C++ stupid array type syntax. */
-template<int ch> struct Pixel {
+template<unsigned ch> struct Pixel {
     float v[ch];
-    const float &operator[] (int i) const { return v[i]; }
-    float &operator[] (int i) { return v[i]; }
+    const float &operator[] (unsigned i) const { return v[i]; }
+    float &operator[] (unsigned i) { return v[i]; }
 };
 
 static inline std::ostream &operator<<(std::ostream &o, const Pixel<3> &p)
@@ -57,10 +57,10 @@ class ImageBase {
 
     virtual ~ImageBase (void) { }
 
-    virtual int channels() = 0;
+    virtual unsigned channels() = 0;
 };
 
-template<int ch> class Image : public ImageBase {
+template<unsigned ch> class Image : public ImageBase {
 
     Pixel<ch> * data;
 
@@ -79,12 +79,14 @@ template<int ch> class Image : public ImageBase {
 
     Pixel<ch> &pixel (unsigned x, unsigned y) { return data[y*width+x]; }
 
-    int channels (void) { return ch; }
+    unsigned channels (void) { return ch; }
 };
 
 ImageBase *image_load (const std::string &filename);
 
-template<int ch> Image<ch> *image_make (unsigned width, unsigned height, float (&init)[ch])
+bool image_save (ImageBase *image, const std::string &filename);
+
+template<unsigned ch> Image<ch> *image_make (unsigned width, unsigned height, float (&init)[ch])
 {
     Image<ch> *my_image = new Image<ch>(width, height);
 

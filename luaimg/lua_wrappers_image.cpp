@@ -22,7 +22,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include <memory>
+#include <algorithm>
 
 extern "C" {
     #include "lua.h"
@@ -67,19 +67,41 @@ void check_is_function (lua_State *L, int index)
     }
 }
 
+template<class T> T* check_ptr (lua_State *L, int index, const char *tag)
+{
+    return *static_cast<T**>(luaL_checkudata(L, index, tag));
+}
+
+
+lua_Number check_int (lua_State *l, int stack_index,
+              lua_Number min, lua_Number max)
+{
+    lua_Number n = luaL_checknumber(l, stack_index);
+    if (n<min || n>max || n!=floor(n)) {
+        std::stringstream msg;
+        msg << "Not an integer ["<<min<<","<<max<<"]: " << n;
+        my_lua_error(l,msg.str());
+    }
+    return n;
+}
+
+template <typename T>
+T check_t (lua_State *l, int stack_index,
+           T min = std::numeric_limits<T>::min(),
+           T max = std::numeric_limits<T>::max())
+{
+    return (T) check_int(l, stack_index, min, max);
+}
+
 
 
 
 void lua_push_image (lua_State *L, ImageBase *image)
 {
-    (void) image;
-    lua_pushnil(L);
-}
-
-
-template<class T> T* check_ptr (lua_State *L, int index, const char *tag)
-{
-    return static_cast<T*>(luaL_checkudata(L, index, tag));
+    void **self_ptr = static_cast<void**>(lua_newuserdata(L, sizeof(*self_ptr)));
+    *self_ptr = image;
+    luaL_getmetatable(L, IMAGE_TAG);
+    lua_setmetatable(L, -2);
 }
 
 
@@ -110,13 +132,68 @@ static int image_tostring (lua_State *L)
     return 1;
 }
 
+static int image_save (lua_State *L)
+{
+    check_args(L,2);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    std::string filename = lua_tostring(L, 2);
+    if (!image_save(self, filename)) my_lua_error(L, "Could not save: \""+filename+"\"");
+    return 0;
+}
+
 static int image_index (lua_State *L)
 {
     check_args(L,2);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     const char *key = luaL_checkstring(L, 2);
-    (void) self;
-    lua_pushstring(L, key);
+    if (!::strcmp(key, "channels")) {
+        lua_pushnumber(L, self->channels());
+    } else if (!::strcmp(key, "width")) {
+        lua_pushnumber(L, self->width);
+    } else if (!::strcmp(key, "height")) {
+        lua_pushnumber(L, self->height);
+    } else if (!::strcmp(key, "size")) {
+        lua_pushvector2(L, self->width, self->height);
+    } else if (!::strcmp(key, "save")) {
+        lua_pushcfunction(L, image_save);
+    } else {
+        my_lua_error(L, "Not a readable Image field: \""+std::string(key)+"\"");
+    }
+    return 1;
+}
+
+static int image_call (lua_State *L)
+{
+    check_args(L,3);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    unsigned x = check_t<unsigned>(L, 2);
+    unsigned y = check_t<unsigned>(L, 3);
+    if (x>self->width || y>self->height) {
+        std::stringstream ss;
+        ss << "Pixel coordinates out of range: (" << x << "," << y << ")";
+        my_lua_error(L, ss.str());
+    }
+    switch (self->channels()) {
+        case 1:
+        lua_pushnumber(L, static_cast<Image<1>*>(self)->pixel(x,y)[0]);
+        break;
+
+        case 2:
+        lua_pushvector2(L, static_cast<Image<2>*>(self)->pixel(x,y)[0],
+                           static_cast<Image<2>*>(self)->pixel(x,y)[1]);
+        break;
+
+        case 3:
+        lua_pushvector3(L, static_cast<Image<3>*>(self)->pixel(x,y)[0],
+                           static_cast<Image<3>*>(self)->pixel(x,y)[1],
+                           static_cast<Image<3>*>(self)->pixel(x,y)[2]);
+        break;
+
+        case 4:
+
+        default:
+        my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
+    }
     return 1;
 }
 
@@ -126,6 +203,7 @@ const luaL_reg image_meta_table[] = {
     {"__gc",       image_gc},
     {"__index",    image_index},
     {"__eq",       image_eq},
+    {"__call",     image_call},
     //{"__mul",      image_mul},
     //{"__unm",      image_unm}, 
     //{"__add",      image_add}, 
@@ -161,15 +239,52 @@ static int global_make (lua_State *L)
         case LUA_TVECTOR3: {
             if (channels != 3) my_lua_error(L, "If initial colour is a vector3, image must have 3 channels.");
             float init[3];
-            lua_checkvector3(L, 3, &init[0], &init[1], &init[3]);
+            lua_checkvector3(L, 3, &init[0], &init[1], &init[2]);
             image = image_make(width, height, init);
         }
         break;
         case LUA_TFUNCTION: {
             switch (channels) {
                 case 1:
+                my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+
                 case 2:
-                case 3:
+                my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+
+                case 3: {
+                    Image<3> *my_image = new Image<3>(width, height);
+                    for (unsigned y=0 ; y<my_image->height ; ++y) {
+                        for (unsigned x=0 ; x<my_image->width ; ++x) {
+                            lua_pushvalue(L, 3);
+                            lua_pushvector2(L, x, y);
+                            int status = lua_pcall(L, 1, 1, 0); 
+                            if (status == 0) {
+                                if (lua_type(L,-1) == LUA_TVECTOR3) {
+                                    float r,g,b;
+                                    lua_checkvector3(L, -1, &r, &g, &b);
+                                    my_image->pixel(x, y)[0] = r;
+                                    my_image->pixel(x, y)[1] = g;
+                                    my_image->pixel(x, y)[2] = b;
+                                } else {
+                                    delete my_image;
+                                    std::stringstream ss;
+                                    ss << "While making an array at position (" << x << "," << y << "): returned value was not a vector3.";
+                                    my_lua_error(L, ss.str());
+                                }
+                            } else {
+                                const char *msg = lua_tostring(L, -1);
+                                delete my_image;
+                                std::stringstream ss;
+                                ss << "While making an array at position (" << x << "," << y << "): " << msg;
+                                my_lua_error(L, ss.str());
+                            }
+                            lua_pop(L, 1);
+                        }   
+                    }   
+                    image = my_image;
+                }
+                break;
+
                 case 4:
                 default:
                 my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
