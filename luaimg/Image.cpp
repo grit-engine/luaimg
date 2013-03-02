@@ -19,6 +19,8 @@
  * THE SOFTWARE.
  */
 
+#include <cmath>
+
 #include <string>
 #include <iostream>
 

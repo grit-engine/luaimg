@@ -99,6 +99,7 @@ static int execute_code (const std::vector<std::string> &args=no_args)
 {
     // STACK: [func]
     int base = lua_gettop(L);
+    lua_checkstack(L, args.size()+10);
     for (unsigned i=0 ; i<args.size() ; ++i) lua_pushstring(L,args[i].c_str());
     // STACK: [func, args...]
     lua_pushcfunction(L, my_lua_error_handler);
@@ -332,8 +333,26 @@ void interpreter_init (void)
         std::cerr << "Internal error: could not create Lua state." << std::endl;
         exit(EXIT_FAILURE);
     }       
-                
-    luaL_openlibs(L);
+
+    lua_pushcfunction(L, luaopen_base);   lua_pushstring(L, ""); lua_call(L, 1, 0);
+    lua_pushcfunction(L, luaopen_table);  lua_pushstring(L, "table"); lua_call(L, 1, 0);
+    //lua_pushcfunction(L, luaopen_io);     lua_pushstring(L, "io"); lua_call(L, 1, 0);
+    //lua_pushcfunction(L, luaopen_os);     lua_pushstring(L, "os"); lua_call(L, 1, 0);
+    lua_pushcfunction(L, luaopen_string); lua_pushstring(L, "string"); lua_call(L, 1, 0);
+    lua_pushcfunction(L, luaopen_math);   lua_pushstring(L, "math"); lua_call(L, 1, 0);
+    //lua_pushcfunction(L, luaopen_debug);  lua_pushstring(L, "debug"); lua_call(L, 1, 0);
+
+    // Move all members of math to the top level (i.e. become global funtions, vars, etc)
+    lua_getfield(L, LUA_GLOBALSINDEX, "math");
+    int t = lua_gettop(L);
+    for (lua_pushnil(L) ; lua_next(L,t)!=0 ; lua_pop(L,1)) {
+        int key = lua_gettop(L) - 1;
+        int val = lua_gettop(L);
+        lua_pushvalue(L, key);
+        lua_pushvalue(L, val);
+        lua_settable(L, LUA_GLOBALSINDEX);
+    }
+    lua_pop(L,1); // math table
 
     lua_wrappers_image_init(L);
 }
