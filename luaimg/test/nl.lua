@@ -45,14 +45,20 @@ without_names = {
 
 }
 
+function is_northern_lights(pix)
+    local r, g, b = pix.x, pix.y, pix.z;
+    local qty1 = g - (0.95*b + 0.06)
+    local qty2 = g - (0.95*r + 0.06)
+    local qty = min(qty1, qty2)
+    qty = pow(qty,0.2)
+    return qty
+end
+
 function process_names(list, stats)
     for _,fname in ipairs(list) do
         local counter = 0
         open(fname):foreach(function(pix)
-            local r, g, b = pix.x, pix.y, pix.z;
-            local qty1 = g - (0.95*b + 0.1)
-            local qty2 = g - (0.95*r + 0.1)
-            local qty = min(qty1, qty2)
+            local qty = is_northern_lights(pix)
             if qty > 0 then
                 counter = counter + qty
             end
@@ -65,11 +71,7 @@ function map_names(list, stats)
     for _,fname in ipairs(list) do
         local counter = 0
         open(fname):map(3,function(pix)
-            local r, g, b = pix.x, pix.y, pix.z;
-            local qty1 = g - (0.95*b + 0.06)
-            local qty2 = g - (0.95*r + 0.06)
-            local qty = min(qty1, qty2)
-            qty = pow(qty,0.2)
+            local qty = is_northern_lights(pix)
             if qty > 0 then
                 counter = counter + qty
                 return vector3(1,qty,qty)
@@ -82,7 +84,7 @@ function map_names(list, stats)
     end
 end
 
---process_names(with_names, with_stats)
---process_names(without_names, without_stats)
-map_names(with_names, with_stats)
-map_names(without_names, without_stats)
+process_names(with_names, with_stats)
+process_names(without_names, without_stats)
+--map_names(with_names, with_stats)
+--map_names(without_names, without_stats)
