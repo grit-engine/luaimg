@@ -266,7 +266,7 @@ void interpreter_exec_interactively (const std::string &prompt)
         if (input == "") continue;
 
         // trim newline if it has one
-        if (input.back() == '\n') input.erase(input.length()-1);
+        if (input[input.length()-1] == '\n') input.erase(input.length()-1);
 
         if (input == "") continue;
 

@@ -79,11 +79,12 @@ std::string next_arg(int& so_far, int argc, char **argv)
         return argv[so_far++];
 }
 
+enum FileOrSnippet { F, S };
+
 int main (int argc, char **argv)
 {
 
     bool interactive = false;
-    enum FileOrSnippet { F, S };
     typedef std::vector<std::pair<FileOrSnippet,std::string>> Work;
     Work work;
     int so_far = 1; 

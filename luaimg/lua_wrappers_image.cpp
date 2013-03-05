@@ -23,6 +23,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <limits>
 #include <algorithm>
 
 extern "C" {
@@ -430,29 +431,29 @@ static int image_reduce (lua_State *L)
     switch (self->channels()) {
         case 1: {
             Pixel<1> p;
-            check_pixel(L, p, 2);
-            reduce_with_lua_func(L, self, p, 3);
+            if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
+            else reduce_with_lua_func(L, self, p, 3);
         }
         break;
 
         case 2: {
             Pixel<2> p;
-            check_pixel(L, p, 2);
-            reduce_with_lua_func(L, self, p, 3);
+            if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
+            else reduce_with_lua_func(L, self, p, 3);
         }
         break;
 
         case 3: {
             Pixel<3> p;
-            check_pixel(L, p, 2);
-            reduce_with_lua_func(L, self, p, 3);
+            if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
+            else reduce_with_lua_func(L, self, p, 3);
         }
         break;
 
         case 4: {
             //Pixel<4> p;
-            //check_pixel(L, p, 2);
-            //reduce_with_lua_func(L, self, p, 3);
+            //if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
+            //else reduce_with_lua_func(L, self, p, 3);
         }
         //break;
 
