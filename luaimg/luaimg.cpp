@@ -153,16 +153,6 @@ int main (int argc, char **argv)
         interpreter_exec_interactively(prompt);
     } 
 
-/*
-    Image *my_image = image_load("derp.png");
-    if (my_image == NULL) {
-        std::cerr << "A load error has occured." << std::endl;
-        return EXIT_FAILURE;
-    }
-    std::cout << my_image->pixel(50,50) << std::endl;
-    delete my_image;
-*/
-
     interpreter_shutdown();
 
     FreeImage_DeInitialise();

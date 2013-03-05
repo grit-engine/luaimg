@@ -336,11 +336,11 @@ void interpreter_init (void)
 
     lua_pushcfunction(L, luaopen_base);   lua_pushstring(L, ""); lua_call(L, 1, 0);
     lua_pushcfunction(L, luaopen_table);  lua_pushstring(L, "table"); lua_call(L, 1, 0);
-    //lua_pushcfunction(L, luaopen_io);     lua_pushstring(L, "io"); lua_call(L, 1, 0);
-    //lua_pushcfunction(L, luaopen_os);     lua_pushstring(L, "os"); lua_call(L, 1, 0);
+    lua_pushcfunction(L, luaopen_io);     lua_pushstring(L, "io"); lua_call(L, 1, 0);
+    lua_pushcfunction(L, luaopen_os);     lua_pushstring(L, "os"); lua_call(L, 1, 0);
     lua_pushcfunction(L, luaopen_string); lua_pushstring(L, "string"); lua_call(L, 1, 0);
     lua_pushcfunction(L, luaopen_math);   lua_pushstring(L, "math"); lua_call(L, 1, 0);
-    //lua_pushcfunction(L, luaopen_debug);  lua_pushstring(L, "debug"); lua_call(L, 1, 0);
+    lua_pushcfunction(L, luaopen_debug);  lua_pushstring(L, "debug"); lua_call(L, 1, 0);
 
     // Move all members of math to the top level (i.e. become global funtions, vars, etc)
     lua_getfield(L, LUA_GLOBALSINDEX, "math");

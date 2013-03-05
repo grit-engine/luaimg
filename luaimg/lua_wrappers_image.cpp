@@ -34,6 +34,7 @@ extern "C" {
 #include "lua_wrappers_image.h"
 
 #include "Image.h"
+#include "VoxelImage.h"
 
 static void push_string (lua_State *L, const std::string &str) { lua_pushstring(L, str.c_str()); }
 
@@ -99,15 +100,15 @@ T check_t (lua_State *l, int stack_index,
     return (T) check_int(l, stack_index, min, max);
 }
 
-static void check_coord (lua_State *L, int index, unsigned &x, unsigned &y)
+static void check_coord (lua_State *L, int index, imglen_t &x, imglen_t &y)
 {
     float x_, y_;
     lua_checkvector2(L, index, &x_, &y_);
-    x = x_ < 0 ? 0 : x_ > 65535 ? 65535 : x_;
-    y = y_ < 0 ? 0 : y_ > 65535 ? 65535 : y_;
+    x = x_ < 0 ? 0 : x_ > std::numeric_limits<imglen_t>::max() ? std::numeric_limits<imglen_t>::max() : x_;
+    y = y_ < 0 ? 0 : y_ > std::numeric_limits<imglen_t>::max() ? std::numeric_limits<imglen_t>::max() : y_;
 }
 
-template<unsigned ch> bool check_pixel (lua_State *L, Pixel<ch> &p, int index);
+template<chan_t ch> bool check_pixel (lua_State *L, Pixel<ch> &p, int index);
 
 template<> bool check_pixel<1> (lua_State *L, Pixel<1> &p, int index)
 {
@@ -140,7 +141,7 @@ template<> bool check_pixel<4> (lua_State *L, Pixel<4> &p, int index)
 */
 
 
-template<unsigned ch> void push_pixel (lua_State *L, Pixel<ch> &p);
+template<chan_t ch> void push_pixel (lua_State *L, Pixel<ch> &p);
 
 template<> void push_pixel<1> (lua_State *L, Pixel<1> &p)
 {
@@ -218,15 +219,64 @@ static int image_save (lua_State *L)
     return 0;
 }
 
-template<unsigned src_ch, unsigned dst_ch> Image<dst_ch> *map_with_lua_func (lua_State *L, ImageBase *src_, int func_index)
+template<chan_t ch> void foreach (lua_State *L, ImageBase *self_, int func_index)
+{
+    Image<ch> *self = static_cast<Image<ch>*>(self_);
+    for (imglen_t y=0 ; y<self->height ; ++y) {
+        for (imglen_t x=0 ; x<self->width ; ++x) {
+            lua_pushvalue(L, func_index);
+            push_pixel<ch>(L, self->pixel(x,y));
+            lua_pushvector2(L, x, y);
+            int status = lua_pcall(L, 2, 0, 0); 
+            if (status != 0) {
+                const char *msg = lua_tostring(L, -1);
+                std::stringstream ss;
+                ss << "During foreach on image at (" << x << "," << y << "): " << msg;
+                my_lua_error(L, ss.str());
+            }
+        }
+    }   
+}
+
+static int image_foreach (lua_State *L)
+{
+    check_args(L,2);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    check_is_function(L, 2);
+
+    switch (self->channels()) {
+        case 1:
+        foreach<1>(L, self, 2);
+        break;
+
+        case 2:
+        foreach<2>(L, self, 2);
+        break;
+
+        case 3:
+        foreach<3>(L, self, 2);
+        break;
+
+        case 4:
+        //foreach<4>(L, self, 2);
+        //break;
+
+        default:
+        my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+    }
+
+    return 0;
+}
+
+template<chan_t src_ch, chan_t dst_ch> Image<dst_ch> *map_with_lua_func (lua_State *L, ImageBase *src_, int func_index)
 {
     Image<src_ch> *src = static_cast<Image<src_ch>*>(src_);
-    unsigned width = src->width;
-    unsigned height = src->height;
+    imglen_t width = src->width;
+    imglen_t height = src->height;
     Image<dst_ch> *dst = new Image<dst_ch>(width, height);
     Pixel<dst_ch> p(0);
-    for (unsigned y=0 ; y<height ; ++y) {
-        for (unsigned x=0 ; x<width ; ++x) {
+    for (imglen_t y=0 ; y<height ; ++y) {
+        for (imglen_t x=0 ; x<width ; ++x) {
             lua_pushvalue(L, func_index);
             push_pixel<src_ch>(L, src->pixel(x,y));
             lua_pushvector2(L, x, y);
@@ -258,9 +308,9 @@ static int image_map (lua_State *L)
     check_args(L,3);
     // img, channels, func
     ImageBase *src = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    unsigned dst_ch = check_int(L, 2, 1, 4);
+    chan_t dst_ch = check_int(L, 2, 1, 4);
     check_is_function(L, 3);
-    unsigned src_ch = src->channels();
+    chan_t src_ch = src->channels();
     ImageBase *out = NULL;
 
     switch (src_ch) {
@@ -341,12 +391,12 @@ static int image_map (lua_State *L)
     return 1;
 }
 
-template<unsigned ch> void reduce_with_lua_func (lua_State *L, ImageBase *self_, Pixel<ch> zero, int func_index)
+template<chan_t ch> void reduce_with_lua_func (lua_State *L, ImageBase *self_, Pixel<ch> zero, int func_index)
 {
     Image<ch> *self = static_cast<Image<ch>*>(self_);
 
-    for (unsigned y=0 ; y<self->height ; ++y) {
-        for (unsigned x=0 ; x<self->width ; ++x) {
+    for (imglen_t y=0 ; y<self->height ; ++y) {
+        for (imglen_t x=0 ; x<self->width ; ++x) {
             lua_pushvalue(L, func_index);
             push_pixel<ch>(L, zero);
             push_pixel<ch>(L, self->pixel(x,y));
@@ -417,7 +467,7 @@ static int image_crop (lua_State *L)
 {
     check_args(L, 3);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    unsigned left, bottom, width, height;
+    imglen_t left, bottom, width, height;
     check_coord(L, 2, left, bottom);
     check_coord(L, 3, width, height);
     if (bottom+height >= self->height || left+width >= self->width) {
@@ -458,6 +508,54 @@ static int image_pow (lua_State *L)
     return 1;
 }
 
+static int image_set (lua_State *L)
+{
+    check_args(L,3);
+    imglen_t x;
+    imglen_t y;
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    check_coord(L, 2, x, y);
+
+    if (x>=self->width || y>=self->height) {
+        std::stringstream ss;
+        ss << "Pixel coordinates out of range: (" << x << "," << y << ")";
+        my_lua_error(L, ss.str());
+    }
+    switch (self->channels()) {
+        case 1: {
+            Pixel<1> p;
+            check_pixel(L, p, 3);
+            static_cast<Image<1>*>(self)->pixel(x,y) = p;
+        }
+        break;
+
+        case 2: {
+            Pixel<2> p;
+            check_pixel(L, p, 3);
+            static_cast<Image<2>*>(self)->pixel(x,y) = p;
+        }
+        break;
+
+        case 3: {
+            Pixel<3> p;
+            check_pixel(L, p, 3);
+            static_cast<Image<3>*>(self)->pixel(x,y) = p;
+        }
+        break;
+
+        case 4: {
+            //Pixel<4> p;
+            //check_pixel(L, p, 3);
+            //static_cast<Image<4>*>(self)->pixel(x,y) = p;
+        }
+        //break;
+
+        default:
+        my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
+    }
+    return 1;
+}
+
 static int image_index (lua_State *L)
 {
     check_args(L,2);
@@ -473,6 +571,8 @@ static int image_index (lua_State *L)
         lua_pushvector2(L, self->width, self->height);
     } else if (!::strcmp(key, "save")) {
         lua_pushcfunction(L, image_save);
+    } else if (!::strcmp(key, "foreach")) {
+        lua_pushcfunction(L, image_foreach);
     } else if (!::strcmp(key, "map")) {
         lua_pushcfunction(L, image_map);
     } else if (!::strcmp(key, "reduce")) {
@@ -485,6 +585,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_rms);
     } else if (!::strcmp(key, "pow")) {
         lua_pushcfunction(L, image_pow);
+    } else if (!::strcmp(key, "set")) {
+        lua_pushcfunction(L, image_set);
     } else {
         my_lua_error(L, "Not a readable Image field: \""+std::string(key)+"\"");
     }
@@ -493,15 +595,15 @@ static int image_index (lua_State *L)
 
 static int image_call (lua_State *L)
 {
-    unsigned x;
-    unsigned y;
+    imglen_t x;
+    imglen_t y;
     switch (lua_gettop(L)) {
         case 2:
         check_coord(L, 2, x, y);
         break;
         case 3:
-        x = check_t<unsigned>(L, 2);
-        y = check_t<unsigned>(L, 3);
+        x = check_t<imglen_t>(L, 2);
+        y = check_t<imglen_t>(L, 3);
         break;
         default:
         my_lua_error(L, "Only allowed: image(x,y) or image(vector2(x,y))");
@@ -516,15 +618,15 @@ static int image_call (lua_State *L)
     }
     switch (self->channels()) {
         case 1:
-        push_pixel<1>(L, static_cast<Pixel<1>&>(self->pixel(x,y)));
+        push_pixel<1>(L, static_cast<Pixel<1>&>(self->pixelSlow(x,y)));
         break;
 
         case 2:
-        push_pixel<2>(L, static_cast<Pixel<2>&>(self->pixel(x,y)));
+        push_pixel<2>(L, static_cast<Pixel<2>&>(self->pixelSlow(x,y)));
         break;
 
         case 3:
-        push_pixel<3>(L, static_cast<Pixel<3>&>(self->pixel(x,y)));
+        push_pixel<3>(L, static_cast<Pixel<3>&>(self->pixelSlow(x,y)));
         break;
 
         case 4:
@@ -788,12 +890,103 @@ const luaL_reg image_meta_table[] = {
 
 
 
-template<unsigned ch> Image<ch> *image_from_lua_func (lua_State *L, unsigned width, unsigned height, int func_index)
+
+
+void push_vimage (lua_State *L, VoxelImage *image)
+{
+    if (image == NULL) {
+        std::cerr << "INTERNAL ERROR: pushing a null image" << std::endl;
+        abort();
+    }
+    void **self_ptr = static_cast<void**>(lua_newuserdata(L, sizeof(*self_ptr)));
+    *self_ptr = image;
+    luaL_getmetatable(L, VIMAGE_TAG);
+    lua_setmetatable(L, -2);
+}
+
+
+static int vimage_gc (lua_State *L)
+{ 
+    check_args(L, 1); 
+    VoxelImage *self = check_ptr<VoxelImage>(L, 1, VIMAGE_TAG);
+    delete self; 
+    return 0; 
+}
+
+static int vimage_eq (lua_State *L)
+{
+    check_args(L, 2); 
+    VoxelImage *self = check_ptr<VoxelImage>(L, 1, VIMAGE_TAG);
+    VoxelImage *that = check_ptr<VoxelImage>(L, 2, VIMAGE_TAG);
+    lua_pushboolean(L, self==that); 
+    return 1; 
+}
+
+static int vimage_tostring (lua_State *L)
+{
+    check_args(L,1);
+    VoxelImage *self = check_ptr<VoxelImage>(L, 1, VIMAGE_TAG);
+    std::stringstream ss;
+    ss << *self;
+    push_string(L, ss.str());
+    return 1;
+}
+
+static int vimage_render (lua_State *L)
+{
+    check_args(L,3);
+    VoxelImage *self = check_ptr<VoxelImage>(L, 1, VIMAGE_TAG);
+    imglen_t width, height;
+    check_coord(L, 2, width, height);
+    float x,y,z;
+    lua_checkvector3(L, 3, &x, &y, &z);
+
+    Image<3> *rendered = new Image<3>(width, height);
+
+    self->render(rendered, x, y, z);
+
+    push_image(L, rendered);
+    return 1;
+}
+
+static int vimage_index (lua_State *L)
+{
+    check_args(L,2);
+    VoxelImage *self = check_ptr<VoxelImage>(L, 1, VIMAGE_TAG);
+    const char *key = luaL_checkstring(L, 2);
+    if (!::strcmp(key, "width")) {
+        lua_pushnumber(L, self->width);
+    } else if (!::strcmp(key, "height")) {
+        lua_pushnumber(L, self->height);
+    } else if (!::strcmp(key, "depth")) {
+        lua_pushnumber(L, self->depth);
+    } else if (!::strcmp(key, "size")) {
+        lua_pushvector3(L, self->width, self->height, self->depth);
+    } else if (!::strcmp(key, "render")) {
+        lua_pushcfunction(L, vimage_render);
+    } else {
+        my_lua_error(L, "Not a readable VoxelImage field: \""+std::string(key)+"\"");
+    }
+    return 1;
+}
+
+const luaL_reg vimage_meta_table[] = {
+    {"__tostring", vimage_tostring},
+    {"__gc",       vimage_gc},
+    {"__index",    vimage_index},
+    {"__eq",       vimage_eq},
+
+    {NULL, NULL}
+};
+
+
+
+template<chan_t ch> Image<ch> *image_from_lua_func (lua_State *L, imglen_t width, imglen_t height, int func_index)
 {
     Image<ch> *my_image = new Image<ch>(width, height);
     Pixel<ch> p(0);
-    for (unsigned y=0 ; y<height ; ++y) {
-        for (unsigned x=0 ; x<width ; ++x) {
+    for (imglen_t y=0 ; y<height ; ++y) {
+        for (imglen_t x=0 ; x<width ; ++x) {
             lua_pushvalue(L, func_index);
             lua_pushvector2(L, x, y);
             int status = lua_pcall(L, 1, 1, 0); 
@@ -823,16 +1016,9 @@ static int global_make (lua_State *L)
 {
     check_args(L,3);
     // sz, channels, func
-    float width_, height_;
-    lua_checkvector2(L, 1, &width_, &height_);
-    unsigned channels = check_int(L, 2, 1, 4);
-    if (width_<0 || height_<0 || width_>65536 || height_ > 65536) {
-        std::stringstream ss;
-        ss << "Tried to make an image with invalid dimensions (" << width_ << "," << height_ << ")";
-        my_lua_error(L, ss.str());
-    }
-    unsigned width = unsigned(width_);
-    unsigned height = unsigned(height_);
+    imglen_t width, height;
+    check_coord(L, 1, width, height);
+    chan_t channels = check_int(L, 2, 1, 4);
     ImageBase *image = NULL;
     switch (lua_type(L, 3)) {
         case LUA_TNUMBER:  {
@@ -896,9 +1082,52 @@ static int global_open (lua_State *L)
     return 1;
 }
 
+static int global_rgb_to_hsl (lua_State *L)
+{
+    check_args(L,1);
+    float r,g,b;
+    lua_checkvector3(L, 1, &r, &g, &b);
+    float h,s,l;
+    RGBtoHSL(r,g,b, h,s,l);
+    lua_pushvector3(L, h,s,l);
+    return 1;
+}
+
+static int global_hsl_to_rgb (lua_State *L)
+{
+    check_args(L,1);
+    float h,s,l;
+    lua_checkvector3(L, 1, &h, &s, &l);
+    float r,g,b;
+    HSLtoRGB(h,s,l, r,g,b);
+    lua_pushvector3(L, r,g,b);
+    return 1;
+}
+
+static int global_make_voxel (lua_State *L)
+{
+    check_args(L,2);
+
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    imglen_t depth = check_t<imglen_t>(L, 2);
+    
+
+    imglen_t real_height = self->height / depth;
+    if (real_height * depth != self->height) {
+        my_lua_error(L, "Input image must have dimensions W*H where H=cube_height*cube_depth");
+    }
+    VoxelImage *vi = new VoxelImage(self->pixelSlow(0,0).raw(), self->channels(), self->width, real_height, depth, true);
+
+    push_vimage(L, vi);
+    return 1;
+}
+
 static const luaL_reg global[] = {
     {"make", global_make},
     {"open", global_open},
+    {"RGBtoHSL", global_rgb_to_hsl},
+    {"HSLtoRGB", global_hsl_to_rgb},
+    {"make_voxel", global_make_voxel},
 
     {NULL, NULL}
 };
@@ -908,6 +1137,10 @@ void lua_wrappers_image_init (lua_State *L)
 {
     luaL_newmetatable(L, IMAGE_TAG);
     luaL_register(L, NULL, image_meta_table);
+    lua_pop(L,1);
+
+    luaL_newmetatable(L, VIMAGE_TAG);
+    luaL_register(L, NULL, vimage_meta_table);
     lua_pop(L,1);
 
     luaL_register(L, "_G", global);

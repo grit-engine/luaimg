@@ -19,45 +19,55 @@
  * THE SOFTWARE.
  */
 
-#include <ostream>
-#include <string>
+#include <cinttypes>
 
-
+typedef uint32_t imglen_t;
+typedef uint8_t chan_t;
 class PixelBase;
-template<unsigned ch> struct Pixel;
+template<chan_t ch> struct Pixel;
 class ImageBase;
-template<unsigned ch> class Image;
+template<chan_t ch> class Image;
+
+void RGBtoHSL (float R, float G, float B, float &H, float &S, float &L);
+void HSLtoRGB (float H, float S, float L, float &R, float &G, float &B);
 
 #ifndef IMAGE_H
 #define IMAGE_H
 
+#include <cmath>
+
+#include <ostream>
+#include <string>
+
 struct PixelBase {
-    virtual unsigned channels() = 0;
+    virtual chan_t channels() = 0;
+    virtual float *raw() = 0;
     virtual ~PixelBase (void) { }
 };
 
 /* Main purpose of this is to avoid C/C++ stupid array type syntax. */
-template<unsigned ch> struct Pixel : PixelBase {
+template<chan_t ch> struct Pixel : PixelBase {
     Pixel () { }
-    Pixel (float d) { for (unsigned c=0 ; c<ch ; ++c) v[c] = d; }
+    Pixel (float d) { for (chan_t c=0 ; c<ch ; ++c) v[c] = d; }
     float v[ch];
-    unsigned channels() { return ch; }
-    const float &operator[] (unsigned i) const { return v[i]; }
-    float &operator[] (unsigned i) { return v[i]; }
+    chan_t channels() { return ch; }
+    virtual float *raw() { return &(*this)[0]; }
+    const float &operator[] (chan_t i) const { return v[i]; }
+    float &operator[] (chan_t i) { return v[i]; }
 
-    Pixel<ch> pow (float other) const { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = powf((*this)[c],other); return r; }
+    Pixel<ch> pow (float other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = powf((*this)[c],other); return r; }
 
-    Pixel<ch> add (const Pixel<ch> &other) const { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = (*this)[c] + other[c]; return r; }
-    Pixel<ch> sub (const Pixel<ch> &other) const { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = (*this)[c] - other[c]; return r; }
-    Pixel<ch> mul (const Pixel<ch> &other) const { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = (*this)[c] * other[c]; return r; }
-    Pixel<ch> div (const Pixel<ch> &other) const { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = (*this)[c] / other[c]; return r; }
+    Pixel<ch> add (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] + other[c]; return r; }
+    Pixel<ch> sub (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] - other[c]; return r; }
+    Pixel<ch> mul (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] * other[c]; return r; }
+    Pixel<ch> div (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] / other[c]; return r; }
 
-    Pixel<ch> unm (void) { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = -(*this)[c]; return r; }
+    Pixel<ch> unm (void) { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = -(*this)[c]; return r; }
 
-    Pixel<ch> add (float other) const { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = (*this)[c] + other; return r; }
-    Pixel<ch> sub (float other) const { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = (*this)[c] - other; return r; }
-    Pixel<ch> mul (float other) const { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = (*this)[c] * other; return r; }
-    Pixel<ch> div (float other) const { Pixel<ch> r; for (unsigned c=0 ; c<ch ; ++c) r[c] = (*this)[c] / other; return r; }
+    Pixel<ch> add (float other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] + other; return r; }
+    Pixel<ch> sub (float other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] - other; return r; }
+    Pixel<ch> mul (float other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] * other; return r; }
+    Pixel<ch> div (float other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] / other; return r; }
 };
 
 static inline std::ostream &operator<<(std::ostream &o, const Pixel<3> &p)
@@ -71,8 +81,8 @@ class ImageBase {
 
     public:
 
-    const unsigned width, height;
-    ImageBase (unsigned width, unsigned height)
+    const imglen_t width, height;
+    ImageBase (imglen_t width, imglen_t height)
       : width(width), height(height)
     {
     }
@@ -88,9 +98,9 @@ class ImageBase {
         return true;
     }
 
-    virtual PixelBase &pixel (unsigned x, unsigned y) = 0;
+    virtual PixelBase &pixelSlow (imglen_t x, imglen_t y) = 0;
 
-    virtual unsigned channels() = 0;
+    virtual chan_t channels() = 0;
 
     virtual float rms (ImageBase *other) = 0;
 
@@ -109,7 +119,7 @@ class ImageBase {
     virtual ImageBase *div (const PixelBase &other, bool swapped) = 0;
 
 
-    virtual ImageBase *crop (unsigned left, unsigned bottom, unsigned width, unsigned height) = 0;
+    virtual ImageBase *crop (imglen_t left, imglen_t bottom, imglen_t width, imglen_t height) = 0;
 
 };
 
@@ -119,13 +129,13 @@ static inline std::ostream &operator<<(std::ostream &o, ImageBase &img)
     return o;
 }
 
-template<unsigned ch> class Image : public ImageBase {
+template<chan_t ch> class Image : public ImageBase {
 
     Pixel<ch> * data;
 
     public:
 
-    Image (unsigned width, unsigned height)
+    Image (imglen_t width, imglen_t height)
       : ImageBase(width, height)
     {
         data = new Pixel<ch>[numPixels()];
@@ -136,17 +146,19 @@ template<unsigned ch> class Image : public ImageBase {
         delete [] data;
     }
 
-    virtual Pixel<ch> &pixel (unsigned x, unsigned y) { return data[y*width+x]; }
+    Pixel<ch> &pixel (imglen_t x, imglen_t y) { return data[y*width+x]; }
 
-    virtual unsigned channels (void) { return ch; }
+    virtual Pixel<ch> &pixelSlow (imglen_t x, imglen_t y) { return pixel(x,y); }
+
+    virtual chan_t channels (void) { return ch; }
 
     virtual float rms (ImageBase *other_)
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         float ret = 0;
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
-                for (unsigned c=0 ; c<ch ; ++c) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
+                for (chan_t c=0 ; c<ch ; ++c) {
                     float diff = this->pixel(x,y)[c] - other->pixel(x,y)[c];
                     ret += diff * diff;
                 }
@@ -158,8 +170,8 @@ template<unsigned ch> class Image : public ImageBase {
     virtual Image<ch> *pow (float other)
     {
         Image<ch> *ret = new Image<ch>(width, height);
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x,y) = this->pixel(x,y).pow(other);
             }
         }
@@ -170,8 +182,8 @@ template<unsigned ch> class Image : public ImageBase {
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).add(other->pixel(x, y));
             }
         }
@@ -181,8 +193,8 @@ template<unsigned ch> class Image : public ImageBase {
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).sub(other->pixel(x, y));
             }
         }
@@ -192,8 +204,8 @@ template<unsigned ch> class Image : public ImageBase {
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).mul(other->pixel(x, y));
             }
         }
@@ -203,8 +215,8 @@ template<unsigned ch> class Image : public ImageBase {
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).div(other->pixel(x, y));
             }
         }
@@ -214,8 +226,8 @@ template<unsigned ch> class Image : public ImageBase {
     virtual Image<ch> *unm (void)
     {
         Image<ch> *ret = new Image<ch>(width, height);
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x,y) = this->pixel(x,y).unm();
             }
         }
@@ -226,8 +238,8 @@ template<unsigned ch> class Image : public ImageBase {
     {
         const Pixel<ch> &p = *static_cast<Pixel<ch> const *>(&p_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).add(p);
             }
         }
@@ -238,14 +250,14 @@ template<unsigned ch> class Image : public ImageBase {
         const Pixel<ch> &p = *static_cast<Pixel<ch> const *>(&p_);
         Image<ch> *ret = new Image<ch>(width, height);
         if (swapped) {
-            for (unsigned y=0 ; y<height ; ++y) {
-                for (unsigned x=0 ; x<width ; ++x) {
+            for (imglen_t y=0 ; y<height ; ++y) {
+                for (imglen_t x=0 ; x<width ; ++x) {
                     ret->pixel(x, y) = p.sub(this->pixel(x, y));
                 }
             }
         } else {
-            for (unsigned y=0 ; y<height ; ++y) {
-                for (unsigned x=0 ; x<width ; ++x) {
+            for (imglen_t y=0 ; y<height ; ++y) {
+                for (imglen_t x=0 ; x<width ; ++x) {
                     ret->pixel(x, y) = this->pixel(x, y).sub(p);
                 }
             }
@@ -256,8 +268,8 @@ template<unsigned ch> class Image : public ImageBase {
     {
         const Pixel<ch> &p = *static_cast<Pixel<ch> const *>(&p_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).mul(p);
             }
         }
@@ -268,14 +280,14 @@ template<unsigned ch> class Image : public ImageBase {
         const Pixel<ch> &p = *static_cast<Pixel<ch> const *>(&p_);
         Image<ch> *ret = new Image<ch>(width, height);
         if (swapped) {
-            for (unsigned y=0 ; y<height ; ++y) {
-                for (unsigned x=0 ; x<width ; ++x) {
+            for (imglen_t y=0 ; y<height ; ++y) {
+                for (imglen_t x=0 ; x<width ; ++x) {
                     ret->pixel(x, y) = p.div(this->pixel(x, y));
                 }
             }
         } else {
-            for (unsigned y=0 ; y<height ; ++y) {
-                for (unsigned x=0 ; x<width ; ++x) {
+            for (imglen_t y=0 ; y<height ; ++y) {
+                for (imglen_t x=0 ; x<width ; ++x) {
                     ret->pixel(x, y) = this->pixel(x, y).div(p);
                 }
             }
@@ -284,11 +296,11 @@ template<unsigned ch> class Image : public ImageBase {
     }
 
 
-    virtual ImageBase *crop (unsigned left, unsigned bottom, unsigned w, unsigned h)
+    virtual ImageBase *crop (imglen_t left, imglen_t bottom, imglen_t w, imglen_t h)
     {
         Image<ch> *ret = new Image<ch>(w, h);
-        for (unsigned y=0 ; y<height ; ++y) {
-            for (unsigned x=0 ; x<width ; ++x) {
+        for (imglen_t y=0 ; y<height ; ++y) {
+            for (imglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x,y) = this->pixel(x+left,y+bottom);
             }
         }
@@ -301,13 +313,13 @@ ImageBase *image_load (const std::string &filename);
 
 bool image_save (ImageBase *image, const std::string &filename);
 
-template<unsigned ch> Image<ch> *image_make (unsigned width, unsigned height, float (&init)[ch])
+template<chan_t ch> Image<ch> *image_make (imglen_t width, imglen_t height, float (&init)[ch])
 {
     Image<ch> *my_image = new Image<ch>(width, height);
 
-    for (unsigned y=0 ; y<my_image->height ; ++y) {
-        for (unsigned x=0 ; x<my_image->width ; ++x) {
-            for (unsigned c=0 ; c<ch ; ++c) {
+    for (imglen_t y=0 ; y<my_image->height ; ++y) {
+        for (imglen_t x=0 ; x<my_image->width ; ++x) {
+            for (chan_t c=0 ; c<ch ; ++c) {
                 my_image->pixel(x, y)[c] = init[c];
             }
         }
