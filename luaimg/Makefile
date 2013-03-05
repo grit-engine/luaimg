@@ -28,14 +28,25 @@ clean:
 luaimg: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
 luaimg: depend_stubs/sstream depend_stubs/iostream depend_stubs/FreeImage.h
 luaimg: depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
-luaimg: interpreter.h Image.h
+luaimg: interpreter.h Image.h depend_stubs/cinttypes depend_stubs/cmath
+luaimg: depend_stubs/ostream
 luaimg: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
 luaimg: depend_stubs/iostream depend_stubs/signal.h depend_stubs/lua.h
 luaimg: depend_stubs/lauxlib.h depend_stubs/lualib.h interpreter.h
-luaimg: lua_wrappers_image.h
-luaimg: depend_stubs/string depend_stubs/iostream depend_stubs/FreeImage.h
-luaimg: Image.h
-luaimg: depend_stubs/string depend_stubs/sstream
-luaimg: depend_stubs/vector depend_stubs/lua.h
-luaimg: depend_stubs/lauxlib.h depend_stubs/lualib.h
-luaimg: lua_wrappers_image.h Image.h
+luaimg: lua_wrappers_image.h Image.h depend_stubs/cinttypes
+luaimg: depend_stubs/cmath depend_stubs/ostream
+luaimg: depend_stubs/cmath depend_stubs/string depend_stubs/iostream
+luaimg: depend_stubs/FreeImage.h Image.h depend_stubs/cinttypes
+luaimg: depend_stubs/ostream
+luaimg: depend_stubs/iostream depend_stubs/string
+luaimg: depend_stubs/sstream depend_stubs/vector
+luaimg: depend_stubs/limits depend_stubs/algorithm
+luaimg: depend_stubs/lua.h depend_stubs/lauxlib.h
+luaimg: depend_stubs/lualib.h lua_wrappers_image.h Image.h
+luaimg: depend_stubs/cinttypes depend_stubs/cmath
+luaimg: depend_stubs/ostream VoxelImage.h
+luaimg: depend_stubs/volpack.h
+luaimg: depend_stubs/cstdlib depend_stubs/iostream
+luaimg: depend_stubs/volpack.h VoxelImage.h Image.h
+luaimg: depend_stubs/cinttypes depend_stubs/cmath depend_stubs/ostream
+luaimg: depend_stubs/string
