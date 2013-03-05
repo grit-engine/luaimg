@@ -31,9 +31,9 @@ class VoxelImage {
 
     vpContext *vpc;
 
-    const int fieldRgb16 = 0;
-    const int fieldScalar = 1;
-    const int fieldGradient = 2;
+    static const int fieldRgb16 = 0;
+    static const int fieldScalar = 1;
+    static const int fieldGradient = 2;
 
     struct Voxel {
         unsigned short rgb16;
