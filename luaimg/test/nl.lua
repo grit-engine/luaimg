@@ -7,6 +7,7 @@ function is_northern_lights(pix)
     local qty1 = g - (0.95*b + 0.06)
     local qty2 = g - (0.95*r + 0.06)
     local qty = min(qty1, qty2)
+    if qty < 0 then return 0 end
     qty = pow(qty,0.2)
     return qty
 end
