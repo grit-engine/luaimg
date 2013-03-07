@@ -132,14 +132,12 @@ template<> bool check_pixel<3> (lua_State *L, Pixel<3> &p, int index)
     return true;
 }
 
-/*
 template<> bool check_pixel<4> (lua_State *L, Pixel<4> &p, int index)
 {
-    if (lua_type(L,-1) != LUA_TVECTOR3) return false;
-    lua_checkvector4(L, -1, &arr[0], &arr[1], &arr[2], &arr[3]);
+    if (lua_type(L,index) != LUA_TVECTOR4) return false;
+    lua_checkvector4(L, -1, &p[0], &p[1], &p[2], &p[3]);
     return true;
 }
-*/
 
 
 template<chan_t ch> void push_pixel (lua_State *L, Pixel<ch> &p);
@@ -159,12 +157,10 @@ template<> void push_pixel<3> (lua_State *L, Pixel<3> &p)
     lua_pushvector3(L, p[0], p[1], p[2]);
 }
 
-/*
-template<> void push_pixel<4> (lua_State *L, Pixel<4> &p);
+template<> void push_pixel<4> (lua_State *L, Pixel<4> &p)
 {
     lua_pushvector4(L, p[0], p[1], p[2], p[4]);
 }
-*/
 
 
 
@@ -259,8 +255,8 @@ static int image_foreach (lua_State *L)
         break;
 
         case 4:
-        //foreach<4>(L, self, 2);
-        //break;
+        foreach<4>(L, self, 2);
+        break;
 
         default:
         my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
@@ -330,8 +326,8 @@ static int image_map (lua_State *L)
             break;
 
             case 4:
-            //out = map_with_lua_func<1,4>(L, src, 3);
-            //break;
+            out = map_with_lua_func<1,4>(L, src, 3);
+            break;
 
             default:
             my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
@@ -353,8 +349,8 @@ static int image_map (lua_State *L)
             break;
 
             case 4:
-            //out = map_with_lua_func<3,4>(L, src, 3);
-            //break;
+            out = map_with_lua_func<3,4>(L, src, 3);
+            break;
 
             default:
             my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
@@ -376,8 +372,31 @@ static int image_map (lua_State *L)
             break;
 
             case 4:
-            //out = map_with_lua_func<3,4>(L, src, 3);
-            //break;
+            out = map_with_lua_func<3,4>(L, src, 3);
+            break;
+
+            default:
+            my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+        }
+        break;
+
+        case 4:
+        switch (dst_ch) {
+            case 1:
+            out = map_with_lua_func<4,1>(L, src, 3);
+            break;
+
+            case 2:
+            out = map_with_lua_func<4,2>(L, src, 3);
+            break;
+
+            case 3:
+            out = map_with_lua_func<4,3>(L, src, 3);
+            break;
+
+            case 4:
+            out = map_with_lua_func<4,4>(L, src, 3);
+            break;
 
             default:
             my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
@@ -451,11 +470,11 @@ static int image_reduce (lua_State *L)
         break;
 
         case 4: {
-            //Pixel<4> p;
-            //if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
-            //else reduce_with_lua_func(L, self, p, 3);
+            Pixel<4> p;
+            if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
+            else reduce_with_lua_func(L, self, p, 3);
         }
-        //break;
+        break;
 
 
         default:
@@ -545,11 +564,11 @@ static int image_set (lua_State *L)
         break;
 
         case 4: {
-            //Pixel<4> p;
-            //check_pixel(L, p, 3);
-            //static_cast<Image<4>*>(self)->pixel(x,y) = p;
+            Pixel<4> p;
+            check_pixel(L, p, 3);
+            static_cast<Image<4>*>(self)->pixel(x,y) = p;
         }
-        //break;
+        break;
 
         default:
         my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
@@ -631,8 +650,8 @@ static int image_call (lua_State *L)
         break;
 
         case 4:
-        //push_pixel<4>(L, self->pixel(x,y));
-        //break;
+        push_pixel<4>(L, static_cast<Pixel<4>&>(self->pixelSlow(x,y)));
+        break;
 
         default:
         my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
@@ -679,14 +698,12 @@ static int image_add (lua_State *L)
             }
             break;
 
-            /*
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot add this value to a 4 channel image.");
                 push_image(L, self->add(other));
             }
             break;
-            */
 
             default:
             my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
@@ -736,14 +753,12 @@ static int image_sub (lua_State *L)
             }
             break;
 
-            /*
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 4 channel image.");
                 push_image(L, self->sub(other, swapped));
             }
             break;
-            */
 
             default:
             my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
@@ -791,14 +806,12 @@ static int image_mul (lua_State *L)
             }
             break;
 
-            /*
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot multiply a 4 channel image by this value.");
                 push_image(L, self->mul(other));
             }
             break;
-            */
 
             default:
             my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
@@ -848,14 +861,12 @@ static int image_div (lua_State *L)
             }
             break;
 
-            /*
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot divide a 4 channel image by this value.");
                 push_image(L, self->div(other, swapped));
             }
             break;
-            */
 
             default:
             my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
@@ -1057,6 +1068,9 @@ static int global_make (lua_State *L)
                 break;
 
                 case 4:
+                image = image_from_lua_func<4>(L, width, height, 3);
+                break;
+
                 default:
                 my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
             }
