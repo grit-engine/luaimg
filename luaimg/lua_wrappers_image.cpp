@@ -35,7 +35,7 @@ extern "C" {
 #include "lua_wrappers_image.h"
 
 #include "Image.h"
-#include "VoxelImage.h"
+//#include "VoxelImage.h"
 
 static void push_string (lua_State *L, const std::string &str) { lua_pushstring(L, str.c_str()); }
 
@@ -903,7 +903,7 @@ const luaL_reg image_meta_table[] = {
 
 
 
-
+/*
 void push_vimage (lua_State *L, VoxelImage *image)
 {
     if (image == NULL) {
@@ -990,6 +990,7 @@ const luaL_reg vimage_meta_table[] = {
 
     {NULL, NULL}
 };
+*/
 
 
 
@@ -1119,6 +1120,7 @@ static int global_hsl_to_rgb (lua_State *L)
     return 1;
 }
 
+/*
 static int global_make_voxel (lua_State *L)
 {
     check_args(L,2);
@@ -1136,13 +1138,14 @@ static int global_make_voxel (lua_State *L)
     push_vimage(L, vi);
     return 1;
 }
+*/
 
 static const luaL_reg global[] = {
     {"make", global_make},
     {"open", global_open},
     {"RGBtoHSL", global_rgb_to_hsl},
     {"HSLtoRGB", global_hsl_to_rgb},
-    {"make_voxel", global_make_voxel},
+ //   {"make_voxel", global_make_voxel},
 
     {NULL, NULL}
 };
@@ -1154,9 +1157,11 @@ void lua_wrappers_image_init (lua_State *L)
     luaL_register(L, NULL, image_meta_table);
     lua_pop(L,1);
 
+/*
     luaL_newmetatable(L, VIMAGE_TAG);
     luaL_register(L, NULL, vimage_meta_table);
     lua_pop(L,1);
+*/
 
     luaL_register(L, "_G", global);
     lua_pop(L, 1);
