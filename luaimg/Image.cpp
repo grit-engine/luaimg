@@ -24,7 +24,9 @@
 #include <string>
 #include <iostream>
 
-#include <FreeImage.h>
+extern "C" {
+	#include <FreeImage.h>
+}
 
 #include "Image.h"
 
@@ -34,7 +36,7 @@ void RGBtoHSL (float R, float G, float B, float &H, float &S, float &L)
     float max_intensity = std::max(std::max(R,G),B);
     float min_intensity = std::min(std::min(R,G),B);
 
-    L = 0.5 * (max_intensity + min_intensity);
+    L = 0.5f * (max_intensity + min_intensity);
 
     if (max_intensity == min_intensity) {
         // all channels the same (colour is grey)
@@ -391,7 +393,7 @@ bool image_save (ImageBase *image, const std::string &filename)
     }
 
     // save it
-    bool status = FreeImage_Save(fif, output, filename.c_str());
+    bool status = 0!=FreeImage_Save(fif, output, filename.c_str());
 
     FreeImage_Unload(output);
 

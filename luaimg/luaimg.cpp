@@ -26,9 +26,9 @@
 #include <sstream>
 #include <iostream>
 
-#include <FreeImage.h>
 
 extern "C" {
+	#include <FreeImage.h>
     #include "lua.h"
     #include "lauxlib.h"
     #include "lualib.h"

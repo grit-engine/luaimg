@@ -19,11 +19,16 @@
  * THE SOFTWARE.
  */
 
+#ifdef WIN32
+typedef unsigned int uint32_t;
+typedef unsigned char uint8_t;
+#else
 #include <cinttypes>
+#endif
 
 typedef uint32_t imglen_t;
-typedef uint8_t chan_t;
-class PixelBase;
+typedef uint8_t chan_t; 
+struct PixelBase;
 template<chan_t ch> struct Pixel;
 class ImageBase;
 template<chan_t ch> class Image;
