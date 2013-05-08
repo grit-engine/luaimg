@@ -2,7 +2,7 @@
 
 local sz = 32
 
-local neutral = make(vector2(sz*sz, sz), 3, function(pos) return vector3(pos.x % sz, sz - pos.y - 1, pos.x / sz) / sz end)
+local neutral = make(vector2(sz*sz, sz), 3, function(pos) return vector3(pos.x % sz, sz - pos.y - 1, floor(pos.x / sz)) / (sz-1) end)
 
 function lerp(a,b,c)
     return (1-c)*a + c * b
