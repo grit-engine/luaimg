@@ -35,6 +35,10 @@ template<chan_t ch> class Image;
 
 void RGBtoHSL (float R, float G, float B, float &H, float &S, float &L);
 void HSLtoRGB (float H, float S, float L, float &R, float &G, float &B);
+void HSLtoHSV (float HH, float SS, float LL, float &H, float &S, float &L);
+void HSVtoHSL (float H, float S, float L, float &HH, float &SS, float &LL);
+void RGBtoHSV (float R, float G, float B, float &H, float &S, float &L);
+void HSVtoRGB (float H, float S, float L, float &R, float &G, float &B);
 
 #ifndef IMAGE_H
 #define IMAGE_H

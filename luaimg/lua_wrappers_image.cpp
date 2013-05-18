@@ -1120,6 +1120,50 @@ static int global_hsl_to_rgb (lua_State *L)
     return 1;
 }
 
+static int global_hsv_to_hsl (lua_State *L)
+{
+    check_args(L,1);
+    float hh,ss,ll;
+    lua_checkvector3(L, 1, &hh, &ss, &ll);
+    float h,s,l;
+    HSVtoHSL(hh,ss,ll, h,s,l);
+    lua_pushvector3(L, h,s,l);
+    return 1;
+}
+
+static int global_hsl_to_hsv (lua_State *L)
+{
+    check_args(L,1);
+    float h,s,l;
+    lua_checkvector3(L, 1, &h, &s, &l);
+    float hh,ss,ll;
+    HSLtoHSV(h,s,l, hh,ss,ll);
+    lua_pushvector3(L, hh,ss,ll);
+    return 1;
+}
+
+static int global_rgb_to_hsv (lua_State *L)
+{
+    check_args(L,1);
+    float r,g,b;
+    lua_checkvector3(L, 1, &r, &g, &b);
+    float h,s,v;
+    RGBtoHSV(r,g,b, h,s,v);
+    lua_pushvector3(L, h,s,v);
+    return 1;
+}
+
+static int global_hsv_to_rgb (lua_State *L)
+{
+    check_args(L,1);
+    float h,s,v;
+    lua_checkvector3(L, 1, &h, &s, &v);
+    float r,g,b;
+    HSVtoRGB(h,s,v, r,g,b);
+    lua_pushvector3(L, r,g,b);
+    return 1;
+}
+
 /*
 static int global_make_voxel (lua_State *L)
 {
@@ -1145,6 +1189,10 @@ static const luaL_reg global[] = {
     {"open", global_open},
     {"RGBtoHSL", global_rgb_to_hsl},
     {"HSLtoRGB", global_hsl_to_rgb},
+    {"HSBtoHSL", global_hsv_to_hsl},
+    {"HSLtoHSB", global_hsl_to_hsv},
+    {"RGBtoHSV", global_rgb_to_hsv},
+    {"HSVtoRGB", global_hsv_to_rgb},
  //   {"make_voxel", global_make_voxel},
 
     {NULL, NULL}
