@@ -48,6 +48,15 @@ void HSVtoRGB (float H, float S, float L, float &R, float &G, float &B);
 #include <ostream>
 #include <string>
 
+enum ScaleFilter {
+    SF_BOX,
+    SF_BILINEAR,
+    SF_BSPLINE,
+    SF_BICUBIC,
+    SF_CATMULLROM,
+    SF_LANCZOS3
+};
+
 struct PixelBase {
     virtual chan_t channels() = 0;
     virtual float *raw() = 0;
@@ -109,7 +118,7 @@ class ImageBase {
 
     virtual PixelBase &pixelSlow (imglen_t x, imglen_t y) = 0;
 
-    virtual chan_t channels() = 0;
+    virtual chan_t channels (void) = 0;
 
     virtual float rms (ImageBase *other) = 0;
 
@@ -129,6 +138,7 @@ class ImageBase {
 
 
     virtual ImageBase *crop (imglen_t left, imglen_t bottom, imglen_t width, imglen_t height) = 0;
+    virtual ImageBase *scale (imglen_t width, imglen_t height, ScaleFilter filter);
 
 };
 
@@ -305,7 +315,7 @@ template<chan_t ch> class Image : public ImageBase {
     }
 
 
-    virtual ImageBase *crop (imglen_t left, imglen_t bottom, imglen_t w, imglen_t h)
+    virtual Image<ch> *crop (imglen_t left, imglen_t bottom, imglen_t w, imglen_t h)
     {
         Image<ch> *ret = new Image<ch>(w, h);
         for (imglen_t y=0 ; y<height ; ++y) {
@@ -314,6 +324,11 @@ template<chan_t ch> class Image : public ImageBase {
             }
         }
         return ret;
+    }
+
+    virtual Image<ch> *scale (imglen_t w, imglen_t h, ScaleFilter filter)
+    {
+        return static_cast<Image<ch>*>(ImageBase::scale(w,h, filter));
     }
 
 };

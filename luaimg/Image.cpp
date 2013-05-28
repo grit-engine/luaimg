@@ -509,3 +509,145 @@ bool image_save (ImageBase *image, const std::string &filename)
     return status;
 }
 
+FREE_IMAGE_FILTER to_fi (ScaleFilter sf)
+{
+    switch (sf) {
+        case SF_BOX: return FILTER_BOX;
+        case SF_BILINEAR: return FILTER_BILINEAR;
+        case SF_BSPLINE: return FILTER_BICUBIC;
+        case SF_BICUBIC: return FILTER_BICUBIC;
+        case SF_CATMULLROM: return FILTER_CATMULLROM;
+        case SF_LANCZOS3: return FILTER_LANCZOS3;
+        default: return FILTER_BOX;
+    }
+}
+
+template<imglen_t ch> FIBITMAP *image_to_fifloat (ImageBase *img_)
+{
+    Image<ch> *img = static_cast<Image<ch>*>(img_);
+    FIBITMAP *fib = NULL;
+    imglen_t actual_channels = 0;
+    switch (ch) {
+        case 4:
+        actual_channels = 4;
+        fib = FreeImage_AllocateT(FIT_RGBAF, img->width, img->height);
+        break;
+
+        case 3:
+        case 2:
+        actual_channels = 3;
+        fib = FreeImage_AllocateT(FIT_RGBF, img->width, img->height);
+        break;
+
+        case 1:
+        actual_channels = 1;
+        fib = FreeImage_AllocateT(FIT_FLOAT, img->width, img->height);
+        break;
+    }
+    
+    for (imglen_t y=0 ; y<img->height ; y++) {
+
+        float *raw = reinterpret_cast<float*>(FreeImage_GetScanLine(fib, y));
+
+        for (imglen_t x=0 ; x<img->width ; x++) {
+            for (imglen_t c=0 ; c<img->channels(); ++c) {
+                float v = img->pixel(x, y)[c];
+                raw[x*actual_channels + c] = v;
+            }
+        }
+    }
+
+    return fib;
+
+}
+
+template<imglen_t ch> Image<ch> *image_from_fifloat (FIBITMAP *img, imglen_t width, imglen_t height)
+{
+    imglen_t actual_channels = 0;
+    switch (ch) {
+        case 4:
+        actual_channels = 4;
+        break;
+
+        case 3:
+        case 2:
+        actual_channels = 3;
+        break;
+
+        case 1:
+        actual_channels = 1;
+        break;
+    }
+    
+    Image<ch> *output = new Image<ch>(width, height);
+    for (imglen_t y=0 ; y<height ; ++y) {
+
+        float *raw = reinterpret_cast<float*>(FreeImage_GetScanLine(img, y));
+
+        for (imglen_t x=0 ; x<width ; ++x) {
+            for (chan_t c=0 ; c<output->channels() ; ++c) {
+                float v = raw[x*actual_channels + c];
+                output->pixel(x, y)[c] = v;
+            }
+        }
+    }
+
+    return output;
+}
+
+ImageBase *ImageBase::scale (imglen_t dst_width, imglen_t dst_height, ScaleFilter filter)
+{
+    switch (channels()) {
+
+        case 4: {
+            FIBITMAP *fib = image_to_fifloat<4>(this);
+            
+            FIBITMAP *scaled = FreeImage_Rescale(fib, dst_width, dst_height, to_fi(filter));
+            FreeImage_Unload(fib);
+
+            ImageBase *r = image_from_fifloat<4>(scaled, dst_width, dst_height);
+            FreeImage_Unload(scaled);
+
+            return r;
+        }
+
+        case 3: {
+            FIBITMAP *fib = image_to_fifloat<3>(this);
+            
+            FIBITMAP *scaled = FreeImage_Rescale(fib, dst_width, dst_height, to_fi(filter));
+            FreeImage_Unload(fib);
+
+            ImageBase *r = image_from_fifloat<3>(scaled, dst_width, dst_height);
+            FreeImage_Unload(scaled);
+
+            return r;
+        }
+
+        case 2: {
+            FIBITMAP *fib = image_to_fifloat<2>(this);
+            
+            FIBITMAP *scaled = FreeImage_Rescale(fib, dst_width, dst_height, to_fi(filter));
+            FreeImage_Unload(fib);
+
+            ImageBase *r = image_from_fifloat<2>(scaled, dst_width, dst_height);
+            FreeImage_Unload(scaled);
+
+            return r;
+        }
+
+        case 1: {
+            FIBITMAP *fib = image_to_fifloat<1>(this);
+            
+            FIBITMAP *scaled = FreeImage_Rescale(fib, dst_width, dst_height, to_fi(filter));
+            FreeImage_Unload(fib);
+
+            ImageBase *r = image_from_fifloat<1>(scaled, dst_width, dst_height);
+            FreeImage_Unload(scaled);
+
+            return r;
+        }
+
+    }
+
+    return NULL;
+}

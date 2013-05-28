@@ -498,6 +498,30 @@ static int image_crop (lua_State *L)
     return 1;
 }
 
+ScaleFilter scale_filter_from_string (lua_State *L, const std::string &s)
+{
+    if (s == "BOX") return SF_BOX;
+    if (s == "BILINEAR") return SF_BILINEAR;
+    if (s == "BSPLINE") return SF_BSPLINE;
+    if (s == "BICUBIC") return SF_BICUBIC;
+    if (s == "CATMULLROM") return SF_CATMULLROM;
+    if (s == "LANCZOS3") return SF_LANCZOS3;
+    my_lua_error(L, "Expected BOX, BILINEAR, BSPLINE, BICUBIC, CATMULLROM, or LANCZOS3.  Got: \""+s+"\"");
+    return SF_BOX; // silly compilers
+}
+
+static int image_scale (lua_State *L)
+{
+    check_args(L, 3);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    imglen_t width, height;
+    check_coord(L, 2, width, height);
+    std::string filter_type = luaL_checkstring(L, 3);
+    ImageBase *out = self->scale(width, height, scale_filter_from_string(L, filter_type));
+    push_image(L, out);
+    return 1;
+}
+
 static int image_clone (lua_State *L)
 {
     check_args(L, 1);
@@ -599,6 +623,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_reduce);
     } else if (!::strcmp(key, "crop")) {
         lua_pushcfunction(L, image_crop);
+    } else if (!::strcmp(key, "scale")) {
+        lua_pushcfunction(L, image_scale);
     } else if (!::strcmp(key, "clone")) {
         lua_pushcfunction(L, image_clone);
     } else if (!::strcmp(key, "rms")) {
