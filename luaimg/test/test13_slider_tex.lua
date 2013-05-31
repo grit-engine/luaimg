@@ -55,3 +55,9 @@ make(sz, 3, function(pos)
 
 	return (1-alpha)*ch + alpha*vector3(0.5, 0.5, 0.5)
 end):save("bg_alpha.png")
+
+make(vector2(sz.y, sz.y), 3, function(pos)
+    local val = floor(pos / 9)
+	local ch = (val.x + val.y) % 2 == 1 and vector3(1,1,1) or vector3(0,0,0)
+	return ch
+end):save("bg_alphabox.png")
