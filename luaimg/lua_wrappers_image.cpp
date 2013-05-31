@@ -1190,6 +1190,41 @@ static int global_hsv_to_rgb (lua_State *L)
     return 1;
 }
 
+static int global_lerp (lua_State *L)
+{
+    check_args(L,3);
+    if (lua_type(L,1) != lua_type(L,2)) {
+        my_lua_error(L, "First two params of lerp must be the same type.");
+    }
+    lua_Number a = luaL_checknumber(L,3);
+    float x1,y1,z1, x2,y2,z2;
+
+    switch (lua_type(L, 1)) {
+        case LUA_TNUMBER: {
+            lua_Number v1 = lua_tonumber(L, 1);
+            lua_Number v2 = lua_tonumber(L, 2);
+            lua_pushnumber(L, (1-a)*v1 + a*v2);
+        } break;
+
+        case LUA_TVECTOR2:
+        lua_checkvector2(L, 1, &x1, &y1);
+        lua_checkvector2(L, 2, &x2, &y2);
+        lua_pushvector2(L, (1-a)*x1 + a*x2, (1-a)*y1 + a*y2);
+        break;
+
+        case LUA_TVECTOR3:
+        lua_checkvector3(L, 1, &x1, &y1, &z1);
+        lua_checkvector3(L, 2, &x2, &y2, &z2);
+        lua_pushvector3(L, (1-a)*x1 + a*x2, (1-a)*y1 + a*y2, (1-a)*z1 + a*z2);
+        break;
+
+        default:
+        my_lua_error(L, "lerp() supports number, vector2, and vector3 only.");
+        break;
+    }
+    return 1;
+}
+
 /*
 static int global_make_voxel (lua_State *L)
 {
@@ -1219,6 +1254,7 @@ static const luaL_reg global[] = {
     {"HSLtoHSB", global_hsl_to_hsv},
     {"RGBtoHSV", global_rgb_to_hsv},
     {"HSVtoRGB", global_hsv_to_rgb},
+    {"lerp", global_lerp},
  //   {"make_voxel", global_make_voxel},
 
     {NULL, NULL}
