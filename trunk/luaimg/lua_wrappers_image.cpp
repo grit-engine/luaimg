@@ -159,7 +159,7 @@ template<> void push_pixel<3> (lua_State *L, Pixel<3> &p)
 
 template<> void push_pixel<4> (lua_State *L, Pixel<4> &p)
 {
-    lua_pushvector4(L, p[0], p[1], p[2], p[4]);
+    lua_pushvector4(L, p[0], p[1], p[2], p[3]);
 }
 
 
