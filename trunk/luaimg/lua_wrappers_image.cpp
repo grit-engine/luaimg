@@ -101,12 +101,22 @@ T check_t (lua_State *l, int stack_index,
     return (T) check_int(l, stack_index, min, max);
 }
 
-static void check_coord (lua_State *L, int index, imglen_t &x, imglen_t &y)
+static void check_scoord (lua_State *L, int index, simglen_t &x, simglen_t &y)
 {
     float x_, y_;
     lua_checkvector2(L, index, &x_, &y_);
-    x = x_ < 0 ? 0 : x_ > std::numeric_limits<imglen_t>::max() ? std::numeric_limits<imglen_t>::max() : x_;
-    y = y_ < 0 ? 0 : y_ > std::numeric_limits<imglen_t>::max() ? std::numeric_limits<imglen_t>::max() : y_;
+    x = x_ < std::numeric_limits<simglen_t>::min() ? std::numeric_limits<simglen_t>::min()
+      : x_ > std::numeric_limits<simglen_t>::max() ? std::numeric_limits<simglen_t>::max() : x_;
+    y = y_ < std::numeric_limits<simglen_t>::min() ? std::numeric_limits<simglen_t>::min()
+      : y_ > std::numeric_limits<simglen_t>::max() ? std::numeric_limits<simglen_t>::max() : y_;
+}
+
+static void check_coord (lua_State *L, int index, uimglen_t &x, uimglen_t &y)
+{
+    float x_, y_;
+    lua_checkvector2(L, index, &x_, &y_);
+    x = x_ < 0 ? 0 : x_ > std::numeric_limits<uimglen_t>::max() ? std::numeric_limits<uimglen_t>::max() : x_;
+    y = y_ < 0 ? 0 : y_ > std::numeric_limits<uimglen_t>::max() ? std::numeric_limits<uimglen_t>::max() : y_;
 }
 
 template<chan_t ch> bool check_pixel (lua_State *L, Pixel<ch> &p, int index);
@@ -219,8 +229,8 @@ static int image_save (lua_State *L)
 template<chan_t ch> void foreach (lua_State *L, ImageBase *self_, int func_index)
 {
     Image<ch> *self = static_cast<Image<ch>*>(self_);
-    for (imglen_t y=0 ; y<self->height ; ++y) {
-        for (imglen_t x=0 ; x<self->width ; ++x) {
+    for (uimglen_t y=0 ; y<self->height ; ++y) {
+        for (uimglen_t x=0 ; x<self->width ; ++x) {
             lua_pushvalue(L, func_index);
             push_pixel<ch>(L, self->pixel(x,y));
             lua_pushvector2(L, x, y);
@@ -268,12 +278,12 @@ static int image_foreach (lua_State *L)
 template<chan_t src_ch, chan_t dst_ch> Image<dst_ch> *map_with_lua_func (lua_State *L, ImageBase *src_, int func_index)
 {
     Image<src_ch> *src = static_cast<Image<src_ch>*>(src_);
-    imglen_t width = src->width;
-    imglen_t height = src->height;
+    uimglen_t width = src->width;
+    uimglen_t height = src->height;
     Image<dst_ch> *dst = new Image<dst_ch>(width, height);
     Pixel<dst_ch> p(0);
-    for (imglen_t y=0 ; y<height ; ++y) {
-        for (imglen_t x=0 ; x<width ; ++x) {
+    for (uimglen_t y=0 ; y<height ; ++y) {
+        for (uimglen_t x=0 ; x<width ; ++x) {
             lua_pushvalue(L, func_index);
             push_pixel<src_ch>(L, src->pixel(x,y));
             lua_pushvector2(L, x, y);
@@ -415,8 +425,8 @@ template<chan_t ch> void reduce_with_lua_func (lua_State *L, ImageBase *self_, P
 {
     Image<ch> *self = static_cast<Image<ch>*>(self_);
 
-    for (imglen_t y=0 ; y<self->height ; ++y) {
-        for (imglen_t x=0 ; x<self->width ; ++x) {
+    for (uimglen_t y=0 ; y<self->height ; ++y) {
+        for (uimglen_t x=0 ; x<self->width ; ++x) {
             lua_pushvalue(L, func_index);
             push_pixel<ch>(L, zero);
             push_pixel<ch>(L, self->pixel(x,y));
@@ -487,13 +497,74 @@ static int image_crop (lua_State *L)
 {
     check_args(L, 3);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    imglen_t left, bottom, width, height;
-    check_coord(L, 2, left, bottom);
+    simglen_t left, bottom;
+    uimglen_t width, height;
+    check_scoord(L, 2, left, bottom);
     check_coord(L, 3, width, height);
-    if (bottom+height >= self->height || left+width >= self->width) {
-        my_lua_error(L, "Crop dimensions out of range of image.");
+    ImageBase *out = NULL;
+    if (lua_gettop(L) == 4) {
+        switch (self->channels()) {
+            case 1: {
+                Pixel<1> p;
+                if (!check_pixel(L, p, 4)) my_lua_error(L, "Crop background had the wrong number of channels.");
+                else out = static_cast<Image<1>*>(self)->crop(left,bottom,width,height,p);
+            }
+            break;
+
+            case 2: {
+                Pixel<2> p;
+                if (!check_pixel(L, p, 4)) my_lua_error(L, "Crop background had the wrong number of channels.");
+                else out = static_cast<Image<2>*>(self)->crop(left,bottom,width,height,p);
+            }
+            break;
+
+            case 3: {
+                Pixel<3> p;
+                if (!check_pixel(L, p, 4)) my_lua_error(L, "Crop background had the wrong number of channels.");
+                else out = static_cast<Image<3>*>(self)->crop(left,bottom,width,height,p);
+            }
+            break;
+
+            case 4: {
+                Pixel<4> p;
+                if (!check_pixel(L, p, 4)) my_lua_error(L, "Crop background had the wrong number of channels.");
+                else out = static_cast<Image<4>*>(self)->crop(left,bottom,width,height,p);
+            }
+            break;
+
+            default:
+            my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
+        }
+    } else {
+        switch (self->channels()) {
+            case 1: {
+                Pixel<1> p = Pixel<1>(0.0f);
+                out = static_cast<Image<1>*>(self)->crop(left,bottom,width,height,p);
+            }
+            break;
+
+            case 2: {
+                Pixel<2> p = Pixel<2>(0.0f);
+                out = static_cast<Image<2>*>(self)->crop(left,bottom,width,height,p);
+            }
+            break;
+
+            case 3: {
+                Pixel<3> p = Pixel<3>(0.0f);
+                out = static_cast<Image<3>*>(self)->crop(left,bottom,width,height,p);
+            }
+            break;
+
+            case 4: {
+                Pixel<4> p = Pixel<4>(0.0f);
+                out = static_cast<Image<4>*>(self)->crop(left,bottom,width,height,p);
+            }
+            break;
+
+            default:
+            my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
+        }
     }
-    ImageBase *out = self->crop(left, bottom, width, height);
     push_image(L, out);
     return 1;
 }
@@ -514,10 +585,20 @@ static int image_scale (lua_State *L)
 {
     check_args(L, 3);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    imglen_t width, height;
+    uimglen_t width, height;
     check_coord(L, 2, width, height);
     std::string filter_type = luaL_checkstring(L, 3);
     ImageBase *out = self->scale(width, height, scale_filter_from_string(L, filter_type));
+    push_image(L, out);
+    return 1;
+}
+
+static int image_rotate (lua_State *L)
+{
+    check_args(L, 2);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    float angle = luaL_checknumber(L, 2);
+    ImageBase *out = self->rotate(angle);
     push_image(L, out);
     return 1;
 }
@@ -526,7 +607,7 @@ static int image_clone (lua_State *L)
 {
     check_args(L, 1);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    ImageBase *out = self->crop(0, 0, self->width, self->height);
+    ImageBase *out = self->clone();
     push_image(L, out);
     return 1;
 }
@@ -537,6 +618,11 @@ static int image_rms (lua_State *L)
     // img, float
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     ImageBase *other = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+    if (!self->compatibleWith(other)) {
+        std::stringstream ss;
+        ss << "Images are incompatible: " << *self << " and " << *other;
+        my_lua_error(L, ss.str());
+    }
     lua_pushnumber(L, self->rms(other));
     return 1;
 }
@@ -555,8 +641,8 @@ static int image_pow (lua_State *L)
 static int image_set (lua_State *L)
 {
     check_args(L,3);
-    imglen_t x;
-    imglen_t y;
+    uimglen_t x;
+    uimglen_t y;
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     check_coord(L, 2, x, y);
 
@@ -568,35 +654,252 @@ static int image_set (lua_State *L)
     switch (self->channels()) {
         case 1: {
             Pixel<1> p;
-            check_pixel(L, p, 3);
-            static_cast<Image<1>*>(self)->pixel(x,y) = p;
+            if (!check_pixel(L, p, 3)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
+            else static_cast<Image<1>*>(self)->pixel(x,y) = p;
         }
         break;
 
         case 2: {
             Pixel<2> p;
-            check_pixel(L, p, 3);
-            static_cast<Image<2>*>(self)->pixel(x,y) = p;
+            if (!check_pixel(L, p, 3)) my_lua_error(L, "Cannot set this value to a 2 channel image.");
+            else static_cast<Image<2>*>(self)->pixel(x,y) = p;
         }
         break;
 
         case 3: {
             Pixel<3> p;
-            check_pixel(L, p, 3);
-            static_cast<Image<3>*>(self)->pixel(x,y) = p;
+            if (!check_pixel(L, p, 3)) my_lua_error(L, "Cannot set this value to a 3 channel image.");
+            else static_cast<Image<3>*>(self)->pixel(x,y) = p;
         }
         break;
 
         case 4: {
             Pixel<4> p;
-            check_pixel(L, p, 3);
-            static_cast<Image<4>*>(self)->pixel(x,y) = p;
+            if (!check_pixel(L, p, 3)) my_lua_error(L, "Cannot set this value to a 4 channel image.");
+            else static_cast<Image<4>*>(self)->pixel(x,y) = p;
         }
         break;
 
         default:
         my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
     }
+    return 0;
+}
+
+static int image_draw_image (lua_State *L)
+{
+    check_args(L,3);
+    ImageBase *dst = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    ImageBase *src = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+    uimglen_t x;
+    uimglen_t y;
+    check_coord(L, 3, x, y);
+
+    switch (dst->channels()) {
+        case 1: {
+            Image<1> *dst_ = static_cast<Image<1>*>(dst);
+            switch (src->channels()) {
+                case 2: {
+                    dst_->drawImageNoDestAlpha(static_cast<Image<2>*>(src),x,y);
+                    break;
+                }
+                default: my_lua_error(L, "When using drawImage to a 1 channel image, source image must have 2 channels.");
+            }
+        }
+        break;
+
+        case 2: {
+            Image<2> *dst_ = static_cast<Image<2>*>(dst);
+            switch (src->channels()) {
+                case 2: {
+                    dst_->drawImage(static_cast<Image<2>*>(src),x,y);
+                    break;
+                }
+                case 3: {
+                    dst_->drawImageNoDestAlpha(static_cast<Image<3>*>(src),x,y);
+                    break;
+                }
+                default: my_lua_error(L, "When using drawImage to a 2 channel image, source image must have 2 or 3 channels.");
+            }
+        }
+        break;
+
+        case 3: {
+            Image<3> *dst_ = static_cast<Image<3>*>(dst);
+            switch (src->channels()) {
+                case 3: {
+                    dst_->drawImage(static_cast<Image<3>*>(src),x,y);
+                    break;
+                }
+                case 4: {
+                    dst_->drawImageNoDestAlpha(static_cast<Image<4>*>(src),x,y);
+                    break;
+                }
+                default: my_lua_error(L, "When using drawImage to a 3 channel image, source image must have 3 or 4 channels.");
+            }
+        }
+        break;
+
+        case 4: {
+            Image<4> *dst_ = static_cast<Image<4>*>(dst);
+            switch (src->channels()) {
+                case 4: {
+                    dst_->drawImage(static_cast<Image<4>*>(src),x,y);
+                    break;
+                }
+                default: my_lua_error(L, "When using drawImage to a 4 channel image, source image must have 4 channels.");
+            }
+        }
+        break;
+
+        default:
+        my_lua_error(L, "Internal error: dest image seems to have an unusual number of channels.");
+    }
+    return 0;
+}
+
+static int image_max (lua_State *L)
+{
+    check_args(L,2);
+    int a = 1, b = 2;
+    if (!lua_isuserdata(L,a)) {
+        std::swap(a,b);
+    }
+    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
+    if (lua_isuserdata(L,b)) {
+        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
+        if (!self->compatibleWith(other)) {
+            std::stringstream ss;
+            ss << "Images are incompatible: " << *self << " and " << *other;
+            my_lua_error(L, ss.str());
+        }
+        push_image(L, self->max(other));
+    } else {
+        switch (self->channels()) {
+            case 1: {
+                Pixel<1> other;
+                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot max a 1 channel image by this value.");
+                else push_image(L, static_cast<Image<1>*>(self)->max(other));
+            }
+            break;
+
+            case 2: {
+                Pixel<2> other;
+                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot max a 2 channel image by this value.");
+                else push_image(L, static_cast<Image<2>*>(self)->max(other));
+            }
+            break;
+
+            case 3: {
+                Pixel<3> other;
+                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot max a 3 channel image by this value.");
+                else push_image(L, static_cast<Image<3>*>(self)->max(other));
+            }
+            break;
+
+            case 4: {
+                Pixel<4> other;
+                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot max a 4 channel image by this value.");
+                else push_image(L, static_cast<Image<4>*>(self)->max(other));
+            }
+            break;
+
+            default:
+            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
+        }
+    }
+    return 1;
+}
+
+static int image_min (lua_State *L)
+{
+    check_args(L,2);
+    int a = 1, b = 2;
+    if (!lua_isuserdata(L,a)) {
+        std::swap(a,b);
+    }
+    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
+    if (lua_isuserdata(L,b)) {
+        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
+        if (!self->compatibleWith(other)) {
+            std::stringstream ss;
+            ss << "Images are incompatible: " << *self << " and " << *other;
+            my_lua_error(L, ss.str());
+        }
+        push_image(L, self->min(other));
+    } else {
+        switch (self->channels()) {
+            case 1: {
+                Pixel<1> other;
+                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot min a 1 channel image by this value.");
+                else push_image(L, static_cast<Image<1>*>(self)->min(other));
+            }
+            break;
+
+            case 2: {
+                Pixel<2> other;
+                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot min a 2 channel image by this value.");
+                else push_image(L, static_cast<Image<2>*>(self)->min(other));
+            }
+            break;
+
+            case 3: {
+                Pixel<3> other;
+                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot min a 3 channel image by this value.");
+                else push_image(L, static_cast<Image<3>*>(self)->min(other));
+            }
+            break;
+
+            case 4: {
+                Pixel<4> other;
+                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot min a 4 channel image by this value.");
+                else push_image(L, static_cast<Image<4>*>(self)->min(other));
+            }
+            break;
+
+            default:
+            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
+        }
+    }
+    return 1;
+}
+
+bool check_bool(lua_State *L, int i)
+{
+    if (!lua_isboolean(L,i)) {
+        std::stringstream ss;
+        ss << "Expected a boolean in argument " << i;
+        my_lua_error(L, ss.str());
+    }
+    return lua_toboolean(L,i);
+}
+
+static int image_convolve (lua_State *L)
+{
+    check_args(L,4);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    ImageBase *kernel = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+    bool wrap_x = check_bool(L, 3);
+    bool wrap_y = check_bool(L, 4);
+    if (kernel->channels() != 1) {
+        my_lua_error(L, "Convolution kernel must have only 1 channel.");
+    }
+    Image<1> *kern = static_cast<Image<1>*>(kernel);
+    if (kernel->width % 2 != 1) {
+        my_lua_error(L, "Convolution kernel width must be an odd number.");
+    }
+    if (kernel->height % 2 != 1) {
+        my_lua_error(L, "Convolution kernel height must be an odd number.");
+    }
+    push_image(L, self->convolve(kern, wrap_x, wrap_y));
+    return 1;
+}
+
+static int image_normalise (lua_State *L)
+{
+    check_args(L,1);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    push_image(L, self->normalise());
     return 1;
 }
 
@@ -625,6 +928,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_crop);
     } else if (!::strcmp(key, "scale")) {
         lua_pushcfunction(L, image_scale);
+    } else if (!::strcmp(key, "rotate")) {
+        lua_pushcfunction(L, image_rotate);
     } else if (!::strcmp(key, "clone")) {
         lua_pushcfunction(L, image_clone);
     } else if (!::strcmp(key, "rms")) {
@@ -633,6 +938,16 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_pow);
     } else if (!::strcmp(key, "set")) {
         lua_pushcfunction(L, image_set);
+    } else if (!::strcmp(key, "max")) {
+        lua_pushcfunction(L, image_max);
+    } else if (!::strcmp(key, "min")) {
+        lua_pushcfunction(L, image_min);
+    } else if (!::strcmp(key, "convolve")) {
+        lua_pushcfunction(L, image_convolve);
+    } else if (!::strcmp(key, "normalise")) {
+        lua_pushcfunction(L, image_normalise);
+    } else if (!::strcmp(key, "drawImage")) {
+        lua_pushcfunction(L, image_draw_image);
     } else {
         my_lua_error(L, "Not a readable Image field: \""+std::string(key)+"\"");
     }
@@ -641,15 +956,15 @@ static int image_index (lua_State *L)
 
 static int image_call (lua_State *L)
 {
-    imglen_t x;
-    imglen_t y;
+    uimglen_t x;
+    uimglen_t y;
     switch (lua_gettop(L)) {
         case 2:
         check_coord(L, 2, x, y);
         break;
         case 3:
-        x = check_t<imglen_t>(L, 2);
-        y = check_t<imglen_t>(L, 3);
+        x = check_t<uimglen_t>(L, 2);
+        y = check_t<uimglen_t>(L, 3);
         break;
         default:
         my_lua_error(L, "Only allowed: image(x,y) or image(vector2(x,y))");
@@ -706,28 +1021,28 @@ static int image_add (lua_State *L)
             case 1: {
                 Pixel<1> other;
                 if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot add this value to a 1 channel image.");
-                push_image(L, self->add(other));
+                else push_image(L, static_cast<Image<1>*>(self)->add(other));
             }
             break;
 
             case 2: {
                 Pixel<2> other;
                 if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot add this value to a 2 channel image.");
-                push_image(L, self->add(other));
+                else push_image(L, static_cast<Image<2>*>(self)->add(other));
             }
             break;
 
             case 3: {
                 Pixel<3> other;
                 if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot add this value to a 3 channel image.");
-                push_image(L, self->add(other));
+                else push_image(L, static_cast<Image<3>*>(self)->add(other));
             }
             break;
 
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot add this value to a 4 channel image.");
-                push_image(L, self->add(other));
+                else push_image(L, static_cast<Image<4>*>(self)->add(other));
             }
             break;
 
@@ -761,28 +1076,28 @@ static int image_sub (lua_State *L)
             case 1: {
                 Pixel<1> other;
                 if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 1 channel image.");
-                push_image(L, self->sub(other, swapped));
+                push_image(L, static_cast<Image<1>*>(self)->sub(other, swapped));
             }
             break;
 
             case 2: {
                 Pixel<2> other;
                 if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 2 channel image.");
-                push_image(L, self->sub(other, swapped));
+                push_image(L, static_cast<Image<2>*>(self)->sub(other, swapped));
             }
             break;
 
             case 3: {
                 Pixel<3> other;
                 if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 3 channel image.");
-                push_image(L, self->sub(other, swapped));
+                push_image(L, static_cast<Image<3>*>(self)->sub(other, swapped));
             }
             break;
 
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 4 channel image.");
-                push_image(L, self->sub(other, swapped));
+                push_image(L, static_cast<Image<4>*>(self)->sub(other, swapped));
             }
             break;
 
@@ -814,28 +1129,28 @@ static int image_mul (lua_State *L)
             case 1: {
                 Pixel<1> other;
                 if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot multiply a 1 channel image by this value.");
-                push_image(L, self->mul(other));
+                else push_image(L, static_cast<Image<1>*>(self)->mul(other));
             }
             break;
 
             case 2: {
                 Pixel<2> other;
                 if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot multiply a 2 channel image by this value.");
-                push_image(L, self->mul(other));
+                else push_image(L, static_cast<Image<2>*>(self)->mul(other));
             }
             break;
 
             case 3: {
                 Pixel<3> other;
                 if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot multiply a 3 channel image by this value.");
-                push_image(L, self->mul(other));
+                else push_image(L, static_cast<Image<3>*>(self)->mul(other));
             }
             break;
 
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot multiply a 4 channel image by this value.");
-                push_image(L, self->mul(other));
+                else push_image(L, static_cast<Image<4>*>(self)->mul(other));
             }
             break;
 
@@ -869,28 +1184,28 @@ static int image_div (lua_State *L)
             case 1: {
                 Pixel<1> other;
                 if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot divide a 1 channel image by this value.");
-                push_image(L, self->div(other, swapped));
+                push_image(L, static_cast<Image<1>*>(self)->div(other, swapped));
             }
             break;
 
             case 2: {
                 Pixel<2> other;
                 if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot divide a 2 channel image by this value.");
-                push_image(L, self->div(other, swapped));
+                push_image(L, static_cast<Image<2>*>(self)->div(other, swapped));
             }
             break;
 
             case 3: {
                 Pixel<3> other;
                 if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot divide a 3 channel image by this value.");
-                push_image(L, self->div(other, swapped));
+                push_image(L, static_cast<Image<3>*>(self)->div(other, swapped));
             }
             break;
 
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot divide a 4 channel image by this value.");
-                push_image(L, self->div(other, swapped));
+                push_image(L, static_cast<Image<4>*>(self)->div(other, swapped));
             }
             break;
 
@@ -974,7 +1289,7 @@ static int vimage_render (lua_State *L)
 {
     check_args(L,3);
     VoxelImage *self = check_ptr<VoxelImage>(L, 1, VIMAGE_TAG);
-    imglen_t width, height;
+    uimglen_t width, height;
     check_coord(L, 2, width, height);
     float x,y,z;
     lua_checkvector3(L, 3, &x, &y, &z);
@@ -1020,12 +1335,12 @@ const luaL_reg vimage_meta_table[] = {
 
 
 
-template<chan_t ch> Image<ch> *image_from_lua_func (lua_State *L, imglen_t width, imglen_t height, int func_index)
+template<chan_t ch> Image<ch> *image_from_lua_func (lua_State *L, uimglen_t width, uimglen_t height, int func_index)
 {
     Image<ch> *my_image = new Image<ch>(width, height);
     Pixel<ch> p(0);
-    for (imglen_t y=0 ; y<height ; ++y) {
-        for (imglen_t x=0 ; x<width ; ++x) {
+    for (uimglen_t y=0 ; y<height ; ++y) {
+        for (uimglen_t x=0 ; x<width ; ++x) {
             lua_pushvalue(L, func_index);
             lua_pushvector2(L, x, y);
             int status = lua_pcall(L, 1, 1, 0); 
@@ -1055,7 +1370,7 @@ static int global_make (lua_State *L)
 {
     check_args(L,3);
     // sz, channels, func
-    imglen_t width, height;
+    uimglen_t width, height;
     check_coord(L, 1, width, height);
     chan_t channels = check_int(L, 2, 1, 4);
     ImageBase *image = NULL;
@@ -1231,10 +1546,10 @@ static int global_make_voxel (lua_State *L)
     check_args(L,2);
 
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    imglen_t depth = check_t<imglen_t>(L, 2);
+    uimglen_t depth = check_t<uimglen_t>(L, 2);
     
 
-    imglen_t real_height = self->height / depth;
+    uimglen_t real_height = self->height / depth;
     if (real_height * depth != self->height) {
         my_lua_error(L, "Input image must have dimensions W*H where H=cube_height*cube_depth");
     }

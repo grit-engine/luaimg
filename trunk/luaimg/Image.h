@@ -26,7 +26,8 @@ typedef unsigned char uint8_t;
 #include <cinttypes>
 #endif
 
-typedef uint32_t imglen_t;
+typedef uint32_t uimglen_t;
+typedef int32_t simglen_t;
 typedef uint8_t chan_t; 
 struct PixelBase;
 template<chan_t ch> struct Pixel;
@@ -79,13 +80,33 @@ template<chan_t ch> struct Pixel : PixelBase {
     Pixel<ch> sub (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] - other[c]; return r; }
     Pixel<ch> mul (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] * other[c]; return r; }
     Pixel<ch> div (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] / other[c]; return r; }
+    Pixel<ch> min (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = std::min((*this)[c], other[c]); return r; }
+    Pixel<ch> max (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = std::max((*this)[c], other[c]); return r; }
 
     Pixel<ch> unm (void) { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = -(*this)[c]; return r; }
 
-    Pixel<ch> add (float other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] + other; return r; }
-    Pixel<ch> sub (float other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] - other; return r; }
-    Pixel<ch> mul (float other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] * other; return r; }
-    Pixel<ch> div (float other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = (*this)[c] / other; return r; }
+    Pixel<ch> alphaBlendNoDestAlpha (const Pixel<ch+1> &other) const
+    {
+        float alpha = std::max(0.0f, std::min(1.0f, other[ch]));
+        Pixel<ch> r;
+        for (chan_t c=0 ; c<ch ; ++c) {
+            r[c] = (1-alpha)*(*this)[c] + alpha*other[c];
+        }
+        return r;
+    }
+
+    Pixel<ch> alphaBlend (const Pixel<ch> &other) const
+    {
+        float alpha = std::max(0.0f, std::min(1.0f, other[ch-1]));
+        float old_alpha = std::max(0.0f, std::min(1.0f, (*this)[ch-1]));
+        float new_alpha = 1 - (1-alpha)*(1-old_alpha);
+        Pixel<ch> r;
+        for (chan_t c=0 ; c<ch-1 ; ++c) {
+            r[c] = (1-alpha/new_alpha)*(*this)[c] + alpha/new_alpha*other[c];
+        }
+        r[ch-1] = new_alpha;
+        return r;
+    }
 };
 
 static inline std::ostream &operator<<(std::ostream &o, const Pixel<3> &p)
@@ -99,8 +120,8 @@ class ImageBase {
 
     public:
 
-    const imglen_t width, height;
-    ImageBase (imglen_t width, imglen_t height)
+    const uimglen_t width, height;
+    ImageBase (uimglen_t width, uimglen_t height)
       : width(width), height(height)
     {
     }
@@ -116,7 +137,7 @@ class ImageBase {
         return true;
     }
 
-    virtual PixelBase &pixelSlow (imglen_t x, imglen_t y) = 0;
+    virtual PixelBase &pixelSlow (uimglen_t x, uimglen_t y) = 0;
 
     virtual chan_t channels (void) = 0;
 
@@ -128,17 +149,18 @@ class ImageBase {
     virtual ImageBase *sub (ImageBase *other) = 0;
     virtual ImageBase *mul (ImageBase *other) = 0;
     virtual ImageBase *div (ImageBase *other) = 0;
+    virtual ImageBase *min (ImageBase *other) = 0;
+    virtual ImageBase *max (ImageBase *other) = 0;
 
     virtual ImageBase *unm (void) = 0;
 
-    virtual ImageBase *add (const PixelBase &other) = 0;
-    virtual ImageBase *sub (const PixelBase &other, bool swapped) = 0;
-    virtual ImageBase *mul (const PixelBase &other) = 0;
-    virtual ImageBase *div (const PixelBase &other, bool swapped) = 0;
+    virtual ImageBase *clone (void) = 0;
+    virtual ImageBase *normalise (void) = 0;
 
+    virtual ImageBase *scale (uimglen_t width, uimglen_t height, ScaleFilter filter);
+    virtual ImageBase *rotate (float angle);
 
-    virtual ImageBase *crop (imglen_t left, imglen_t bottom, imglen_t width, imglen_t height) = 0;
-    virtual ImageBase *scale (imglen_t width, imglen_t height, ScaleFilter filter);
+    virtual ImageBase *convolve (const Image<1> *kernel, bool wrap_x, bool wrap_y) = 0;
 
 };
 
@@ -154,7 +176,7 @@ template<chan_t ch> class Image : public ImageBase {
 
     public:
 
-    Image (imglen_t width, imglen_t height)
+    Image (uimglen_t width, uimglen_t height)
       : ImageBase(width, height)
     {
         data = new Pixel<ch>[numPixels()];
@@ -165,18 +187,19 @@ template<chan_t ch> class Image : public ImageBase {
         delete [] data;
     }
 
-    Pixel<ch> &pixel (imglen_t x, imglen_t y) { return data[y*width+x]; }
+    Pixel<ch> &pixel (uimglen_t x, uimglen_t y) { return data[y*width+x]; }
+    const Pixel<ch> &pixel (uimglen_t x, uimglen_t y) const { return data[y*width+x]; }
 
-    virtual Pixel<ch> &pixelSlow (imglen_t x, imglen_t y) { return pixel(x,y); }
+    Pixel<ch> &pixelSlow (uimglen_t x, uimglen_t y) { return pixel(x,y); }
 
-    virtual chan_t channels (void) { return ch; }
+    chan_t channels (void) { return ch; }
 
-    virtual float rms (ImageBase *other_)
+    float rms (ImageBase *other_)
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         float ret = 0;
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
                 for (chan_t c=0 ; c<ch ; ++c) {
                     float diff = this->pixel(x,y)[c] - other->pixel(x,y)[c];
                     ret += diff * diff;
@@ -186,149 +209,293 @@ template<chan_t ch> class Image : public ImageBase {
         return ret;
     }
 
-    virtual Image<ch> *pow (float other)
+    Image<ch> *pow (float other)
     {
         Image<ch> *ret = new Image<ch>(width, height);
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x,y) = this->pixel(x,y).pow(other);
             }
         }
         return ret;
     }
 
-    virtual Image<ch> *add (ImageBase *other_)
+    Image<ch> *add (ImageBase *other_)
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).add(other->pixel(x, y));
             }
         }
         return ret;
     }
-    virtual Image<ch> *sub (ImageBase *other_)
+    Image<ch> *sub (ImageBase *other_)
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).sub(other->pixel(x, y));
             }
         }
         return ret;
     }
-    virtual Image<ch> *mul (ImageBase *other_)
+    Image<ch> *mul (ImageBase *other_)
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).mul(other->pixel(x, y));
             }
         }
         return ret;
     }
-    virtual Image<ch> *div (ImageBase *other_)
+    Image<ch> *div (ImageBase *other_)
     {
         Image<ch> *other = static_cast<Image<ch>*>(other_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).div(other->pixel(x, y));
             }
         }
         return ret;
     }
+    Image<ch> *max (ImageBase *other_)
+    {
+        Image<ch> *other = static_cast<Image<ch>*>(other_);
+        Image<ch> *ret = new Image<ch>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                ret->pixel(x, y) = this->pixel(x, y).max(other->pixel(x, y));
+            }
+        }
+        return ret;
+    }
+    Image<ch> *min (ImageBase *other_)
+    {
+        Image<ch> *other = static_cast<Image<ch>*>(other_);
+        Image<ch> *ret = new Image<ch>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                ret->pixel(x, y) = this->pixel(x, y).min(other->pixel(x, y));
+            }
+        }
+        return ret;
+    }
 
-    virtual Image<ch> *unm (void)
+
+    Image<ch> *unm (void)
     {
         Image<ch> *ret = new Image<ch>(width, height);
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x,y) = this->pixel(x,y).unm();
             }
         }
         return ret;
     }
 
-    virtual Image<ch> *add (const PixelBase &p_)
+    Image<ch> *add (const Pixel<ch> &p)
     {
-        const Pixel<ch> &p = *static_cast<Pixel<ch> const *>(&p_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).add(p);
             }
         }
         return ret;
     }
-    virtual Image<ch> *sub (const PixelBase &p_, bool swapped)
+    Image<ch> *sub (const Pixel<ch> &p, bool swapped)
     {
-        const Pixel<ch> &p = *static_cast<Pixel<ch> const *>(&p_);
         Image<ch> *ret = new Image<ch>(width, height);
         if (swapped) {
-            for (imglen_t y=0 ; y<height ; ++y) {
-                for (imglen_t x=0 ; x<width ; ++x) {
+            for (uimglen_t y=0 ; y<height ; ++y) {
+                for (uimglen_t x=0 ; x<width ; ++x) {
                     ret->pixel(x, y) = p.sub(this->pixel(x, y));
                 }
             }
         } else {
-            for (imglen_t y=0 ; y<height ; ++y) {
-                for (imglen_t x=0 ; x<width ; ++x) {
+            for (uimglen_t y=0 ; y<height ; ++y) {
+                for (uimglen_t x=0 ; x<width ; ++x) {
                     ret->pixel(x, y) = this->pixel(x, y).sub(p);
                 }
             }
         }
         return ret;
     }
-    virtual Image<ch> *mul (const PixelBase &p_)
+    Image<ch> *mul (const Pixel<ch> &p)
     {
-        const Pixel<ch> &p = *static_cast<Pixel<ch> const *>(&p_);
         Image<ch> *ret = new Image<ch>(width, height);
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).mul(p);
             }
         }
         return ret;
     }
-    virtual Image<ch> *div (const PixelBase &p_, bool swapped)
+    Image<ch> *div (const Pixel<ch> &p, bool swapped)
     {
-        const Pixel<ch> &p = *static_cast<Pixel<ch> const *>(&p_);
         Image<ch> *ret = new Image<ch>(width, height);
         if (swapped) {
-            for (imglen_t y=0 ; y<height ; ++y) {
-                for (imglen_t x=0 ; x<width ; ++x) {
+            for (uimglen_t y=0 ; y<height ; ++y) {
+                for (uimglen_t x=0 ; x<width ; ++x) {
                     ret->pixel(x, y) = p.div(this->pixel(x, y));
                 }
             }
         } else {
-            for (imglen_t y=0 ; y<height ; ++y) {
-                for (imglen_t x=0 ; x<width ; ++x) {
+            for (uimglen_t y=0 ; y<height ; ++y) {
+                for (uimglen_t x=0 ; x<width ; ++x) {
                     ret->pixel(x, y) = this->pixel(x, y).div(p);
                 }
             }
         }
         return ret;
     }
-
-
-    virtual Image<ch> *crop (imglen_t left, imglen_t bottom, imglen_t w, imglen_t h)
+    Image<ch> *max (const Pixel<ch> &p)
     {
-        Image<ch> *ret = new Image<ch>(w, h);
-        for (imglen_t y=0 ; y<height ; ++y) {
-            for (imglen_t x=0 ; x<width ; ++x) {
-                ret->pixel(x,y) = this->pixel(x+left,y+bottom);
+        Image<ch> *ret = new Image<ch>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                ret->pixel(x, y) = this->pixel(x, y).max(p);
+            }
+        }
+        return ret;
+    }
+    Image<ch> *min (const Pixel<ch> &p)
+    {
+        Image<ch> *ret = new Image<ch>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                ret->pixel(x, y) = this->pixel(x, y).min(p);
             }
         }
         return ret;
     }
 
-    virtual Image<ch> *scale (imglen_t w, imglen_t h, ScaleFilter filter)
+
+    Image<ch> *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const Pixel<ch> &zero)
+    {
+        Image<ch> *ret = new Image<ch>(w, h);
+        for (uimglen_t y=0 ; y<h ; ++y) {
+            for (uimglen_t x=0 ; x<w ; ++x) {
+                uimglen_t old_x = x+left;
+                uimglen_t old_y = y+bottom;
+                if (old_x < width && old_y < height) {
+                    ret->pixel(x,y) = this->pixel(old_x, old_y);
+                } else {
+                    ret->pixel(x,y) = zero;
+                }
+            }
+        }
+        return ret;
+    }
+
+    Image<ch> *clone (void)
+    {
+        Image<ch> *ret = new Image<ch>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                ret->pixel(x,y) = this->pixel(x, y);
+            }
+        }
+        return ret;
+    }
+
+    Image<ch> *normalise (void)
+    {
+        Pixel<ch> pos_total(0.0f);
+        Pixel<ch> neg_total(0.0f);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                for (chan_t c=0 ; c<ch ; ++c) {
+                    float v = this->pixel(x,y)[c];
+                    if (v >= 0) {
+                        pos_total[c] += v;
+                    } else {
+                        neg_total[c] -= v;
+                    }
+                }
+            }
+        }
+        Image<ch> *ret = new Image<ch>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                Pixel<ch> norm_pix(0.0f);
+                for (chan_t c=0 ; c<ch ; ++c) {
+                    float v = this->pixel(x,y)[c];
+                    if (v >= 0) {
+                        ret->pixel(x,y)[c] = v / pos_total[c];
+                    } else {
+                        ret->pixel(x,y)[c] = v / neg_total[c];
+                    }
+                }
+            }
+        }
+        return ret;
+    }
+
+    Image<ch> *scale (uimglen_t w, uimglen_t h, ScaleFilter filter)
     {
         return static_cast<Image<ch>*>(ImageBase::scale(w,h, filter));
+    }
+
+    void drawImageNoDestAlpha (const Image<ch+1> *src, uimglen_t left, uimglen_t bottom)
+    {
+        uimglen_t w = src->width;
+        uimglen_t h = src->height;
+        if (left+w >= width) w = width - left - 1;
+        if (bottom+h >= height) h = height - bottom - 1;
+        for (uimglen_t y=0 ; y<h ; ++y) {
+            for (uimglen_t x=0 ; x<w ; ++x) {
+                this->pixel(x+left,y+bottom) = this->pixel(x+left,y+bottom).alphaBlendNoDestAlpha(src->pixel(x,y));
+            }
+        }
+    }
+
+    void drawImage (const Image<ch> *src, uimglen_t left, uimglen_t bottom)
+    {
+        uimglen_t w = src->width;
+        uimglen_t h = src->height;
+        if (left+w >= width) w = width - left - 1;
+        if (bottom+h >= height) h = height - bottom - 1;
+        for (uimglen_t y=0 ; y<h ; ++y) {
+            for (uimglen_t x=0 ; x<w ; ++x) {
+                this->pixel(x+left,y+bottom) = this->pixel(x+left,y+bottom).alphaBlend(src->pixel(x,y));
+            }
+        }
+    }
+
+    Image<ch> *convolve (const Image<1> *kernel, bool wrap_x, bool wrap_y)
+    {
+        // TODO: several obvious optimisations should be implemented here
+        simglen_t kcx = kernel->width / 2;
+        simglen_t kcy = kernel->height / 2;
+        Image<ch> *ret = new Image<ch>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                Pixel<ch> p(0);
+                for (simglen_t ky=-kcy ; ky<=kcy ; ++ky) {
+                    for (simglen_t kx=-kcx ; kx<=kcx ; ++kx) {
+                        float kv = kernel->pixel(kx+kcx, ky+kcy)[0];
+                        simglen_t this_x = x+kx;
+                        simglen_t this_y = y+ky;
+                        while (this_x < 0) this_x = wrap_x ? this_x + width: 0;
+                        while (this_y < 0) this_y = wrap_y ? this_y + height: 0;
+                        while (this_x >= (simglen_t)width) this_x = wrap_x ? this_x - width: width-1;
+                        while (this_y >= (simglen_t)height) this_y = wrap_y ? this_y - height: height-1;
+                        Pixel<ch> thisv = this->pixel((uimglen_t)this_x, (uimglen_t)this_y);
+                        p = thisv.mul(kv).add(p);
+
+                    }
+                }
+                ret->pixel(x,y) = p;
+            }
+        }
+        return ret;
     }
 
 };
@@ -337,14 +504,44 @@ ImageBase *image_load (const std::string &filename);
 
 bool image_save (ImageBase *image, const std::string &filename);
 
-template<chan_t ch> Image<ch> *image_make (imglen_t width, imglen_t height, float (&init)[ch])
+template<chan_t ch> Image<ch> *image_make (uimglen_t width, uimglen_t height, float (&init)[ch])
 {
     Image<ch> *my_image = new Image<ch>(width, height);
 
-    for (imglen_t y=0 ; y<my_image->height ; ++y) {
-        for (imglen_t x=0 ; x<my_image->width ; ++x) {
+    for (uimglen_t y=0 ; y<my_image->height ; ++y) {
+        for (uimglen_t x=0 ; x<my_image->width ; ++x) {
             for (chan_t c=0 ; c<ch ; ++c) {
                 my_image->pixel(x, y)[c] = init[c];
+            }
+        }
+    }
+
+    return my_image;
+    
+}
+
+template<chan_t ch> Image<ch> *image_make (uimglen_t width, uimglen_t height, const Pixel<ch> &zero)
+{
+    Image<ch> *my_image = new Image<ch>(width, height);
+
+    for (uimglen_t y=0 ; y<my_image->height ; ++y) {
+        for (uimglen_t x=0 ; x<my_image->width ; ++x) {
+            my_image->pixel(x, y) = zero;
+        }
+    }
+
+    return my_image;
+    
+}
+
+template<chan_t ch> Image<ch> *image_make (uimglen_t width, uimglen_t height)
+{
+    Image<ch> *my_image = new Image<ch>(width, height);
+
+    for (uimglen_t y=0 ; y<my_image->height ; ++y) {
+        for (uimglen_t x=0 ; x<my_image->width ; ++x) {
+            for (chan_t c=0 ; c<ch ; ++c) {
+                my_image->pixel(x, y)[c] = 0.0f;
             }
         }
     }
