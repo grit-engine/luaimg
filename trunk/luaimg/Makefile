@@ -44,9 +44,4 @@ luaimg: depend_stubs/limits depend_stubs/algorithm
 luaimg: depend_stubs/lua.h depend_stubs/lauxlib.h
 luaimg: depend_stubs/lualib.h lua_wrappers_image.h Image.h
 luaimg: depend_stubs/cinttypes depend_stubs/cmath
-luaimg: depend_stubs/ostream VoxelImage.h
-luaimg: depend_stubs/volpack.h
-luaimg: depend_stubs/cstdlib depend_stubs/iostream
-luaimg: depend_stubs/volpack.h VoxelImage.h Image.h
-luaimg: depend_stubs/cinttypes depend_stubs/cmath depend_stubs/ostream
-luaimg: depend_stubs/string
+luaimg: depend_stubs/ostream
