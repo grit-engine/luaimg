@@ -83,6 +83,14 @@ template<chan_t ch> struct Pixel : PixelBase {
     Pixel<ch> min (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = std::min((*this)[c], other[c]); return r; }
     Pixel<ch> max (const Pixel<ch> &other) const { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = std::max((*this)[c], other[c]); return r; }
 
+    Pixel<ch> lerp (const Pixel<ch> &other, float alpha) const {
+        Pixel<ch> r;
+        for (chan_t c=0 ; c<ch ; ++c) {
+            r[c] = (1-alpha)*(*this)[c] + alpha*other[c];
+        }
+        return r;
+    }
+
     Pixel<ch> unm (void) { Pixel<ch> r; for (chan_t c=0 ; c<ch ; ++c) r[c] = -(*this)[c]; return r; }
 
     Pixel<ch> alphaBlendNoDestAlpha (const Pixel<ch+1> &other) const
@@ -151,6 +159,7 @@ class ImageBase {
     virtual ImageBase *div (ImageBase *other) = 0;
     virtual ImageBase *min (ImageBase *other) = 0;
     virtual ImageBase *max (ImageBase *other) = 0;
+    virtual ImageBase *lerp (ImageBase *other, float alpha) = 0;
 
     virtual ImageBase *unm (void) = 0;
 
@@ -286,6 +295,17 @@ template<chan_t ch> class Image : public ImageBase {
         }
         return ret;
     }
+    Image<ch> *lerp (ImageBase *other_, float alpha)
+    {
+        Image<ch> *other = static_cast<Image<ch>*>(other_);
+        Image<ch> *ret = new Image<ch>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                ret->pixel(x, y) = this->pixel(x, y).lerp(other->pixel(x, y), alpha);
+            }
+        }
+        return ret;
+    }
 
 
     Image<ch> *unm (void)
@@ -371,6 +391,16 @@ template<chan_t ch> class Image : public ImageBase {
         for (uimglen_t y=0 ; y<height ; ++y) {
             for (uimglen_t x=0 ; x<width ; ++x) {
                 ret->pixel(x, y) = this->pixel(x, y).min(p);
+            }
+        }
+        return ret;
+    }
+    Image<ch> *lerp (const Pixel<ch> &p, float alpha)
+    {
+        Image<ch> *ret = new Image<ch>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                ret->pixel(x, y) = this->pixel(x, y).lerp(p, alpha);
             }
         }
         return ret;

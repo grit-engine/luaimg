@@ -612,17 +612,21 @@ static int image_clone (lua_State *L)
     return 1;
 }
 
+void ensure_compatible(lua_State *L, ImageBase *self, ImageBase *other)
+{
+    if (self->compatibleWith(other)) return;
+    std::stringstream ss;
+    ss << "Images are incompatible: " << *self << " and " << *other;
+    my_lua_error(L, ss.str());
+}
+
 static int image_rms (lua_State *L)
 {
     check_args(L,2);
     // img, float
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     ImageBase *other = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
-    if (!self->compatibleWith(other)) {
-        std::stringstream ss;
-        ss << "Images are incompatible: " << *self << " and " << *other;
-        my_lua_error(L, ss.str());
-    }
+    ensure_compatible(L, self, other);
     lua_pushnumber(L, self->rms(other));
     return 1;
 }
@@ -768,11 +772,7 @@ static int image_max (lua_State *L)
     ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
     if (lua_isuserdata(L,b)) {
         ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        if (!self->compatibleWith(other)) {
-            std::stringstream ss;
-            ss << "Images are incompatible: " << *self << " and " << *other;
-            my_lua_error(L, ss.str());
-        }
+        ensure_compatible(L, self, other);
         push_image(L, self->max(other));
     } else {
         switch (self->channels()) {
@@ -821,11 +821,7 @@ static int image_min (lua_State *L)
     ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
     if (lua_isuserdata(L,b)) {
         ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        if (!self->compatibleWith(other)) {
-            std::stringstream ss;
-            ss << "Images are incompatible: " << *self << " and " << *other;
-            my_lua_error(L, ss.str());
-        }
+        ensure_compatible(L, self, other);
         push_image(L, self->min(other));
     } else {
         switch (self->channels()) {
@@ -864,6 +860,57 @@ static int image_min (lua_State *L)
     return 1;
 }
 
+static int image_lerp (lua_State *L)
+{
+    check_args(L,3);
+    float alpha = luaL_checknumber(L, 3);
+    int a = 1, b = 2;
+    if (!lua_isuserdata(L,a)) {
+        std::swap(a,b);
+        alpha = 1-alpha;
+    }
+    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
+    if (lua_isuserdata(L,b)) {
+        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
+        ensure_compatible(L, self, other);
+        push_image(L, self->lerp(other, alpha));
+    } else {
+        switch (self->channels()) {
+            case 1: {
+                Pixel<1> other;
+                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot lerp a 1 channel image by this value.");
+                else push_image(L, static_cast<Image<1>*>(self)->lerp(other, alpha));
+            }
+            break;
+
+            case 2: {
+                Pixel<2> other;
+                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot lerp a 2 channel image by this value.");
+                else push_image(L, static_cast<Image<2>*>(self)->lerp(other, alpha));
+            }
+            break;
+
+            case 3: {
+                Pixel<3> other;
+                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot lerp a 3 channel image by this value.");
+                else push_image(L, static_cast<Image<3>*>(self)->lerp(other, alpha));
+            }
+            break;
+
+            case 4: {
+                Pixel<4> other;
+                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot lerp a 4 channel image by this value.");
+                else push_image(L, static_cast<Image<4>*>(self)->lerp(other, alpha));
+            }
+            break;
+
+            default:
+            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
+        }
+    }
+    return 1;
+}
+
 bool check_bool(lua_State *L, int i)
 {
     if (!lua_isboolean(L,i)) {
@@ -876,11 +923,17 @@ bool check_bool(lua_State *L, int i)
 
 static int image_convolve (lua_State *L)
 {
-    check_args(L,4);
+    bool wrap_x = false;
+    bool wrap_y = false;
+    switch (lua_gettop(L)) {
+        case 4: wrap_y = check_bool(L, 4);
+        case 3: wrap_x = check_bool(L, 3);
+        case 2: break;
+        default: 
+        my_lua_error(L, "image_convolve takes 2, 3, or 4 arguments");
+    }
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     ImageBase *kernel = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
-    bool wrap_x = check_bool(L, 3);
-    bool wrap_y = check_bool(L, 4);
     if (kernel->channels() != 1) {
         my_lua_error(L, "Convolution kernel must have only 1 channel.");
     }
@@ -942,6 +995,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_max);
     } else if (!::strcmp(key, "min")) {
         lua_pushcfunction(L, image_min);
+    } else if (!::strcmp(key, "lerp")) {
+        lua_pushcfunction(L, image_lerp);
     } else if (!::strcmp(key, "convolve")) {
         lua_pushcfunction(L, image_convolve);
     } else if (!::strcmp(key, "normalise")) {
@@ -1010,11 +1065,7 @@ static int image_add (lua_State *L)
     ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
     if (lua_isuserdata(L,b)) {
         ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        if (!self->compatibleWith(other)) {
-            std::stringstream ss;
-            ss << "Images are incompatible: " << *self << " and " << *other;
-            my_lua_error(L, ss.str());
-        }
+        ensure_compatible(L, self, other);
         push_image(L, self->add(other));
     } else {
         switch (self->channels()) {
@@ -1065,11 +1116,7 @@ static int image_sub (lua_State *L)
     ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
     if (lua_isuserdata(L,b)) {
         ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        if (!self->compatibleWith(other)) {
-            std::stringstream ss;
-            ss << "Images are incompatible: " << *self << " and " << *other;
-            my_lua_error(L, ss.str());
-        }
+        ensure_compatible(L, self, other);
         push_image(L, swapped ? other->sub(self) : self->sub(other));
     } else {
         switch (self->channels()) {
@@ -1118,11 +1165,7 @@ static int image_mul (lua_State *L)
     ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
     if (lua_isuserdata(L,b)) {
         ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        if (!self->compatibleWith(other)) {
-            std::stringstream ss;
-            ss << "Images are incompatible: " << *self << " and " << *other;
-            my_lua_error(L, ss.str());
-        }
+        ensure_compatible(L, self, other);
         push_image(L, self->mul(other));
     } else {
         switch (self->channels()) {
@@ -1173,11 +1216,7 @@ static int image_div (lua_State *L)
     ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
     if (lua_isuserdata(L,b)) {
         ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        if (!self->compatibleWith(other)) {
-            std::stringstream ss;
-            ss << "Images are incompatible: " << *self << " and " << *other;
-            my_lua_error(L, ss.str());
-        }
+        ensure_compatible(L, self, other);
         push_image(L, swapped ? other->div(self) : self->div(other));
     } else {
         switch (self->channels()) {
@@ -1366,6 +1405,34 @@ template<chan_t ch> Image<ch> *image_from_lua_func (lua_State *L, uimglen_t widt
     return my_image;
 }
 
+template<chan_t ch> Image<ch> *image_from_lua_table (lua_State *L, uimglen_t width, uimglen_t height, int tab_index)
+{
+    unsigned int elements = luaL_getn(L, 3);
+    if (elements != width * height) {
+        std::stringstream ss;
+        ss << "Initialisation table for image "<<width<<"x"<<height<<" has "<<elements<<" elements.";
+        my_lua_error(L, ss.str());
+    }
+
+    Image<ch> *my_image = new Image<ch>(width, height);
+    Pixel<ch> p(0);
+    for (uimglen_t y=0 ; y<height ; ++y) {
+        for (uimglen_t x=0 ; x<width ; ++x) {
+            lua_rawgeti(L, tab_index, y*width+x+1);
+            if (!check_pixel<ch>(L, p, -1)) {
+                delete my_image;
+                const char *msg = lua_tostring(L, -1);
+                std::stringstream ss;
+                ss << "While initialising the image at (" << x << "," << y << "): initialisation table value \""<<msg<<"\" has the wrong type.";
+                my_lua_error(L, ss.str());
+            }
+            my_image->pixel(x,y) = p;
+            lua_pop(L, 1);
+        }   
+    }   
+    return my_image;
+}
+
 static int global_make (lua_State *L)
 {
     check_args(L,3);
@@ -1418,8 +1485,31 @@ static int global_make (lua_State *L)
             }
         }
         break;
+        case LUA_TTABLE: {
+            switch (channels) {
+                case 1:
+                image = image_from_lua_table<1>(L, width, height, 3);
+                break;
+
+                case 2:
+                image = image_from_lua_table<2>(L, width, height, 3);
+                break;
+
+                case 3:
+                image = image_from_lua_table<3>(L, width, height, 3);
+                break;
+
+                case 4:
+                image = image_from_lua_table<4>(L, width, height, 3);
+                break;
+
+                default:
+                my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+            }
+        }
+        break;
         default:
-        my_lua_error(L, "Expected a number, vector, or function at index 3.");
+        my_lua_error(L, "Expected a number, vector, table, or function at index 3.");
     }
 
     push_image(L, image);
@@ -1512,7 +1602,7 @@ static int global_lerp (lua_State *L)
         my_lua_error(L, "First two params of lerp must be the same type.");
     }
     lua_Number a = luaL_checknumber(L,3);
-    float x1,y1,z1, x2,y2,z2;
+    float x1,y1,z1,w1, x2,y2,z2,w2;
 
     switch (lua_type(L, 1)) {
         case LUA_TNUMBER: {
@@ -1531,6 +1621,19 @@ static int global_lerp (lua_State *L)
         lua_checkvector3(L, 1, &x1, &y1, &z1);
         lua_checkvector3(L, 2, &x2, &y2, &z2);
         lua_pushvector3(L, (1-a)*x1 + a*x2, (1-a)*y1 + a*y2, (1-a)*z1 + a*z2);
+        break;
+
+        case LUA_TVECTOR4:
+        lua_checkvector4(L, 1, &x1, &y1, &z1, &w1);
+        lua_checkvector4(L, 2, &x2, &y2, &z2, &w2);
+        lua_pushvector4(L, (1-a)*x1 + a*x2, (1-a)*y1 + a*y2, (1-a)*z1 + a*z2, (1-a)*w1 + a*w2);
+        break;
+
+        case LUA_TUSERDATA: {
+            ImageBase *img1 = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+            ImageBase *img2 = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+            push_image(L, img1->lerp(img2, a));
+        }
         break;
 
         default:
