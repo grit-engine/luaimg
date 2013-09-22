@@ -495,7 +495,9 @@ static int image_reduce (lua_State *L)
 
 static int image_crop (lua_State *L)
 {
-    check_args(L, 3);
+    if (lua_gettop(L)!=3 && lua_gettop(L)!=4) {
+        my_lua_error(L, "image_crop expected 3 or 4 params");
+    }
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     simglen_t left, bottom;
     uimglen_t width, height;
@@ -948,6 +950,38 @@ static int image_convolve (lua_State *L)
     return 1;
 }
 
+static int image_convolve_sep (lua_State *L)
+{
+    bool wrap_x = false;
+    bool wrap_y = false;
+    switch (lua_gettop(L)) {
+        case 4: wrap_y = check_bool(L, 4);
+        case 3: wrap_x = check_bool(L, 3);
+        case 2: break;
+        default: 
+        my_lua_error(L, "image_convolve_sep takes 2, 3, or 4 arguments");
+    }
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    ImageBase *kernel_x = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+    if (kernel_x->channels() != 1) {
+        my_lua_error(L, "Separable convolution kernel must have only 1 channel.");
+    }
+    Image<1> *kern_x = static_cast<Image<1>*>(kernel_x);
+    if (kern_x->width % 2 != 1) {
+        my_lua_error(L, "Separable convolution kernel width must be an odd number.");
+    }
+    if (kern_x->height != 1) {
+        my_lua_error(L, "Separable convolution kernel height must be 1.");
+    }
+    Image<1> *kern_y = kern_x->rotate(90);
+    ImageBase *nu = self->convolve(kern_x, wrap_x, wrap_y);
+    ImageBase *nu2 = nu->convolve(kern_y, wrap_x, wrap_y);
+    delete nu;
+    delete kern_y;
+    push_image(L, nu2);
+    return 1;
+}
+
 static int image_normalise (lua_State *L)
 {
     check_args(L,1);
@@ -999,6 +1033,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_lerp);
     } else if (!::strcmp(key, "convolve")) {
         lua_pushcfunction(L, image_convolve);
+    } else if (!::strcmp(key, "convolveSep")) {
+        lua_pushcfunction(L, image_convolve_sep);
     } else if (!::strcmp(key, "normalise")) {
         lua_pushcfunction(L, image_normalise);
     } else if (!::strcmp(key, "drawImage")) {
@@ -1123,28 +1159,28 @@ static int image_sub (lua_State *L)
             case 1: {
                 Pixel<1> other;
                 if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 1 channel image.");
-                push_image(L, static_cast<Image<1>*>(self)->sub(other, swapped));
+                else push_image(L, static_cast<Image<1>*>(self)->sub(other, swapped));
             }
             break;
 
             case 2: {
                 Pixel<2> other;
                 if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 2 channel image.");
-                push_image(L, static_cast<Image<2>*>(self)->sub(other, swapped));
+                else push_image(L, static_cast<Image<2>*>(self)->sub(other, swapped));
             }
             break;
 
             case 3: {
                 Pixel<3> other;
                 if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 3 channel image.");
-                push_image(L, static_cast<Image<3>*>(self)->sub(other, swapped));
+                else push_image(L, static_cast<Image<3>*>(self)->sub(other, swapped));
             }
             break;
 
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 4 channel image.");
-                push_image(L, static_cast<Image<4>*>(self)->sub(other, swapped));
+                else push_image(L, static_cast<Image<4>*>(self)->sub(other, swapped));
             }
             break;
 
@@ -1223,28 +1259,28 @@ static int image_div (lua_State *L)
             case 1: {
                 Pixel<1> other;
                 if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot divide a 1 channel image by this value.");
-                push_image(L, static_cast<Image<1>*>(self)->div(other, swapped));
+                else push_image(L, static_cast<Image<1>*>(self)->div(other, swapped));
             }
             break;
 
             case 2: {
                 Pixel<2> other;
                 if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot divide a 2 channel image by this value.");
-                push_image(L, static_cast<Image<2>*>(self)->div(other, swapped));
+                else push_image(L, static_cast<Image<2>*>(self)->div(other, swapped));
             }
             break;
 
             case 3: {
                 Pixel<3> other;
                 if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot divide a 3 channel image by this value.");
-                push_image(L, static_cast<Image<3>*>(self)->div(other, swapped));
+                else push_image(L, static_cast<Image<3>*>(self)->div(other, swapped));
             }
             break;
 
             case 4: {
                 Pixel<4> other;
                 if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot divide a 4 channel image by this value.");
-                push_image(L, static_cast<Image<4>*>(self)->div(other, swapped));
+                else push_image(L, static_cast<Image<4>*>(self)->div(other, swapped));
             }
             break;
 
@@ -1668,8 +1704,8 @@ static const luaL_reg global[] = {
     {"open", global_open},
     {"RGBtoHSL", global_rgb_to_hsl},
     {"HSLtoRGB", global_hsl_to_rgb},
-    {"HSBtoHSL", global_hsv_to_hsl},
-    {"HSLtoHSB", global_hsl_to_hsv},
+    {"HSVtoHSL", global_hsv_to_hsl},
+    {"HSLtoHSV", global_hsl_to_hsv},
     {"RGBtoHSV", global_rgb_to_hsv},
     {"HSVtoRGB", global_hsv_to_rgb},
     {"lerp", global_lerp},

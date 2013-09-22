@@ -22,6 +22,8 @@
 #ifdef WIN32
 typedef unsigned int uint32_t;
 typedef unsigned char uint8_t;
+typedef signed int int32_t;
+typedef signed char int8_t;
 #else
 #include <cinttypes>
 #endif
@@ -471,6 +473,11 @@ template<chan_t ch> class Image : public ImageBase {
     Image<ch> *scale (uimglen_t w, uimglen_t h, ScaleFilter filter)
     {
         return static_cast<Image<ch>*>(ImageBase::scale(w,h, filter));
+    }
+
+    Image<ch> *rotate (float angle)
+    {
+        return static_cast<Image<ch>*>(ImageBase::rotate(angle));
     }
 
     void drawImageNoDestAlpha (const Image<ch+1> *src, uimglen_t left, uimglen_t bottom)
