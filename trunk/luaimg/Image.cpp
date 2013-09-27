@@ -343,14 +343,15 @@ ImageBase *image_load (const std::string &filename)
     switch (input_type) {
         case FIT_BITMAP: {
 
-            if (FreeImage_GetColorsUsed(input) != 0) {
-                std::cerr << "Images with palettes not supported." << std::endl;
+            // how many channels?
+            int bits = FreeImage_GetBPP(input);
+
+            if (FreeImage_GetColorsUsed(input) != 0 && bits != 8) {
+                std::cerr << "Images with palettes not supported when number of bits is" << bits << "." << std::endl;
                 FreeImage_Unload(input);
                 return NULL;
             }
         
-            // how many channels?
-            int bits = FreeImage_GetBPP(input);
             switch (bits) {
                 case 1:
                 std::cerr << "Images with 1 bit colour not supported." << std::endl;
@@ -522,9 +523,9 @@ FREE_IMAGE_FILTER to_fi (ScaleFilter sf)
     }
 }
 
-template<uimglen_t ch> FIBITMAP *image_to_fifloat (ImageBase *img_)
+template<uimglen_t ch> FIBITMAP *image_to_fifloat (const ImageBase *img_)
 {
-    Image<ch> *img = static_cast<Image<ch>*>(img_);
+    const Image<ch> *img = static_cast<const Image<ch>*>(img_);
     FIBITMAP *fib = NULL;
     uimglen_t actual_channels = 0;
     switch (ch) {
@@ -598,7 +599,7 @@ template<uimglen_t ch> Image<ch> *image_from_fifloat (FIBITMAP *img)
     return output;
 }
 
-ImageBase *ImageBase::scale (uimglen_t dst_width, uimglen_t dst_height, ScaleFilter filter)
+ImageBase *ImageBase::scale (uimglen_t dst_width, uimglen_t dst_height, ScaleFilter filter) const
 {
     switch (channels()) {
 
@@ -655,7 +656,7 @@ ImageBase *ImageBase::scale (uimglen_t dst_width, uimglen_t dst_height, ScaleFil
     return NULL;
 }
 
-ImageBase *ImageBase::rotate (float angle)
+ImageBase *ImageBase::rotate (float angle) const
 {
     switch (channels()) {
 

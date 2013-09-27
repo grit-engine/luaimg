@@ -75,9 +75,19 @@ template<class T> T* check_ptr (lua_State *L, int index, const char *tag)
     return *static_cast<T**>(luaL_checkudata(L, index, tag));
 }
 
-template<class T> T* is_ptr (lua_State *L, int index, const char *tag)
+bool is_ptr (lua_State *L, int index, const char *tag)
 {
-    return *static_cast<T**>(luaL_checkudata(L, index, tag));
+    if (!lua_isuserdata(L, index)) return false;
+    void *p = lua_touserdata(L, index);
+    if (p == NULL) return false;
+    if (!lua_getmetatable(L, index)) return false;
+    lua_getfield(L, LUA_REGISTRYINDEX, tag);
+    if (lua_rawequal(L, -1, -2)) {
+        lua_pop(L, 2);  /* remove both metatables */
+        return true;
+    }
+    lua_pop(L, 2);  /* remove both metatables */
+    return false;
 }
 
 
@@ -119,6 +129,17 @@ static void check_coord (lua_State *L, int index, uimglen_t &x, uimglen_t &y)
     y = y_ < 0 ? 0 : y_ > std::numeric_limits<uimglen_t>::max() ? std::numeric_limits<uimglen_t>::max() : y_;
 }
 
+chan_t get_pixel_channels (lua_State *L, int index)
+{
+    switch (lua_type(L, index)) {
+        case LUA_TNUMBER: return 1;
+        case LUA_TVECTOR2: return 2;
+        case LUA_TVECTOR3: return 3;
+        case LUA_TVECTOR4: return 4;
+        default: return 0;
+    }
+}
+
 template<chan_t ch> bool check_pixel (lua_State *L, Pixel<ch> &p, int index);
 
 template<> bool check_pixel<1> (lua_State *L, Pixel<1> &p, int index)
@@ -130,6 +151,11 @@ template<> bool check_pixel<1> (lua_State *L, Pixel<1> &p, int index)
 
 template<> bool check_pixel<2> (lua_State *L, Pixel<2> &p, int index)
 {
+    if (lua_type(L,index) == LUA_TNUMBER) {
+        p[0] = lua_tonumber(L, index);
+        p[1] = p[0];
+        return true;
+    }
     if (lua_type(L,index) != LUA_TVECTOR2) return false;
     lua_checkvector2(L, index, &p[0], &p[1]);
     return true;
@@ -137,6 +163,12 @@ template<> bool check_pixel<2> (lua_State *L, Pixel<2> &p, int index)
 
 template<> bool check_pixel<3> (lua_State *L, Pixel<3> &p, int index)
 {
+    if (lua_type(L,index) == LUA_TNUMBER) {
+        p[0] = lua_tonumber(L, index);
+        p[1] = p[0];
+        p[2] = p[0];
+        return true;
+    }
     if (lua_type(L,index) != LUA_TVECTOR3) return false;
     lua_checkvector3(L, index, &p[0], &p[1], &p[2]);
     return true;
@@ -144,8 +176,15 @@ template<> bool check_pixel<3> (lua_State *L, Pixel<3> &p, int index)
 
 template<> bool check_pixel<4> (lua_State *L, Pixel<4> &p, int index)
 {
+    if (lua_type(L,index) == LUA_TNUMBER) {
+        p[0] = lua_tonumber(L, index);
+        p[1] = p[0];
+        p[2] = p[0];
+        p[3] = p[0];
+        return true;
+    }
     if (lua_type(L,index) != LUA_TVECTOR4) return false;
-    lua_checkvector4(L, -1, &p[0], &p[1], &p[2], &p[3]);
+    lua_checkvector4(L, index, &p[0], &p[1], &p[2], &p[3]);
     return true;
 }
 
@@ -609,7 +648,25 @@ static int image_clone (lua_State *L)
 {
     check_args(L, 1);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    ImageBase *out = self->clone();
+    ImageBase *out = self->clone(false, false);
+    push_image(L, out);
+    return 1;
+}
+
+static int image_flip (lua_State *L)
+{
+    check_args(L, 1);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    ImageBase *out = self->clone(false, true);
+    push_image(L, out);
+    return 1;
+}
+
+static int image_mirror (lua_State *L)
+{
+    check_args(L, 1);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    ImageBase *out = self->clone(true, false);
     push_image(L, out);
     return 1;
 }
@@ -633,7 +690,7 @@ static int image_rms (lua_State *L)
     return 1;
 }
 
-static int image_pow (lua_State *L)
+static int image_exp (lua_State *L)
 {
     check_args(L,2);
     // img, float
@@ -641,6 +698,14 @@ static int image_pow (lua_State *L)
     float index = luaL_checknumber(L, 2);
     ImageBase *out = src->pow(index);
     push_image(L, out);
+    return 1;
+}
+
+static int image_abs (lua_State *L)
+{
+    check_args(L,1);
+    ImageBase *src = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    push_image(L, src->abs());
     return 1;
 }
 
@@ -706,7 +771,7 @@ static int image_draw_image (lua_State *L)
             Image<1> *dst_ = static_cast<Image<1>*>(dst);
             switch (src->channels()) {
                 case 2: {
-                    dst_->drawImageNoDestAlpha(static_cast<Image<2>*>(src),x,y);
+                    dst_->drawImageNoDestAlpha(src,x,y);
                     break;
                 }
                 default: my_lua_error(L, "When using drawImage to a 1 channel image, source image must have 2 channels.");
@@ -718,11 +783,11 @@ static int image_draw_image (lua_State *L)
             Image<2> *dst_ = static_cast<Image<2>*>(dst);
             switch (src->channels()) {
                 case 2: {
-                    dst_->drawImage(static_cast<Image<2>*>(src),x,y);
+                    dst_->drawImage(src,x,y);
                     break;
                 }
                 case 3: {
-                    dst_->drawImageNoDestAlpha(static_cast<Image<3>*>(src),x,y);
+                    dst_->drawImageNoDestAlpha(src,x,y);
                     break;
                 }
                 default: my_lua_error(L, "When using drawImage to a 2 channel image, source image must have 2 or 3 channels.");
@@ -734,11 +799,11 @@ static int image_draw_image (lua_State *L)
             Image<3> *dst_ = static_cast<Image<3>*>(dst);
             switch (src->channels()) {
                 case 3: {
-                    dst_->drawImage(static_cast<Image<3>*>(src),x,y);
+                    dst_->drawImage(src,x,y);
                     break;
                 }
                 case 4: {
-                    dst_->drawImageNoDestAlpha(static_cast<Image<4>*>(src),x,y);
+                    dst_->drawImageNoDestAlpha(src,x,y);
                     break;
                 }
                 default: my_lua_error(L, "When using drawImage to a 3 channel image, source image must have 3 or 4 channels.");
@@ -750,7 +815,7 @@ static int image_draw_image (lua_State *L)
             Image<4> *dst_ = static_cast<Image<4>*>(dst);
             switch (src->channels()) {
                 case 4: {
-                    dst_->drawImage(static_cast<Image<4>*>(src),x,y);
+                    dst_->drawImage(src,x,y);
                     break;
                 }
                 default: my_lua_error(L, "When using drawImage to a 4 channel image, source image must have 4 channels.");
@@ -990,6 +1055,69 @@ static int image_normalise (lua_State *L)
     return 1;
 }
 
+template<chan_t sch, chan_t dch>
+Image<dch> *image_do_swizzle (const Image<sch> *src, chan_t *mapping)
+{
+    Image<dch> *dst = new Image<dch>(src->width, src->height);
+    for (uimglen_t y=0 ; y<src->height ; ++y) {
+        for (uimglen_t x=0 ; x<src->width ; ++x) {
+            for (chan_t c=0 ; c<dch ; ++c) {
+                dst->pixel(x,y)[c] = src->pixel(x,y)[mapping[c]];
+            }
+        }
+    }
+    return dst;
+}
+
+// key guaranteed to be at most 4 letters long and only contain wxyz
+static ImageBase *image_swizzle (const ImageBase *img, chan_t nu_chans, chan_t *mapping)
+{
+    switch (img->channels()) {
+        case 1: {
+            const Image<1> *src = static_cast<const Image<1>*>(img);
+            switch (nu_chans) {
+                case 1: return image_do_swizzle<1,1>(src, mapping);
+                case 2: return image_do_swizzle<1,2>(src, mapping);
+                case 3: return image_do_swizzle<1,3>(src, mapping);
+                case 4: return image_do_swizzle<1,4>(src, mapping);
+                default:;
+            }
+        } break;
+        case 2: {
+            const Image<2> *src = static_cast<const Image<2>*>(img);
+            switch (nu_chans) {
+                case 1: return image_do_swizzle<2,1>(src, mapping);
+                case 2: return image_do_swizzle<2,2>(src, mapping);
+                case 3: return image_do_swizzle<2,3>(src, mapping);
+                case 4: return image_do_swizzle<2,4>(src, mapping);
+                default:;
+            }
+        } break;
+        case 3: {
+            const Image<3> *src = static_cast<const Image<3>*>(img);
+            switch (nu_chans) {
+                case 1: return image_do_swizzle<3,1>(src, mapping);
+                case 2: return image_do_swizzle<3,2>(src, mapping);
+                case 3: return image_do_swizzle<3,3>(src, mapping);
+                case 4: return image_do_swizzle<3,4>(src, mapping);
+                default:;
+            }
+        } break;
+        case 4: {
+            const Image<4> *src = static_cast<const Image<4>*>(img);
+            switch (nu_chans) {
+                case 1: return image_do_swizzle<4,1>(src, mapping);
+                case 2: return image_do_swizzle<4,2>(src, mapping);
+                case 3: return image_do_swizzle<4,3>(src, mapping);
+                case 4: return image_do_swizzle<4,4>(src, mapping);
+                default:;
+            }
+        } break;
+        default:;
+    }
+    return NULL;
+}
+
 static int image_index (lua_State *L)
 {
     check_args(L,2);
@@ -1019,10 +1147,16 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_rotate);
     } else if (!::strcmp(key, "clone")) {
         lua_pushcfunction(L, image_clone);
+    } else if (!::strcmp(key, "flip")) {
+        lua_pushcfunction(L, image_flip);
+    } else if (!::strcmp(key, "mirror")) {
+        lua_pushcfunction(L, image_mirror);
     } else if (!::strcmp(key, "rms")) {
         lua_pushcfunction(L, image_rms);
     } else if (!::strcmp(key, "pow")) {
-        lua_pushcfunction(L, image_pow);
+        lua_pushcfunction(L, image_exp);
+    } else if (!::strcmp(key, "abs")) {
+        lua_pushcfunction(L, image_abs);
     } else if (!::strcmp(key, "set")) {
         lua_pushcfunction(L, image_set);
     } else if (!::strcmp(key, "max")) {
@@ -1040,7 +1174,34 @@ static int image_index (lua_State *L)
     } else if (!::strcmp(key, "drawImage")) {
         lua_pushcfunction(L, image_draw_image);
     } else {
-        my_lua_error(L, "Not a readable Image field: \""+std::string(key)+"\"");
+        chan_t nu_chans = strlen(key);
+        if (nu_chans<=4) {
+            bool swizzle = true;
+            chan_t mapping[4];
+            for (chan_t c=0 ; c<nu_chans ; ++c) {
+                chan_t src_chan = 0;
+                switch (key[c]) {
+                    case 'x': src_chan = 0; break;
+                    case 'y': src_chan = 1; break;
+                    case 'z': src_chan = 2; break;
+                    case 'w': src_chan = 3; break;
+                    default: swizzle = false;
+                }
+                mapping[c] = src_chan;
+                if (src_chan >= self->channels()) {
+                    my_lua_error(L, "Image does not have enough channels for swizzle: \""+std::string(key)+"\"");
+                }
+            }
+            if (swizzle) {
+                push_image(L, image_swizzle(self, nu_chans, mapping));
+                return 1;
+            } else {
+                my_lua_error(L, "Not a readable Image field: \""+std::string(key)+"\"");
+            }
+    
+        } else {
+            my_lua_error(L, "Not a readable Image field: \""+std::string(key)+"\"");
+        }
     }
     return 1;
 }
@@ -1278,8 +1439,7 @@ static int image_div (lua_State *L)
             break;
 
             case 4: {
-                Pixel<4> other;
-                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot divide a 4 channel image by this value.");
+                Pixel<4> other; if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot divide a 4 channel image by this value.");
                 else push_image(L, static_cast<Image<4>*>(self)->div(other, swapped));
             }
             break;
@@ -1288,6 +1448,162 @@ static int image_div (lua_State *L)
             my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
         }
     }
+    return 1;
+}
+
+// alpha blend (regular blend mode in photoshop)
+static int image_pow (lua_State *L)
+{
+    check_args(L,2);
+    ImageBase *icing = NULL; // icing ^ cake
+    ImageBase *cake = NULL;
+    if (is_ptr(L, 1, IMAGE_TAG)) {
+        icing = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    }
+    if (is_ptr(L, 2, IMAGE_TAG)) {
+        cake = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+    }
+    if (icing == NULL && cake == NULL) {
+        my_lua_error(L, "Internal error: image_pow called with neither argument being an image.");
+    }
+    ImageBase *nu = NULL;
+    if (icing != NULL && cake != NULL) {
+        if (!icing->sizeCompatibleWith(cake)) {
+            my_lua_error(L, "When blending images, sizes of images did not match.");
+        }
+        if (icing->channels() == cake->channels()) {
+            nu = cake->blendImage(icing);
+        } else if (icing->channels() == cake->channels()+1) {
+            nu = cake->blendImageNoDestAlpha(icing);
+        } else {
+            my_lua_error(L, "When blending image 'icing' onto 'cake', icing's channels must be the same or 1 more than cake's channels.");
+        }
+    } else {
+        if (cake == NULL) {
+            chan_t pch = get_pixel_channels(L, 2);
+            switch (pch) {
+                case 0: my_lua_error(L, "Expected an image or pixel in first parameter of image blend");
+                case 1: {
+                    switch(icing->channels()) {
+                        case 1: {
+                            // just combine alpha channels (a bit weird, but makes sense)
+                            Pixel<1> p; check_pixel(L, p, 2);
+                            nu = icing->blendColourSwapped(p);
+                        } break;
+                        case 2: {
+                            // alpha blend greyscale image on top of greyscale solid colour
+                            Pixel<1> p; check_pixel(L, p, 2);
+                            nu = icing->blendColourNoDestAlphaSwapped(p);
+                        } break;
+                        case 3: {
+                            // promote pixel to 1 fewer channels
+                            // assume icing has an alpha channel but cake alpha channel should be effectively 1
+                            Pixel<2> p; check_pixel(L, p, 2);
+                            nu = icing->blendColourNoDestAlphaSwapped(p);
+                        } break;
+                        case 4: {
+                            // promote pixel to 1 fewer channels
+                            // assume icing has an alpha channel but cake alpha channel should be effectively 1
+                            Pixel<3> p; check_pixel(L, p, 2);
+                            nu = icing->blendColourNoDestAlphaSwapped(p);
+                        } break;
+                        default: my_lua_error(L, "Internal error: weird number of channels.");
+                    }
+                } break;
+                case 2: {
+                    Pixel<2> p; check_pixel(L, p, 2);
+                    switch(icing->channels()) {
+                        case 2: {
+                            // alpha blend greyscale image on top of greyscale solid colour with alpha
+                            nu = icing->blendColourSwapped(p);
+                        } break;
+                        case 3: {
+                            // assume icing has an alpha channel but cake alpha channel should be effectively 1
+                            nu = icing->blendColourNoDestAlphaSwapped(p);
+                        } break;
+                        default: my_lua_error(L, "Mismatch in number of channels during blend operation.");
+                    }
+                } break;
+                case 3: {
+                    Pixel<3> p; check_pixel(L, p, 2);
+                    switch(icing->channels()) {
+                        case 3: {
+                            // alpha blend 2+a channel image on top of 2+a channel solid colour
+                            nu = icing->blendColourSwapped(p);
+                        } break;
+                        case 4: {
+                            // assume icing has an alpha channel but cake is rgb
+                            nu = icing->blendColourNoDestAlphaSwapped(p);
+                        } break;
+                        default: my_lua_error(L, "Mismatch in number of channels during blend operation.");
+                    }
+                } break;
+                case 4: {
+                    if (icing->channels() != 4)
+                        my_lua_error(L, "When blending to a 4 channel colour, need a 4 channel image");
+                    Pixel<4> p; check_pixel(L, p, 2);
+                    nu = icing->blendColourSwapped(p);
+                } break;
+            }
+        } else { // icing == NULL
+            chan_t pch = get_pixel_channels(L, 1);
+            switch (pch) {
+                case 0: my_lua_error(L, "Expected an image or pixel in first parameter of image blend");
+                case 1: {
+                    if (cake->channels() == 1) {
+                        // just combine alpha channels (a bit weird, but makes sense)
+                        Pixel<1> p; check_pixel(L, p, 1);
+                        nu = cake->blendColour(p);
+                    } else {
+                        my_lua_error(L, "Blending a single number on top of an image of >1 channels is ambiguous.");
+                    }
+                } break;
+                case 2: {
+                    Pixel<2> p; check_pixel(L, p, 1);
+                    switch(cake->channels()) {
+                        case 2: {
+                            // alpha blend greyscale image on top of greyscale solid colour with alpha
+                            nu = cake->blendColour(p);
+                        } break;
+                        case 1: {
+                            // assume cake has an alpha channel but cake alpha channel should be effectively 1
+                            nu = cake->blendColourNoDestAlpha(p);
+                        } break;
+                        default: my_lua_error(L, "Internal error: weird number of channels.");
+                    }
+                } break;
+                case 3: {
+                    Pixel<3> p; check_pixel(L, p, 1);
+                    switch(cake->channels()) {
+                        case 3: {
+                            // alpha blend 2+a channel image on top of 2+a channel solid colour
+                            nu = cake->blendColour(p);
+                        } break;
+                        case 2: {
+                            // assume cake has an alpha channel but cake is rgb
+                            nu = cake->blendColourNoDestAlpha(p);
+                        } break;
+                        default: my_lua_error(L, "Internal error: weird number of channels.");
+                    }
+                } break;
+                case 4: {
+                    Pixel<4> p; check_pixel(L, p, 1);
+                    switch(cake->channels()) {
+                        case 4: {
+                            // alpha blend 2+a channel image on top of 2+a channel solid colour
+                            nu = cake->blendColour(p);
+                        } break;
+                        case 3: {
+                            // assume cake has an alpha channel but cake is rgb
+                            nu = cake->blendColourNoDestAlpha(p);
+                        } break;
+                        default: my_lua_error(L, "Internal error: weird number of channels.");
+                    }
+                } break;
+            }
+        }
+    }
+    push_image(L, nu);
     return 1;
 }
 
@@ -1312,6 +1628,7 @@ const luaL_reg image_meta_table[] = {
     {"__add",      image_add}, 
     {"__sub",      image_sub}, 
     {"__div",      image_div}, 
+    {"__pow",      image_pow},
 
     {NULL, NULL}
 };
@@ -1467,6 +1784,29 @@ template<chan_t ch> Image<ch> *image_from_lua_table (lua_State *L, uimglen_t wid
         }   
     }   
     return my_image;
+}
+
+uimglen_t fact (uimglen_t x)
+{
+    uimglen_t counter = 1;
+    for (uimglen_t i=2 ; i<=x ; ++i) {
+        counter *= i;
+    }
+    return counter;
+}
+
+static int global_gaussian (lua_State *L)
+{
+    check_args(L,1);
+    uimglen_t size = check_t<uimglen_t>(L, 1);
+    Image<1> *my_image = new Image<1>(size, 1);
+    for (uimglen_t x=0 ; x<size ; ++x) {
+        my_image->pixel(x,0) = fact(size-1) / (fact(x) * fact(size-1-x));
+    }
+    push_image(L, my_image->normalise());
+    delete my_image;
+    return 1;
+    
 }
 
 static int global_make (lua_State *L)
@@ -1631,6 +1971,21 @@ static int global_hsv_to_rgb (lua_State *L)
     return 1;
 }
 
+static int global_colour (lua_State *L)
+{
+    check_args(L,2);
+    chan_t channels = check_int(L, 1, 1, 4);
+    lua_Number f = luaL_checknumber(L, 2);
+    switch (channels) {
+        case 1: lua_pushnumber(L, f); break;
+        case 2: lua_pushvector2(L, f, f); break;
+        case 3: lua_pushvector3(L, f, f, f); break;
+        case 4: lua_pushvector4(L, f, f, f, f); break;
+        default: my_lua_error(L, "Internal error: weird number of channels.");
+    }
+    return 1;
+}
+
 static int global_lerp (lua_State *L)
 {
     check_args(L,3);
@@ -1709,6 +2064,8 @@ static const luaL_reg global[] = {
     {"RGBtoHSV", global_rgb_to_hsv},
     {"HSVtoRGB", global_hsv_to_rgb},
     {"lerp", global_lerp},
+    {"colour", global_colour},
+    {"gaussian", global_gaussian},
  //   {"make_voxel", global_make_voxel},
 
     {NULL, NULL}

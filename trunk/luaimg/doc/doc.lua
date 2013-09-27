@@ -62,28 +62,42 @@ local function concat(...)
     return content
 end
 
+local examples = {
+
+[[make(vec(64,64), 3, vec(1,0,0)):save("red.png")]],
+
+[[local sz = vec(64,64)
+function init(pos)
+    local rad = #(pos - sz/2);
+    local alpha = clamp(30-rad, 0, 1)
+    return vec(0, 0, 1, alpha)
+end
+make(sz, 4, init):save("circle.png")]],
+
+[[(open("circle.png") ^ vec(1,1,0)):save("circle_bg.png")]],
+
+[[(open("circle.png") ^ open("red.png")):save("circle_bg2.png")]],
+
+[[open("circle.png").w:save("circle_a.png")]],
+
+[[make(vec(64,64), 3, function() return vec(random(), random(), random()) end):save("random.png")]],
+
+[[open("random.png"):convolveSep(gaussian(7), true, true):save("perlin.png")]],
+
+[[((vec(1,0,1)*open("random.png")+open("perlin.png"))/2):save("arith.png")]]
+
+}
+
 function generate_imgs()
-    make(vector2(8,4), 3, vector3(1,0,0)):save("red.png")
 
-    local sz = vector2(64,64)
-    function init(pos)
-        local rad = #(pos - sz/2);
-        local alpha = clamp(30-rad, 0, 1)
-        return vector4(1, 0, 0, alpha)
+    for _,v in ipairs(examples) do
+        loadstring(v)()
     end
-    make(sz, 4, init):save("circle.png")
-
-    open("circle.png"):map(1, function(c) return c.w end):save("circle_a.png")
-
-    make(vector2(64,64), 3, function() return vector3(random(), random(), random()) end):save("random.png")
-
-    sep_gaussian_x = make(vector2(7,1),1,{ 1, 6, 15, 20, 15, 6, 1 }):normalise()
-    open("random.png"):convolveSep(sep_gaussian_x, true, true):save("perlin.png")
 
 end
 
 function emit_page()
-    print [[<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+    print ([[<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <title>LuaImg Documentation</title>
@@ -96,13 +110,13 @@ function emit_page()
 
     <h2>Overview</h2>
 
-    <div class=prose>
+    <div class="prose">
 
         <p>LuaImg is a programming framework for scripted image manipulation.  It does not compete with Gimp/Photoshop since those applications are for interactive image manipulation.  It is more similar to ImageMagick and netpbm.  However, those tools encourage the use of the shell to glue everything together.  LuaImg is more like sed or awk, in that a single LuaImg process can do an arbitrary amount of manipulation using an internal domain-specific language.  LuaImg is based on the Lua fork used in the <a href="http://www.gritengine.com/">Grit</a> project.  The goals of LuaImg are, in order:</p>
         <ol>
-            <li>Expressive power: To allow the expression of a wide variety of image manipulation algorithms on HDR and LDR images.</>
-            <li>Simplicity:  To provide the smallest set of features, allow complicated effects to be achieved through easy and intuitive combinations of these features.</>
-            <li>Performance:  To provide the best performance possible without compromising goals 1 and 2.  The use of script interpretion does limit performance, but we try to keep the garbage collection costs under control with a customised virtual machine.</>
+            <li>Expressive power: To allow the expression of a wide variety of image manipulation algorithms on HDR and LDR images.</li>
+            <li>Simplicity:  To provide the smallest set of features, allow complicated effects to be achieved through easy and intuitive combinations of these features.</li>
+            <li>Performance:  To provide the best performance possible without compromising goals 1 and 2.  The use of script interpretion does limit performance, but we try to keep the garbage collection costs under control with a customised virtual machine.</li>
         </ol>
 
         <p>LuaImg has so far been used for detecting northern lights in photos
@@ -113,7 +127,7 @@ undo blend operations, and more.</p>
 
     <h2>Types</h2>
 
-    <div class=prose>
+    <div class="prose">
 
         <p>LuaImg has all the types from regular Lua (number, boolean, string, function, table, and the nil type).</p>
 
@@ -138,50 +152,49 @@ Additional functions like dot product, etc, are described below. </p>
 
     <h2>Other differences from Lua</h2>
 
-    <div class=prose>
+    <div class="prose">
         <p>All of the math functions have been moved out of the math package into global scope.</p>
     </div>
 
     <h2>Examples</h2>
 
-    <div class=prose>
+    <div class="prose">
 
         <p>Lua programs are also LuaImg programs, so the Lua hello world program stands:</p>
         <pre>
 print "Hello world!" </pre>
 
-        <p>The simplest image -- an 8*4 block of red, saved to a file:</p>
-        <img src=red.png style="float:right;"/>
-        <pre>
-make(vector2(8,4), 3, vector3(1,0,0)):save("red.png") </pre>
+        <p>Create a 64x64 image with 3 channels containing solid red (vector3(1,0,0)).  Save to a file:</p>
+        <img src="red.png" style="float:right;" alt="luaimg output"/>
+        <pre>]]..examples[1]..[[</pre>
 
-        <p>Initialising an image with a function (draws an antialiased red circle with alpha):</p>
-        <img src=circle.png style="float:right;" />
-        <pre>
-local sz = vector2(64,64)
-function init(pos)
-    local rad = #(pos - sz/2);
-    local alpha = clamp(30-rad, 0, 1)
-    return vector4(1, 0, 0, alpha)
-end
-make(sz, 4, init):save("circle.png") </pre>
+        <p>Initialising an image with a function (draws an antialiased blue circle with alpha):</p>
+        <img src="circle.png" style="float:right;" alt="luaimg output" />
+        <pre>]]..examples[2]..[[</pre>
+
+        <p>Blend the previous image onto a solid yellow background:</p>
+        <img src="circle_bg.png" style="float:right;" alt="luaimg output" />
+        <pre>]]..examples[3]..[[</pre>
+
+        <p>Blend the previous image onto red.png:</p>
+        <img src="circle_bg2.png" style="float:right;" alt="luaimg output" />
+        <pre>]]..examples[4]..[[</pre>
 
         <p>Load previous image, extract alpha channel and save it:</p>
-        <img src=circle_a.png style="float:right;" />
-        <pre>
-open("circle.png"):map(1, function(c) return c.w end):save("circle_a.png")
-        </pre>
+        <img src="circle_a.png" style="float:right;" alt="luaimg output" />
+        <pre>]]..examples[5]..[[</pre>
 
         <p>Random noise:</p>
-        <img src=random.png style="float:right;" />
-        <pre>
-make(vector2(64,64), 3, function() return vector3(random(),random(),random()) end):save("random.png") </pre>
+        <img src="random.png" style="float:right;" alt="luaimg output" />
+        <pre>]]..examples[6]..[[</pre>
 
-        <p>Random noise with gaussian blur.  Note this is a demonstration of LuaImg's general support for separable convolutions.</p>
-        <img src=perlin.png style="float:right;" />
-        <pre>
-kernel = make(vector2(7,1),1,{ 1, 6, 15, 20, 15, 6, 1 }):normalise()
-open("random.png"):convolveSep(kernel, true, true):save("perlin.png") </pre>
+        <p>Random noise with gaussian blur.  The gaussian(n) function returns an nx1 image that represents a separated normalised gaussian blur kernel.  Custom kernels, whether separable or not, are easy in LuaImg.</p>
+        <img src="perlin.png" style="float:right;" alt="luaimg output" />
+        <pre>]]..examples[7]..[[</pre>
+
+        <p>Arithmetic on images:</p>
+        <img src="arith.png" style="float:right;" alt="luaimg output" />
+        <pre>]]..examples[8]..[[</pre>
 
         <p>Note that with any programming framework, the point is not to do simple
     one-off things like in these examples, but to build complex, precise, or
@@ -191,7 +204,7 @@ open("random.png"):convolveSep(kernel, true, true):save("perlin.png") </pre>
 
     <h2>API notation conventions</h2>
 
-    <div class=prose>
+    <div class="prose">
 
         <p>The required types are written in the documentation, but with a few
         ingenuities:</p>
@@ -209,7 +222,7 @@ open("random.png"):convolveSep(kernel, true, true):save("perlin.png") </pre>
             <li>Optional parameters are given in square brackets.</li>
         </ul>
     </div>
-]]
+]])
 
     print '    <h2>Global Functions</h2>'
     for _,name in ipairs(sorted_keys_from(docs.functions)) do
