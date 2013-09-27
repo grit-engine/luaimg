@@ -84,7 +84,7 @@ make(sz, 4, init):save("circle.png")]],
 
 [[open("random.png"):convolveSep(gaussian(7), true, true):save("perlin.png")]],
 
-[[((vec(1,0,1)*open("random.png")+open("perlin.png"))/2):save("arith.png")]]
+[[((open("random.png")-open("perlin.png")) + 0.5):save("noise_hifreq.png")]]
 
 }
 
@@ -172,15 +172,15 @@ print "Hello world!" </pre>
         <img src="circle.png" style="float:right;" alt="luaimg output" />
         <pre>]]..examples[2]..[[</pre>
 
-        <p>Blend the previous image onto a solid yellow background:</p>
+        <p>Blend the circle image onto a solid yellow background:</p>
         <img src="circle_bg.png" style="float:right;" alt="luaimg output" />
         <pre>]]..examples[3]..[[</pre>
 
-        <p>Blend the previous image onto red.png:</p>
+        <p>Blend the circle image onto red.png:</p>
         <img src="circle_bg2.png" style="float:right;" alt="luaimg output" />
         <pre>]]..examples[4]..[[</pre>
 
-        <p>Load previous image, extract alpha channel and save it:</p>
+        <p>Load the circle image, extract alpha channel and save it:</p>
         <img src="circle_a.png" style="float:right;" alt="luaimg output" />
         <pre>]]..examples[5]..[[</pre>
 
@@ -188,12 +188,12 @@ print "Hello world!" </pre>
         <img src="random.png" style="float:right;" alt="luaimg output" />
         <pre>]]..examples[6]..[[</pre>
 
-        <p>Random noise with gaussian blur.  The gaussian(n) function returns an nx1 image that represents a separated normalised gaussian blur kernel.  Custom kernels, whether separable or not, are easy in LuaImg.</p>
+        <p>Random noise with gaussian blur.  The gaussian(n) function returns an nx1 image that represents a separated normalised gaussian blur kernel.  One can also use custom kernels by providing an image instead of using the result of gaussian() -- and these can be provided either in separated form, or as a general rectangular matrix.</p>
         <img src="perlin.png" style="float:right;" alt="luaimg output" />
         <pre>]]..examples[7]..[[</pre>
 
-        <p>Arithmetic on images:</p>
-        <img src="arith.png" style="float:right;" alt="luaimg output" />
+        <p>Subtract the two to create a high frequency noise texture.  Generally, using arithmetic to combine images is supported.</p>
+        <img src="noise_hifreq.png" style="float:right;" alt="luaimg output" />
         <pre>]]..examples[8]..[[</pre>
 
         <p>Note that with any programming framework, the point is not to do simple
@@ -392,6 +392,23 @@ doc {
     { "return", "T" },
 }
 
+doc {
+    "function",
+    "gaussian",
+    "Generate a separated gaussian convolution kernel.  This is an nx1 image containing that row of Pascal's triangle, normalised so it all sums to 1.",
+    { "param", "n", "number" },
+    { "return", "Image" },
+}
+
+doc {
+    "function",
+    "colour",
+    "Return a vector value of the given dimensionality, all of whose elements are the given value.",
+    { "param", "d", "number" },
+    { "param", "n", "number" },
+    { "return", "vector" },
+}
+
 acros = { "HSL", "HSV", "RGB" }
 exploded = { "hue/saturation/luminance", "hue/saturation/value", "red/green/blue" }
 for _,pair in ipairs{{1,2},{2,1},{1,3},{3,1},{2,3},{3,2}} do
@@ -407,9 +424,7 @@ end
 doc {
     "class",
     "Image",
-    [[A 2d rectangular grid of pixels.  Pixels are represented in single precision floating point.  The image can have 1,2,3, or 4 channels.
-      Images can be manipulated by ordinary arithmetic and are garbage collected.  You can therefore mask images using the multiplication operator, etc (see provided examples).
-      Individual pixel values can be accessed using the call syntax img(10,20).  Other functionality is exposed via methods.  ]],
+    [[A 2d rectangular grid of pixels.  Pixels are represented in single precision floating point.  The image can have 1,2,3, or 4 channels.  Images can be manipulated by ordinary arithmetic and are garbage collected.  The ^ operator combines images according to alpha blending (i.e. regular blend mode in Photoshop/Gimp) but other operators behave in an obvious pointwise mathematical fashion.  You can therefore mask images using the multiplication operator, add using the add operator, etc (see provided examples).  Individual pixel values of an image can be accessed using the function call syntax, e.g. img(10,20).  Other functionality is exposed via specific methods, including raising to the power which would ordinarily be accessed through the ^ operator.  ]],
     { "field", "channels", "number", "The number of channels in the image.", },
     { "field", "width", "number", "The number of pixels in a row of the image.", },
     { "field", "height", "number", "The number of pixels in a column of the image.", },
@@ -474,8 +489,20 @@ doc {
     },
     {
         "method",
+        "mirror",
+        "Create a new image identical to this one but inverted on the X axis.",
+        { "return", "Image" },
+    },
+    {
+        "method",
+        "flip",
+        "Create a new image identical to this one but inverted on the Y axis.",
+        { "return", "Image" },
+    },
+    {
+        "method",
         "rms",
-        "Subtract one image from the other.  Square every pixel value.  Sum all the pixels, and square root the result.  This is a common method for objectively measuring the difference between two compatible images.",
+        "Subtract one image from the other.  Square every pixel channel value, sum them all, and square root the result.  This is a common method for objectively measuring the difference between two compatible images.",
         { "param", "other", "Image" },
         { "return", "number" },
     },
@@ -505,6 +532,12 @@ doc {
         "min",
         "The returned image is the min of the two given images (they must be compatible).  The min of two pixels is the min of each of their channels.  This is sometimes called 'darken only'.  It is also allowed to give a single colour value in place of the other image.",
         { "param", "other", "Image/colour" },
+        { "return", "Image" },
+    },
+    {
+        "method",
+        "abs",
+        "The returned image is the absolute value of this image, i.e. negative pixel channel values are made positive.",
         { "return", "Image" },
     },
     {
