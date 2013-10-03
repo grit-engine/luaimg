@@ -6,7 +6,7 @@ a:drawImage(b,vec(0,0))
 a:save("drawimage.png")
 
 lena = open("../test/lena.jpg")
-icon_sz = vector2(32,32)
+icon_sz = vec(32,32)
 lena_small = lena:scale(icon_sz, "LANCZOS3"):map(4, true, function(v, pos)
     a = #(pos - icon_sz/2)
     a = math.max(0, 2*(icon_sz.x/2 - a)/(icon_sz.x/2))

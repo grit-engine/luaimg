@@ -32,7 +32,7 @@ function map_names(list)
             local qty = is_northern_lights(pix)
             if qty > 0 then
                 counter = counter + qty
-                return vector3(1,qty,qty)
+                return vec(1,qty,qty)
             else
                 return pix
             end

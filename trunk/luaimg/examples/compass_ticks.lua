@@ -1,15 +1,15 @@
 #!../luaimg -F 
 
 -- drawn at this size
-local sz = vector2(2048, 2048)
+local sz = vec(2048, 2048)
 
 -- scaled down to this size to avoid aliasing
-local out_sz = vector2(128, 128)
+local out_sz = vec(128, 128)
 
 make(sz, 3, function(pos)
 
     -- convert pixel position from pixel coords to [-1, 1] range
-    pos = pos / (sz - vector2(1,1)) * 2 - vector2(1, 1)
+    pos = pos / (sz - vec(1,1)) * 2 - vec(1, 1)
 
     -- calculate angle from top, [0, 360) range
     local angle = (deg(atan2(pos.x, pos.y)) + 360) % 360
@@ -42,6 +42,6 @@ make(sz, 3, function(pos)
     end
 
     -- we're not a tick pixel
-    return vector3(0,0,0)
+    return vec(0,0,0)
 
 end):scale(out_sz, "LANCZOS3"):save("compass_ticks.png")
