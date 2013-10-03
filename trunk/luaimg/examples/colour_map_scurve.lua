@@ -16,5 +16,5 @@ local scurve = neutral:map(3, function(c)
     return c
 end)
 
-scurve:save("output_test11.png")
+scurve:save("colour_map_scurve.png")
 
