@@ -199,12 +199,12 @@ void HSVtoRGB (float H, float S, float V, float &R, float &G, float &B)
 }
 
 
-// ch may not be more than 4!
-template<chan_t ch> Image<ch> *image_from_fibitmap (FIBITMAP *input, uimglen_t width, uimglen_t height)
+// supported values: <1,0>, <3,0>, <3,1>, <4,0>
+template<chan_t ch, chan_t ach> Image<ch,ach> *image_from_fibitmap (FIBITMAP *input, uimglen_t width, uimglen_t height)
 {
-    Image<ch> *my_image = new Image<ch>(width, height);
+    Image<ch,ach> *my_image = new Image<ch,ach>(width, height);
 
-    // from 1 to all of these used, depending on ch
+    // from 1 to all of these used, depending on ch+ach
     int channel_offset[4] = { FI_RGBA_RED, FI_RGBA_GREEN, FI_RGBA_BLUE, FI_RGBA_ALPHA };
 
     for (uimglen_t y=0 ; y<height ; y++) {
@@ -213,18 +213,18 @@ template<chan_t ch> Image<ch> *image_from_fibitmap (FIBITMAP *input, uimglen_t w
 
         for (uimglen_t x=0 ; x<width ; x++) {
 
-            for (chan_t c=0 ; c<ch ; ++c)
+            for (chan_t c=0 ; c<ch+ach ; ++c)
                 my_image->pixel(x, y)[c] = raw[channel_offset[c]] / 255.0f;
 
-            raw += ch;
+            raw += ch+ach;
         }
     }
 
     return my_image;
 }
-template<> Image<1> *image_from_fibitmap<1> (FIBITMAP *input, uimglen_t width, uimglen_t height)
+template<> Image<1,0> *image_from_fibitmap<1,0> (FIBITMAP *input, uimglen_t width, uimglen_t height)
 {
-    Image<1> *my_image = new Image<1>(width, height);
+    Image<1,0> *my_image = new Image<1,0>(width, height);
 
     for (uimglen_t y=0 ; y<height ; y++) {
 
@@ -239,11 +239,11 @@ template<> Image<1> *image_from_fibitmap<1> (FIBITMAP *input, uimglen_t width, u
 }
             
 
-template<chan_t ch> FIBITMAP *image_to_fibitmap (Image<ch> *image, uimglen_t width, uimglen_t height)
+template<chan_t ch, chan_t ach> FIBITMAP *image_to_fibitmap (Image<ch,ach> *image, uimglen_t width, uimglen_t height)
 {
-    FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, ch*8, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
+    FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, (ach+ch)*8, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
 
-    // from 1 to all of these used, depending on ch
+    // from 1 to all of these used, depending on ch+ach
     int channel_offset[4] = { FI_RGBA_RED, FI_RGBA_GREEN, FI_RGBA_BLUE, FI_RGBA_ALPHA };
 
     for (uimglen_t y=0 ; y<height ; y++) {
@@ -252,19 +252,19 @@ template<chan_t ch> FIBITMAP *image_to_fibitmap (Image<ch> *image, uimglen_t wid
 
         for (uimglen_t x=0 ; x<width ; x++) {
 
-            for (chan_t c=0 ; c<ch ; ++c) {
+            for (chan_t c=0 ; c<ch+ach ; ++c) {
                 float v = image->pixel(x, y)[c];
                 v = v < 0 ? 0 : v > 1 ? 1 : v;
                 raw[channel_offset[c]] = BYTE(v * 255);
             }
 
-            raw += ch;
+            raw += ch+ach;
         }
     }
 
     return output;
 }
-template<> FIBITMAP *image_to_fibitmap (Image<2> *image, uimglen_t width, uimglen_t height)
+template<> FIBITMAP *image_to_fibitmap (Image<1,1> *image, uimglen_t width, uimglen_t height)
 {
     FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 24, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
 
@@ -294,7 +294,54 @@ template<> FIBITMAP *image_to_fibitmap (Image<2> *image, uimglen_t width, uimgle
 
     return output;
 }
-template<> FIBITMAP *image_to_fibitmap (Image<1> *image, uimglen_t width, uimglen_t height)
+template<> FIBITMAP *image_to_fibitmap (Image<2,0> *image, uimglen_t width, uimglen_t height)
+{
+    FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 24, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
+
+    for (uimglen_t y=0 ; y<height ; y++) {
+
+        BYTE *raw = FreeImage_GetScanLine(output, y);
+
+        for (uimglen_t x=0 ; x<width ; x++) {
+
+            {
+                float v = image->pixel(x, y)[0];
+                v = v < 0 ? 0 : v > 1 ? 1 : v;
+                raw[FI_RGBA_RED] = BYTE(v * 255);
+            }
+            {
+                float v = image->pixel(x, y)[1];
+                v = v < 0 ? 0 : v > 1 ? 1 : v;
+                raw[FI_RGBA_GREEN] = BYTE(v * 255);
+            }
+            {
+                raw[FI_RGBA_BLUE] = 0;
+            }
+
+            raw += 3;
+        }
+    }
+
+    return output;
+}
+template<> FIBITMAP *image_to_fibitmap (Image<0,1> *image, uimglen_t width, uimglen_t height)
+{
+    FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 8);
+
+    for (uimglen_t y=0 ; y<height ; y++) {
+
+        BYTE *raw = FreeImage_GetScanLine(output, y);
+
+        for (uimglen_t x=0 ; x<width ; x++) {
+            float v = image->pixel(x, y)[0];
+            v = v < 0 ? 0 : v > 1 ? 1 : v;
+            raw[x] = BYTE(v * 255);
+        }
+    }
+
+    return output;
+}
+template<> FIBITMAP *image_to_fibitmap (Image<1,0> *image, uimglen_t width, uimglen_t height)
 {
     FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 8);
 
@@ -364,25 +411,25 @@ ImageBase *image_load (const std::string &filename)
                 return NULL;
 
                 case 8: {
-                    ImageBase *my_image = image_from_fibitmap<1>(input, width, height);
+                    ImageBase *my_image = image_from_fibitmap<1,0>(input, width, height);
                     FreeImage_Unload(input);
                     return my_image;
                 }
                     
                 case 16: {
-                    ImageBase *my_image = image_from_fibitmap<3>(input, width, height);
+                    ImageBase *my_image = image_from_fibitmap<3,0>(input, width, height);
                     FreeImage_Unload(input);
                     return my_image;
                 }
                     
                 case 24: {
-                    ImageBase *my_image = image_from_fibitmap<3>(input, width, height);
+                    ImageBase *my_image = image_from_fibitmap<3,0>(input, width, height);
                     FreeImage_Unload(input);
                     return my_image;
                 }
                     
                 case 32: {
-                    ImageBase *my_image = image_from_fibitmap<4>(input, width, height);
+                    ImageBase *my_image = image_from_fibitmap<3,1>(input, width, height);
                     FreeImage_Unload(input);
                     return my_image;
                 }
@@ -482,19 +529,35 @@ bool image_save (ImageBase *image, const std::string &filename)
     FIBITMAP *output;
     switch (channels) {
         case 1:
-        output = image_to_fibitmap<1>(static_cast<Image<1>*>(image), width, height);
+        if (image->hasAlpha()) {
+            output = image_to_fibitmap(static_cast<Image<0,1>*>(image), width, height);
+        } else {
+            output = image_to_fibitmap(static_cast<Image<1,0>*>(image), width, height);
+        }
         break;
 
         case 2:
-        output = image_to_fibitmap<2>(static_cast<Image<2>*>(image), width, height);
+        if (image->hasAlpha()) {
+            output = image_to_fibitmap(static_cast<Image<1,1>*>(image), width, height);
+        } else {
+            output = image_to_fibitmap(static_cast<Image<2,0>*>(image), width, height);
+        }
         break;
 
         case 3:
-        output = image_to_fibitmap<3>(static_cast<Image<3>*>(image), width, height);
+        if (image->hasAlpha()) {
+            output = image_to_fibitmap(static_cast<Image<2,1>*>(image), width, height);
+        } else {
+            output = image_to_fibitmap(static_cast<Image<3,0>*>(image), width, height);
+        }
         break;
 
         case 4:
-        output = image_to_fibitmap<4>(static_cast<Image<4>*>(image), width, height);
+        if (image->hasAlpha()) {
+            output = image_to_fibitmap(static_cast<Image<3,1>*>(image), width, height);
+        } else {
+            output = image_to_fibitmap(static_cast<Image<4,0>*>(image), width, height);
+        }
         break;
 
         default:
@@ -523,12 +586,12 @@ FREE_IMAGE_FILTER to_fi (ScaleFilter sf)
     }
 }
 
-template<uimglen_t ch> FIBITMAP *image_to_fifloat (const ImageBase *img_)
+template<chan_t ch, chan_t ach> FIBITMAP *image_to_fifloat (const ImageBase *img_)
 {
-    const Image<ch> *img = static_cast<const Image<ch>*>(img_);
+    const Image<ch,ach> *img = static_cast<const Image<ch,ach>*>(img_);
     FIBITMAP *fib = NULL;
     uimglen_t actual_channels = 0;
-    switch (ch) {
+    switch (ch+ach) {
         case 4:
         actual_channels = 4;
         fib = FreeImage_AllocateT(FIT_RGBAF, img->width, img->height);
@@ -562,10 +625,10 @@ template<uimglen_t ch> FIBITMAP *image_to_fifloat (const ImageBase *img_)
 
 }
 
-template<uimglen_t ch> Image<ch> *image_from_fifloat (FIBITMAP *img)
+template<chan_t ch, chan_t ach> Image<ch,ach> *image_from_fifloat (FIBITMAP *img)
 {
     uimglen_t actual_channels = 0;
-    switch (ch) {
+    switch (ch+ach) {
         case 4:
         actual_channels = 4;
         break;
@@ -583,7 +646,7 @@ template<uimglen_t ch> Image<ch> *image_from_fifloat (FIBITMAP *img)
     uimglen_t width = FreeImage_GetWidth(img);
     uimglen_t height = FreeImage_GetHeight(img);
     
-    Image<ch> *output = new Image<ch>(width, height);
+    Image<ch, ach> *output = new Image<ch, ach>(width, height);
     for (uimglen_t y=0 ; y<height ; ++y) {
 
         float *raw = reinterpret_cast<float*>(FreeImage_GetScanLine(img, y));
@@ -599,116 +662,55 @@ template<uimglen_t ch> Image<ch> *image_from_fifloat (FIBITMAP *img)
     return output;
 }
 
+
+template<chan_t ch, chan_t ach>
+ImageBase *do_scale (const ImageBase *src, uimglen_t dst_width, uimglen_t dst_height, ScaleFilter filter)
+{
+    FIBITMAP *fib = image_to_fifloat<ch,ach>(src);
+    
+    FIBITMAP *scaled = FreeImage_Rescale(fib, dst_width, dst_height, to_fi(filter));
+    FreeImage_Unload(fib);
+
+    ImageBase *r = image_from_fifloat<ch,ach>(scaled);
+    FreeImage_Unload(scaled);
+    return r;
+}
+
 ImageBase *ImageBase::scale (uimglen_t dst_width, uimglen_t dst_height, ScaleFilter filter) const
 {
     switch (channels()) {
-
-        case 4: {
-            FIBITMAP *fib = image_to_fifloat<4>(this);
-            
-            FIBITMAP *scaled = FreeImage_Rescale(fib, dst_width, dst_height, to_fi(filter));
-            FreeImage_Unload(fib);
-
-            ImageBase *r = image_from_fifloat<4>(scaled);
-            FreeImage_Unload(scaled);
-
-            return r;
-        }
-
-        case 3: {
-            FIBITMAP *fib = image_to_fifloat<3>(this);
-            
-            FIBITMAP *scaled = FreeImage_Rescale(fib, dst_width, dst_height, to_fi(filter));
-            FreeImage_Unload(fib);
-
-            ImageBase *r = image_from_fifloat<3>(scaled);
-            FreeImage_Unload(scaled);
-
-            return r;
-        }
-
-        case 2: {
-            FIBITMAP *fib = image_to_fifloat<2>(this);
-            
-            FIBITMAP *scaled = FreeImage_Rescale(fib, dst_width, dst_height, to_fi(filter));
-            FreeImage_Unload(fib);
-
-            ImageBase *r = image_from_fifloat<2>(scaled);
-            FreeImage_Unload(scaled);
-
-            return r;
-        }
-
-        case 1: {
-            FIBITMAP *fib = image_to_fifloat<1>(this);
-            
-            FIBITMAP *scaled = FreeImage_Rescale(fib, dst_width, dst_height, to_fi(filter));
-            FreeImage_Unload(fib);
-
-            ImageBase *r = image_from_fifloat<1>(scaled);
-            FreeImage_Unload(scaled);
-
-            return r;
-        }
-
+        case 1: return hasAlpha() ? do_scale<0,1>(this, dst_width, dst_height, filter)
+                                  : do_scale<1,0>(this, dst_width, dst_height, filter);
+        case 2: return hasAlpha() ? do_scale<1,1>(this, dst_width, dst_height, filter)
+                                  : do_scale<2,0>(this, dst_width, dst_height, filter);
+        case 3: return hasAlpha() ? do_scale<2,1>(this, dst_width, dst_height, filter)
+                                  : do_scale<3,0>(this, dst_width, dst_height, filter);
+        case 4: return hasAlpha() ? do_scale<3,1>(this, dst_width, dst_height, filter)
+                                  : do_scale<4,0>(this, dst_width, dst_height, filter);
+        default: return NULL;
     }
+}
 
-    return NULL;
+template<chan_t ch, chan_t ach>
+ImageBase *do_rotate (const ImageBase *src, float angle)
+{
+    FIBITMAP *fib = image_to_fifloat<ch,ach>(src);
+    
+    FIBITMAP *rotated = FreeImage_Rotate(fib, angle, NULL);
+    FreeImage_Unload(fib);
+
+    ImageBase *r = image_from_fifloat<ch,ach>(rotated);
+    FreeImage_Unload(rotated);
+    return r;
 }
 
 ImageBase *ImageBase::rotate (float angle) const
 {
     switch (channels()) {
-
-        case 4: {
-            FIBITMAP *fib = image_to_fifloat<4>(this);
-            
-            FIBITMAP *rotated = FreeImage_Rotate(fib, angle, NULL);
-            FreeImage_Unload(fib);
-
-            ImageBase *r = image_from_fifloat<4>(rotated);
-            FreeImage_Unload(rotated);
-
-            return r;
-        }
-
-        case 3: {
-            FIBITMAP *fib = image_to_fifloat<3>(this);
-            
-            FIBITMAP *rotated = FreeImage_Rotate(fib, angle, NULL);
-            FreeImage_Unload(fib);
-
-            ImageBase *r = image_from_fifloat<3>(rotated);
-            FreeImage_Unload(rotated);
-
-            return r;
-        }
-
-        case 2: {
-            FIBITMAP *fib = image_to_fifloat<2>(this);
-            
-            FIBITMAP *rotated = FreeImage_Rotate(fib, angle, NULL);
-            FreeImage_Unload(fib);
-
-            ImageBase *r = image_from_fifloat<2>(rotated);
-            FreeImage_Unload(rotated);
-
-            return r;
-        }
-
-        case 1: {
-            FIBITMAP *fib = image_to_fifloat<1>(this);
-            
-            FIBITMAP *rotated = FreeImage_Rotate(fib, angle, NULL);
-            FreeImage_Unload(fib);
-
-            ImageBase *r = image_from_fifloat<1>(rotated);
-            FreeImage_Unload(rotated);
-
-            return r;
-        }
-
+        case 1: return hasAlpha() ? do_rotate<0,1>(this, angle) : do_rotate<1,0>(this, angle);
+        case 2: return hasAlpha() ? do_rotate<1,1>(this, angle) : do_rotate<2,0>(this, angle);
+        case 3: return hasAlpha() ? do_rotate<2,1>(this, angle) : do_rotate<3,0>(this, angle);
+        case 4: return hasAlpha() ? do_rotate<3,1>(this, angle) : do_rotate<4,0>(this, angle);
+        default: return NULL;
     }
-
-    return NULL;
 }

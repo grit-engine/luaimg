@@ -37,6 +37,15 @@ extern "C" {
 #include "Image.h"
 //#include "VoxelImage.h"
 
+// to_string
+template<class T>
+static std::string str (const T &v)
+{
+    std::stringstream ss;
+    ss << v;
+    return ss.str();
+}
+
 static void push_string (lua_State *L, const std::string &str) { lua_pushstring(L, str.c_str()); }
 
 static void my_lua_error (lua_State *L, const std::string &msg, unsigned long level=1)
@@ -50,24 +59,22 @@ static void my_lua_error (lua_State *L, const std::string &msg, unsigned long le
 }
 
 
-void check_args (lua_State *L, int expected)
+static void check_args (lua_State *L, int expected)
 {
     int got = lua_gettop(L);
-    if (got != expected) {
-        std::stringstream msg;
-        msg << "Wrong number of arguments: " << got
-            << " should be " << expected;
-        my_lua_error(L,msg.str());
-    }
+    if (got == expected) return;
+    my_lua_error(L, "Wrong number of arguments: "+str(got)+" should be "+str(expected));
 }
 
-void check_is_function (lua_State *L, int index)
+static std::string type_name (lua_State *L, int index)
 {
-    if (lua_type(L, index) != LUA_TFUNCTION) {
-        std::stringstream msg;
-        msg << "Expected a function at argument " << index;
-        my_lua_error(L,msg.str());
-    }
+    return std::string(lua_typename(L, index));
+}
+
+static void check_is_function (lua_State *L, int index)
+{
+    if (lua_type(L, index) == LUA_TFUNCTION) return;
+    my_lua_error(L, "Expected a function at argument: "+str(index)+" but got "+type_name(L,index));
 }
 
 template<class T> T* check_ptr (lua_State *L, int index, const char *tag)
@@ -91,16 +98,12 @@ bool is_ptr (lua_State *L, int index, const char *tag)
 }
 
 
-lua_Number check_int (lua_State *l, int stack_index,
-              lua_Number min, lua_Number max)
+lua_Number check_int (lua_State *l, int stack_index, lua_Number min, lua_Number max)
 {
     lua_Number n = luaL_checknumber(l, stack_index);
-    if (n<min || n>max || n!=floor(n)) {
-        std::stringstream msg;
-        msg << "Not an integer ["<<min<<","<<max<<"]: " << n;
-        my_lua_error(l,msg.str());
-    }
-    return n;
+    if (n>=min && n<=max && n==floor(n)) return n;
+    my_lua_error(l, "Not an integer in ["+str(min)+","+str(max)+"]: "+str(n));
+    return 0; // unreachable
 }
 
 template <typename T>
@@ -109,6 +112,16 @@ T check_t (lua_State *l, int stack_index,
            T max = std::numeric_limits<T>::max())
 {
     return (T) check_int(l, stack_index, min, max);
+}
+
+bool check_bool(lua_State *L, int i)
+{
+    if (!lua_isboolean(L,i)) {
+        std::stringstream ss;
+        ss << "Expected a boolean in argument " << i;
+        my_lua_error(L, ss.str());
+    }
+    return lua_toboolean(L,i);
 }
 
 static void check_scoord (lua_State *L, int index, simglen_t &x, simglen_t &y)
@@ -129,7 +142,7 @@ static void check_coord (lua_State *L, int index, uimglen_t &x, uimglen_t &y)
     y = y_ < 0 ? 0 : y_ > std::numeric_limits<uimglen_t>::max() ? std::numeric_limits<uimglen_t>::max() : y_;
 }
 
-chan_t get_pixel_channels (lua_State *L, int index)
+chan_t get_colour_channels (lua_State *L, int index)
 {
     switch (lua_type(L, index)) {
         case LUA_TNUMBER: return 1;
@@ -140,16 +153,23 @@ chan_t get_pixel_channels (lua_State *L, int index)
     }
 }
 
-template<chan_t ch> bool check_pixel (lua_State *L, Pixel<ch> &p, int index);
+template<chan_t ch, chan_t ach> bool check_colour (lua_State *L, Colour<ch, ach> &p, int index);
 
-template<> bool check_pixel<1> (lua_State *L, Pixel<1> &p, int index)
+template<> bool check_colour<1,0> (lua_State *L, Colour<1,0> &p, int index)
 {
     if (lua_type(L,index) != LUA_TNUMBER) return false;
     p[0] = lua_tonumber(L, index);
     return true;
 }
 
-template<> bool check_pixel<2> (lua_State *L, Pixel<2> &p, int index)
+template<> bool check_colour<0,1> (lua_State *L, Colour<0,1> &p, int index)
+{
+    if (lua_type(L,index) != LUA_TNUMBER) return false;
+    p[0] = lua_tonumber(L, index);
+    return true;
+}
+
+template<> bool check_colour<2,0> (lua_State *L, Colour<2,0> &p, int index)
 {
     if (lua_type(L,index) == LUA_TNUMBER) {
         p[0] = lua_tonumber(L, index);
@@ -161,7 +181,19 @@ template<> bool check_pixel<2> (lua_State *L, Pixel<2> &p, int index)
     return true;
 }
 
-template<> bool check_pixel<3> (lua_State *L, Pixel<3> &p, int index)
+template<> bool check_colour<1,1> (lua_State *L, Colour<1,1> &p, int index)
+{
+    if (lua_type(L,index) == LUA_TNUMBER) {
+        p[0] = lua_tonumber(L, index);
+        p[1] = p[0];
+        return true;
+    }
+    if (lua_type(L,index) != LUA_TVECTOR2) return false;
+    lua_checkvector2(L, index, &p[0], &p[1]);
+    return true;
+}
+
+template<> bool check_colour<3,0> (lua_State *L, Colour<3,0> &p, int index)
 {
     if (lua_type(L,index) == LUA_TNUMBER) {
         p[0] = lua_tonumber(L, index);
@@ -174,7 +206,20 @@ template<> bool check_pixel<3> (lua_State *L, Pixel<3> &p, int index)
     return true;
 }
 
-template<> bool check_pixel<4> (lua_State *L, Pixel<4> &p, int index)
+template<> bool check_colour<2,1> (lua_State *L, Colour<2,1> &p, int index)
+{
+    if (lua_type(L,index) == LUA_TNUMBER) {
+        p[0] = lua_tonumber(L, index);
+        p[1] = p[0];
+        p[2] = p[0];
+        return true;
+    }
+    if (lua_type(L,index) != LUA_TVECTOR3) return false;
+    lua_checkvector3(L, index, &p[0], &p[1], &p[2]);
+    return true;
+}
+
+template<> bool check_colour<4,0> (lua_State *L, Colour<4,0> &p, int index)
 {
     if (lua_type(L,index) == LUA_TNUMBER) {
         p[0] = lua_tonumber(L, index);
@@ -188,33 +233,125 @@ template<> bool check_pixel<4> (lua_State *L, Pixel<4> &p, int index)
     return true;
 }
 
-
-template<chan_t ch> void push_pixel (lua_State *L, Pixel<ch> &p);
-
-template<> void push_pixel<1> (lua_State *L, Pixel<1> &p)
+template<> bool check_colour<3,1> (lua_State *L, Colour<3,1> &p, int index)
 {
-    lua_pushnumber(L, p[0]);
+    if (lua_type(L,index) == LUA_TNUMBER) {
+        p[0] = lua_tonumber(L, index);
+        p[1] = p[0];
+        p[2] = p[0];
+        p[3] = p[0];
+        return true;
+    }
+    if (lua_type(L,index) != LUA_TVECTOR4) return false;
+    lua_checkvector4(L, index, &p[0], &p[1], &p[2], &p[3]);
+    return true;
 }
 
-template<> void push_pixel<2> (lua_State *L, Pixel<2> &p)
+ColourBase *alloc_colour (lua_State *L, int ch, bool alpha, int index)
 {
-    lua_pushvector2(L, p[0], p[1]);
+    switch (ch) {
+        case 1:
+        if (alpha) {
+            Colour<0,1> *r = new Colour<0,1>();
+            if (!check_colour(L, *r, index)) {
+                delete r;
+                my_lua_error(L, "Expected a colour with "+str(ch)
+                               +" elements, got "+type_name(L,index));
+                return NULL;
+            }
+            return r;
+        } else {
+            Colour<1,0> *r = new Colour<1,0>();
+            if (!check_colour(L, *r, index)) {
+                delete r;
+                my_lua_error(L, "Expected a colour with "+str(ch)
+                               +" elements, got "+type_name(L,index));
+                return NULL;
+            }
+            return r;
+        }
+
+        case 2:
+        if (alpha) {
+            Colour<1,1> *r = new Colour<1,1>();
+            if (!check_colour(L, *r, index)) {
+                delete r;
+                my_lua_error(L, "Expected a colour with "+str(ch)
+                               +" elements, got "+type_name(L,index));
+                return NULL;
+            }
+            return r;
+        } else {
+            Colour<2,0> *r = new Colour<2,0>();
+            if (!check_colour(L, *r, index)) {
+                delete r;
+                my_lua_error(L, "Expected a colour with "+str(ch)
+                               +" elements, got "+type_name(L,index));
+                return NULL;
+            }
+            return r;
+        }
+
+        case 3:
+        if (alpha) {
+            Colour<2,1> *r = new Colour<2,1>();
+            if (!check_colour(L, *r, index)) {
+                delete r;
+                my_lua_error(L, "Expected a colour with "+str(ch)
+                               +" elements, got "+type_name(L,index));
+                return NULL;
+            }
+            return r;
+        } else {
+            Colour<3,0> *r = new Colour<3,0>();
+            if (!check_colour(L, *r, index)) {
+                delete r;
+                my_lua_error(L, "Expected a colour with "+str(ch)
+                               +" elements, got "+type_name(L,index));
+                return NULL;
+            }
+            return r;
+        }
+
+        case 4:
+        if (alpha) {
+            Colour<3,1> *r = new Colour<3,1>();
+            if (!check_colour(L, *r, index)) {
+                delete r;
+                my_lua_error(L, "Expected a colour with "+str(ch)
+                               +" elements, got "+type_name(L,index));
+                return NULL;
+            }
+            return r;
+        } else {
+            Colour<4,0> *r = new Colour<4,0>();
+            if (!check_colour(L, *r, index)) {
+                delete r;
+                my_lua_error(L, "Expected a colour with "+str(ch)
+                               +" elements, got "+type_name(L,index));
+                return NULL;
+            }
+            return r;
+        }
+
+        default:
+        my_lua_error(L, "Expected a colour at argument "+str(index));
+        return NULL;
+    }
 }
 
-template<> void push_pixel<3> (lua_State *L, Pixel<3> &p)
+
+void push_colour (lua_State *L, const ColourBase &colour)
 {
-    lua_pushvector3(L, p[0], p[1], p[2]);
+    const float *p = colour.raw();
+    switch (colour.channels()) {
+        case 1: lua_pushnumber(L, p[0]); break;
+        case 2: lua_pushvector2(L, p[0], p[1]); break;
+        case 3: lua_pushvector3(L, p[0], p[1], p[2]); break;
+        case 4: lua_pushvector4(L, p[0], p[1], p[2], p[3]); break;
+        default: my_lua_error(L, "Internal error: weird channels");
+    }
 }
-
-template<> void push_pixel<4> (lua_State *L, Pixel<4> &p)
-{
-    lua_pushvector4(L, p[0], p[1], p[2], p[3]);
-}
-
-
-
-
-
 
 void push_image (lua_State *L, ImageBase *image)
 {
@@ -226,6 +363,828 @@ void push_image (lua_State *L, ImageBase *image)
     *self_ptr = image;
     luaL_getmetatable(L, IMAGE_TAG);
     lua_setmetatable(L, -2);
+}
+
+
+float op_add (float a, float b) { return a+b; }
+float op_mul (float a, float b) { return a*b; }
+float op_div (float a, float b) { return a/b; }
+float op_sub (float a, float b) { return a-b; }
+// powf
+float op_max (float a, float b) { return a>b?a:b; }
+float op_min (float a, float b) { return a<b?a:b; }
+float op_diffsq (float a, float b) { return (a-b)*(a-b); }
+float op_diff (float a, float b) { return fabsf(a-b); }
+
+// Our job here is to
+// 1) call the right image_op function (regular, left_mask, right_mask)
+// 2) figure out whether Colour<c,0> or Colour<c-1,1> was intended
+// 3) raise an error if ch1/ach1/ch2/ach2 do not work together
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float op(float,float), class T1, class T2>
+static ImageBase *image_zip_lua4 (lua_State *L, T1 v1, T2 v2)
+{
+    // implements (1) and (3) above
+    if (ch1 == ch2)
+        return image_zip_regular<ch1, ach1, ch2, ach2, op, T1, T2>(v1, v2);
+    if (ch1 == 1 && ach1 == 0)
+        return image_zip_left_mask<ch2, ach2, op, T1, T2>(v1, v2);
+    if (ch2 == 1 && ach2 == 0)
+        return image_zip_right_mask<ch1, ach1, op, T1, T2>(v1, v2);
+    my_lua_error(L, "Image operation on incompatible images/colours.");
+    return NULL;
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float op(float,float)>
+static ImageBase *image_zip_lua3 (lua_State *L, const Image<ch1,ach1> *v1, const Image<ch2,ach2> *v2)
+{
+    // both are images, must check size, but no issue with amibiguous vec(...)
+    if (!v1->sizeCompatibleWith(v2)) {
+        my_lua_error(L, "Operations require images have the same dimensions.");
+    }
+    return image_zip_lua4<ch1, ach1, ch2, ach2, op, const Image<ch1,ach1>*, const Image<ch2,ach2>*>(L, v1, v2);
+    
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float op(float,float)>
+static ImageBase *image_zip_lua3 (lua_State *, const Colour<ch1,ach1> *, const Colour<ch2,ach2> *)
+{
+    abort();
+    return NULL;
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float op(float,float)>
+static ImageBase *image_zip_lua3 (lua_State *L, const Image<ch1,ach1> *v1, const Colour<ch2,ach2> *v2)
+{
+    if (ch1+ach1 == ch2 && ach2 == 0) {
+        // redo the colour
+        Colour<ch1, ach1> v2_;
+        for (chan_t c=0 ; c<ch2 ; ++c) v2_[c] = (*v2)[c];
+        return image_zip_lua4<ch1, ach1, ch1, ach1, op, const Image<ch1,ach1>*, const Colour<ch1,ach1>*>(L, v1, &v2_);
+    } else {
+        return image_zip_lua4<ch1, ach1, ch2, ach2, op, const Image<ch1,ach1>*, const Colour<ch2,ach2>*>(L, v1, v2);
+    }
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float op(float,float)>
+static ImageBase *image_zip_lua3 (lua_State *L, const Colour<ch1,ach1> *v1, const Image<ch2,ach2> *v2)
+{
+    if (ch1 == ch2+ach2 && ach1 == 0) {
+        // redo the colour
+        Colour<ch2, ach2> v1_;
+        for (chan_t c=0 ; c<ch1 ; ++c) v1_[c] = (*v1)[c];
+        return image_zip_lua4<ch2, ach2, ch2, ach2, op, const Colour<ch2,ach2>*, const Image<ch2,ach2>*>(L, &v1_, v2);
+    } else if (ch1!=ch2 && ach2==0 && ch1!=1 && ch2!=1 && ch1==ch2+1) {
+        // redo the colour
+        Colour<ch2, 1> v1_;
+        for (chan_t c=0 ; c<ch1 ; ++c) v1_[c] = (*v1)[c];
+        return image_zip_lua4<ch2, 1, ch2, ach2, op, const Colour<ch2,1>*, const Image<ch2,ach2>*>(L, &v1_, v2);
+    } else {
+        return image_zip_lua4<ch1, ach1, ch2, ach2, op, const Colour<ch1,ach1>*, const Image<ch2,ach2>*>(L, v1, v2);
+    }
+}
+
+template<chan_t ch, chan_t ach, float op(float,float), class TA>
+static ImageBase *image_zip_lua2 (lua_State *L, TA a)
+{
+    if (is_ptr(L, 2, IMAGE_TAG)) {
+        const ImageBase *b = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+        switch (b->channels()) {
+            case 1:
+            if (b->hasAlpha()) {
+                return image_zip_lua3<ch,ach,0,1,op>(L, a, static_cast<const Image<0,1>*>(b));
+            } else {
+                return image_zip_lua3<ch,ach,1,0,op>(L, a, static_cast<const Image<1,0>*>(b));
+            }
+            case 2:
+            if (b->hasAlpha()) {
+                return image_zip_lua3<ch,ach,1,1,op>(L, a, static_cast<const Image<1,1>*>(b));
+            } else {
+                return image_zip_lua3<ch,ach,2,0,op>(L, a, static_cast<const Image<2,0>*>(b));
+            }
+            case 3:
+            if (b->hasAlpha()) {
+                return image_zip_lua3<ch,ach,2,1,op>(L, a, static_cast<const Image<2,1>*>(b));
+            } else {
+                return image_zip_lua3<ch,ach,3,0,op>(L, a, static_cast<const Image<3,0>*>(b));
+            }
+            case 4:
+            if (b->hasAlpha()) {
+                return image_zip_lua3<ch,ach,3,1,op>(L, a, static_cast<const Image<3,1>*>(b));
+            } else {
+                return image_zip_lua3<ch,ach,4,0,op>(L, a, static_cast<const Image<4,0>*>(b));
+            }
+
+            default: my_lua_error(L, "Internal error, strange number of channels.");
+        }
+        return NULL;
+    }
+    switch (get_colour_channels(L, 2)) {
+        case 1: {
+            Colour<1,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_zip_lua3<ch,ach,1,0,op>(L, a, &colour);
+        }
+
+        case 2: {
+            Colour<2,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_zip_lua3<ch,ach,2,0,op>(L, a, &colour);
+        }
+
+        case 3: {
+            Colour<3,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_zip_lua3<ch,ach,3,0,op>(L, a, &colour);
+        }
+
+        case 4: {
+            Colour<4,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_zip_lua3<ch,ach,4,0,op>(L, a, &colour);
+        }
+
+        default:
+        my_lua_error(L, "First argument should be an image or colour.");
+    }
+    return NULL;
+}
+
+template<float op(float,float)>
+static ImageBase *image_zip_lua1 (lua_State *L)
+{
+    check_args(L,2);
+    if (is_ptr(L, 1, IMAGE_TAG)) {
+        const ImageBase *a = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        switch (a->channels()) {
+            case 1:
+            if (a->hasAlpha()) {
+                return image_zip_lua2<0,1,op>(L, static_cast<const Image<0,1>*>(a));
+            } else {
+                return image_zip_lua2<1,0,op>(L, static_cast<const Image<1,0>*>(a));
+            }
+            case 2:
+            if (a->hasAlpha()) {
+                return image_zip_lua2<1,1,op>(L, static_cast<const Image<1,1>*>(a));
+            } else {
+                return image_zip_lua2<2,0,op>(L, static_cast<const Image<2,0>*>(a));
+            }
+            case 3:
+            if (a->hasAlpha()) {
+                return image_zip_lua2<2,1,op>(L, static_cast<const Image<2,1>*>(a));
+            } else {
+                return image_zip_lua2<3,0,op>(L, static_cast<const Image<3,0>*>(a));
+            }
+            case 4:
+            if (a->hasAlpha()) {
+                return image_zip_lua2<3,1,op>(L, static_cast<const Image<3,1>*>(a));
+            } else {
+                return image_zip_lua2<4,0,op>(L, static_cast<const Image<4,0>*>(a));
+            }
+
+            default: my_lua_error(L, "Internal error, strange number of channels.");
+        }
+        return NULL;
+    }
+    switch (get_colour_channels(L, 1)) {
+        case 1: {
+            Colour<1,0> colour;
+            check_colour(L,colour,1);
+            return image_zip_lua2<1,0,op>(L, &colour);
+        }
+
+        case 2: {
+            Colour<2,0> colour;
+            check_colour(L,colour,1);
+            return image_zip_lua2<2,0,op>(L, &colour);
+        }
+
+        case 3: {
+            Colour<3,0> colour;
+            check_colour(L,colour,1);
+            return image_zip_lua2<3,0,op>(L, &colour);
+        }
+
+        case 4: {
+            Colour<4,0> colour;
+            check_colour(L,colour,1);
+            return image_zip_lua2<4,0,op>(L, &colour);
+        }
+
+        default:
+        my_lua_error(L, "First argument should be an image or colour.");
+    }
+    return NULL;
+}
+
+
+// Our job here is to
+// 1) call the right lerp function (regular, left_mask, right_mask)
+// 2) figure out whether Colour<c,0> or Colour<c-1,1> was intended
+// 3) raise an error if ch1/ach1/ch2/ach2 do not work together
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, class T1, class T2>
+static void global_lerp_lua4 (lua_State *L, T1 v1, T2 v2, float param)
+{
+    // implements (1) and (3) above
+    ImageBase *img = NULL;
+    if (ch1==ch2 && ach1==ach2) {
+        img = global_lerp_regular<ch1, ach1, ch2, ach2, T1, T2>(v1, v2, param);
+    } else if (ch1 == 1 && ach1 == 0) {
+        img = global_lerp_left_mask<ch2, ach2, T1, T2>(v1, v2, param);
+    } else if (ch2 == 1 && ach2 == 0) {
+        img = global_lerp_right_mask<ch1, ach1, T1, T2>(v1, v2, param);
+    } else {
+        my_lua_error(L, "Image lerp on incompatible images/colours.");
+    }
+    push_image(L, img);
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
+static void global_lerp_lua3 (lua_State *L, const Image<ch1,ach1> *v1, const Image<ch2,ach2> *v2, float param)
+{
+    // both are images, must check size, but no issue with amibiguous vec(...)
+    if (!v1->sizeCompatibleWith(v2)) {
+        my_lua_error(L, "Operations require images have the same dimensions.");
+    }
+    global_lerp_lua4<ch1, ach1, ch2, ach2, const Image<ch1,ach1>*, const Image<ch2,ach2>*>(L, v1, v2, param);
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
+static void global_lerp_lua3 (lua_State *L, const Colour<ch1,ach1> *v1, const Colour<ch2,ach2> *v2, float param)
+{
+    // implements (1) and (3) above
+    if (ch1==ch2 && ach1==ach2) {
+        Colour<ch2,ach2> colour = global_lerp_colour_regular<ch1, ach1, ch2, ach2>(v1, v2, param);
+        push_colour(L, colour);
+    } else if (ch1 == 1 && ach1 == 0) {
+        Colour<ch2,ach2> colour = global_lerp_colour_left_mask<ch1, ach1, ch2, ach2>(v1, v2, param);
+        push_colour(L, colour);
+    } else if (ch2 == 1 && ach2 == 0) {
+        Colour<ch1,ach1> colour = global_lerp_colour_right_mask<ch1, ach1, ch2, ach2>(v1, v2, param);
+        push_colour(L, colour);
+    } else {
+        my_lua_error(L, "Image lerp on incompatible images/colours.");
+    }
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
+static void global_lerp_lua3 (lua_State *L, const Image<ch1,ach1> *v1, const Colour<ch2,ach2> *v2, float param)
+{
+    if (ch1+ach1 == ch2 && ach2 == 0) {
+        // redo the colour
+        Colour<ch1, ach1> v2_;
+        for (chan_t c=0 ; c<ch2 ; ++c) v2_[c] = (*v2)[c];
+        global_lerp_lua4<ch1, ach1, ch1, ach1, const Image<ch1,ach1>*, const Colour<ch1,ach1>*>(L, v1, &v2_, param);
+    } else {
+        global_lerp_lua4<ch1, ach1, ch2, ach2, const Image<ch1,ach1>*, const Colour<ch2,ach2>*>(L, v1, v2, param);
+    }
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
+static void global_lerp_lua3 (lua_State *L, const Colour<ch1,ach1> *v1, const Image<ch2,ach2> *v2, float param)
+{
+    if (ch1 == ch2+ach2 && ach1 == 0) {
+        // redo the colour
+        Colour<ch2, ach2> v1_;
+        for (chan_t c=0 ; c<ch1 ; ++c) v1_[c] = (*v1)[c];
+        global_lerp_lua4<ch2, ach2, ch2, ach2, const Colour<ch2,ach2>*, const Image<ch2,ach2>*>(L, &v1_, v2, param);
+    } else {
+        global_lerp_lua4<ch1, ach1, ch2, ach2, const Colour<ch1,ach1>*, const Image<ch2,ach2>*>(L, v1, v2, param);
+    }
+}
+
+template<chan_t ch, chan_t ach, class TA>
+static void global_lerp_lua2 (lua_State *L, TA a)
+{
+    float param = luaL_checknumber(L, 3);
+    if (is_ptr(L, 2, IMAGE_TAG)) {
+        const ImageBase *b = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+        switch (b->channels()) {
+            case 1:
+            if (b->hasAlpha()) {
+                global_lerp_lua3<ch,ach,0,1>(L, a, static_cast<const Image<0,1>*>(b), param);
+            } else {
+                global_lerp_lua3<ch,ach,1,0>(L, a, static_cast<const Image<1,0>*>(b), param);
+            } break;
+            case 2:
+            if (b->hasAlpha()) {
+                global_lerp_lua3<ch,ach,1,1>(L, a, static_cast<const Image<1,1>*>(b), param);
+            } else {
+                global_lerp_lua3<ch,ach,2,0>(L, a, static_cast<const Image<2,0>*>(b), param);
+            } break;
+            case 3:
+            if (b->hasAlpha()) {
+                global_lerp_lua3<ch,ach,2,1>(L, a, static_cast<const Image<2,1>*>(b), param);
+            } else {
+                global_lerp_lua3<ch,ach,3,0>(L, a, static_cast<const Image<3,0>*>(b), param);
+            } break;
+            case 4:
+            if (b->hasAlpha()) {
+                global_lerp_lua3<ch,ach,3,1>(L, a, static_cast<const Image<3,1>*>(b), param);
+            } else {
+                global_lerp_lua3<ch,ach,4,0>(L, a, static_cast<const Image<4,0>*>(b), param);
+            } break;
+
+            default: my_lua_error(L, "Internal error, strange number of channels.");
+        }
+        return;
+    }
+    switch (get_colour_channels(L, 2)) {
+        case 1: {
+            Colour<1,0> colour;
+            if (!check_colour(L,colour,2)) return;
+            global_lerp_lua3<ch,ach,1,0>(L, a, &colour, param);
+            break;
+        }
+
+        case 2: {
+            Colour<2,0> colour;
+            if (!check_colour(L,colour,2)) return;
+            global_lerp_lua3<ch,ach,2,0>(L, a, &colour, param);
+            break;
+        }
+
+        case 3: {
+            Colour<3,0> colour;
+            if (!check_colour(L,colour,2)) return;
+            global_lerp_lua3<ch,ach,3,0>(L, a, &colour, param);
+            break;
+        }
+
+        case 4: {
+            Colour<4,0> colour;
+            if (!check_colour(L,colour,2)) return;
+            global_lerp_lua3<ch,ach,4,0>(L, a, &colour, param);
+            break;
+        }
+
+        default:
+        my_lua_error(L, "First argument should be an image or colour.");
+    }
+}
+
+static void global_lerp_lua1 (lua_State *L)
+{
+    check_args(L,3);
+    if (is_ptr(L, 1, IMAGE_TAG)) {
+        const ImageBase *a = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        switch (a->channels()) {
+            case 1:
+            if (a->hasAlpha()) {
+                global_lerp_lua2<0,1>(L, static_cast<const Image<0,1>*>(a));
+            } else {
+                global_lerp_lua2<1,0>(L, static_cast<const Image<1,0>*>(a));
+            } break;
+            case 2:
+            if (a->hasAlpha()) {
+                global_lerp_lua2<1,1>(L, static_cast<const Image<1,1>*>(a));
+            } else {
+                global_lerp_lua2<2,0>(L, static_cast<const Image<2,0>*>(a));
+            } break;
+            case 3:
+            if (a->hasAlpha()) {
+                global_lerp_lua2<2,1>(L, static_cast<const Image<2,1>*>(a));
+            } else {
+                global_lerp_lua2<3,0>(L, static_cast<const Image<3,0>*>(a));
+            } break;
+            case 4:
+            if (a->hasAlpha()) {
+                global_lerp_lua2<3,1>(L, static_cast<const Image<3,1>*>(a));
+            } else {
+                global_lerp_lua2<4,0>(L, static_cast<const Image<4,0>*>(a));
+            } break;
+
+            default: my_lua_error(L, "Internal error, strange number of channels.");
+        }
+        return;
+    }
+    switch (get_colour_channels(L, 1)) {
+        case 1: {
+            Colour<1,0> colour;
+            check_colour(L,colour,1);
+            global_lerp_lua2<1,0>(L, &colour);
+            break;
+        }
+
+        case 2: {
+            Colour<2,0> colour;
+            check_colour(L,colour,1);
+            global_lerp_lua2<2,0>(L, &colour);
+            break;
+        }
+
+        case 3: {
+            Colour<3,0> colour;
+            check_colour(L,colour,1);
+            global_lerp_lua2<3,0>(L, &colour);
+            break;
+        }
+
+        case 4: {
+            Colour<4,0> colour;
+            check_colour(L,colour,1);
+            global_lerp_lua2<4,0>(L, &colour);
+            break;
+        }
+
+        default:
+        my_lua_error(L, "First argument should be an image or colour.");
+    }
+}
+
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float zop(float,float), float rop(float, float), class T1, class T2>
+static ColourBase *image_zip_reduce_lua4 (lua_State *L, T1 v1, T2 v2)
+{
+    // implements (1) and (3) above
+    if (ch1 == ch2 && ach1 == ach2)
+        return image_zip_reduce_regular<ch1, ach1, ch2, ach2, zop, rop, T1, T2>(v1, v2);
+    if (ch1 == 1 && ach1 == 0)
+        return image_zip_reduce_left_mask<ch2, ach2, zop, rop, T1, T2>(v1, v2);
+    if (ch2 == 1 && ach2 == 0)
+        return image_zip_reduce_right_mask<ch1, ach1, zop, rop, T1, T2>(v1, v2);
+    my_lua_error(L, "Image operation on incompatible images/colours.");
+    return NULL;
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float zop(float,float), float rop(float, float)>
+static ColourBase *image_zip_reduce_lua3 (lua_State *L, const Image<ch1,ach1> *v1, const Image<ch2,ach2> *v2)
+{
+    // both are images, must check size, but no issue with amibiguous vec(...)
+    if (!v1->sizeCompatibleWith(v2)) {
+        my_lua_error(L, "Operations require images have the same dimensions.");
+    }
+    return image_zip_reduce_lua4<ch1, ach1, ch2, ach2, zop, rop, const Image<ch1,ach1>*, const Image<ch2,ach2>*>(L, v1, v2);
+    
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float zop(float,float), float rop(float, float)>
+static ColourBase *image_zip_reduce_lua3 (lua_State *, const Colour<ch1,ach1> *, const Colour<ch2,ach2> *)
+{
+    abort();
+    return NULL;
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float zop(float,float), float rop(float, float)>
+static ColourBase *image_zip_reduce_lua3 (lua_State *L, const Image<ch1,ach1> *v1, const Colour<ch2,ach2> *v2)
+{
+    if (ch1+ach1 == ch2) {
+        // redo the colour
+        Colour<ch1, ach1> v2_;
+        for (chan_t c=0 ; c<ch2 ; ++c) v2_[c] = (*v2)[c];
+        return image_zip_reduce_lua4<ch1, ach1, ch1, ach1, zop, rop, const Image<ch1,ach1>*, const Colour<ch1,ach1>*>(L, v1, &v2_);
+    } else {
+        return image_zip_reduce_lua4<ch1, ach1, ch2, ach2, zop, rop, const Image<ch1,ach1>*, const Colour<ch2,ach2>*>(L, v1, v2);
+    }
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float zop(float,float), float rop(float, float)>
+static ColourBase *image_zip_reduce_lua3 (lua_State *L, const Colour<ch1,ach1> *v1, const Image<ch2,ach2> *v2)
+{
+    if (ch1 == ch2+ach2) {
+        // redo the colour
+        Colour<ch2, ach2> v1_;
+        for (chan_t c=0 ; c<ch1 ; ++c) v1_[c] = (*v1)[c];
+        return image_zip_reduce_lua4<ch2, ach2, ch2, ach2, zop, rop, const Colour<ch2,ach2>*, const Image<ch2,ach2>*>(L, &v1_, v2);
+    } else {
+        return image_zip_reduce_lua4<ch1, ach1, ch2, ach2, zop, rop, const Colour<ch1,ach1>*, const Image<ch2,ach2>*>(L, v1, v2);
+    }
+}
+
+template<chan_t ch, chan_t ach, float zop(float,float), float rop(float, float), class TA>
+static ColourBase *image_zip_reduce_lua2 (lua_State *L, TA a, const ImageBase *&some_image)
+{
+    if (is_ptr(L, 2, IMAGE_TAG)) {
+        const ImageBase *b = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+        some_image = b;
+        switch (b->channels()) {
+            case 1:
+            if (b->hasAlpha()) {
+                return image_zip_reduce_lua3<ch,ach,0,1,zop,rop>(L, a, static_cast<const Image<0,1>*>(b));
+            } else {
+                return image_zip_reduce_lua3<ch,ach,1,0,zop,rop>(L, a, static_cast<const Image<1,0>*>(b));
+            }
+            case 2:
+            if (b->hasAlpha()) {
+                return image_zip_reduce_lua3<ch,ach,1,1,zop,rop>(L, a, static_cast<const Image<1,1>*>(b));
+            } else {
+                return image_zip_reduce_lua3<ch,ach,2,0,zop,rop>(L, a, static_cast<const Image<2,0>*>(b));
+            }
+            case 3:
+            if (b->hasAlpha()) {
+                return image_zip_reduce_lua3<ch,ach,2,1,zop,rop>(L, a, static_cast<const Image<2,1>*>(b));
+            } else {
+                return image_zip_reduce_lua3<ch,ach,3,0,zop,rop>(L, a, static_cast<const Image<3,0>*>(b));
+            }
+            case 4:
+            if (b->hasAlpha()) {
+                return image_zip_reduce_lua3<ch,ach,3,1,zop,rop>(L, a, static_cast<const Image<3,1>*>(b));
+            } else {
+                return image_zip_reduce_lua3<ch,ach,4,0,zop,rop>(L, a, static_cast<const Image<4,0>*>(b));
+            }
+
+            default: my_lua_error(L, "Internal error, strange number of channels.");
+        }
+        return NULL;
+    }
+    switch (get_colour_channels(L, 2)) {
+        case 1: {
+            Colour<1,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_zip_reduce_lua3<ch,ach,1,0,zop,rop>(L, a, &colour);
+        }
+
+        case 2: {
+            Colour<2,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_zip_reduce_lua3<ch,ach,2,0,zop,rop>(L, a, &colour);
+        }
+
+        case 3: {
+            Colour<3,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_zip_reduce_lua3<ch,ach,3,0,zop,rop>(L, a, &colour);
+        }
+
+        case 4: {
+            Colour<4,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_zip_reduce_lua3<ch,ach,4,0,zop,rop>(L, a, &colour);
+        }
+
+        default:
+        my_lua_error(L, "First argument should be an image or colour.");
+    }
+    return NULL;
+}
+
+template<float zop(float,float), float rop(float, float)>
+static ColourBase *image_zip_reduce_lua1 (lua_State *L, const ImageBase *&some_image)
+{
+    check_args(L,2);
+    if (is_ptr(L, 1, IMAGE_TAG)) {
+        const ImageBase *a = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        some_image = a;
+        switch (a->channels()) {
+            case 1:
+            if (a->hasAlpha()) {
+                return image_zip_reduce_lua2<0,1,zop,rop>(L, static_cast<const Image<0,1>*>(a), some_image);
+            } else {
+                return image_zip_reduce_lua2<1,0,zop,rop>(L, static_cast<const Image<1,0>*>(a), some_image);
+            }
+            case 2:
+            if (a->hasAlpha()) {
+                return image_zip_reduce_lua2<1,1,zop,rop>(L, static_cast<const Image<1,1>*>(a), some_image);
+            } else {
+                return image_zip_reduce_lua2<2,0,zop,rop>(L, static_cast<const Image<2,0>*>(a), some_image);
+            }
+            case 3:
+            if (a->hasAlpha()) {
+                return image_zip_reduce_lua2<2,1,zop,rop>(L, static_cast<const Image<2,1>*>(a), some_image);
+            } else {
+                return image_zip_reduce_lua2<3,0,zop,rop>(L, static_cast<const Image<3,0>*>(a), some_image);
+            }
+            case 4:
+            if (a->hasAlpha()) {
+                return image_zip_reduce_lua2<3,1,zop,rop>(L, static_cast<const Image<3,1>*>(a), some_image);
+            } else {
+                return image_zip_reduce_lua2<4,0,zop,rop>(L, static_cast<const Image<4,0>*>(a), some_image);
+            }
+
+            default: my_lua_error(L, "Internal error, strange number of channels.");
+        }
+        return NULL;
+    }
+    switch (get_colour_channels(L, 1)) {
+        case 1: {
+            Colour<1,0> colour;
+            check_colour(L,colour,1);
+            return image_zip_reduce_lua2<1,0,zop,rop>(L, &colour, some_image);
+        }
+
+        case 2: {
+            Colour<2,0> colour;
+            check_colour(L,colour,1);
+            return image_zip_reduce_lua2<2,0,zop,rop>(L, &colour, some_image);
+        }
+
+        case 3: {
+            Colour<3,0> colour;
+            check_colour(L,colour,1);
+            return image_zip_reduce_lua2<3,0,zop,rop>(L, &colour, some_image);
+        }
+
+        case 4: {
+            Colour<4,0> colour;
+            check_colour(L,colour,1);
+            return image_zip_reduce_lua2<4,0,zop,rop>(L, &colour, some_image);
+        }
+
+        default:
+        my_lua_error(L, "First argument should be an image or colour.");
+    }
+    return NULL;
+}
+
+// Our job here is to
+// 1) call the right image_op function (regular, left_mask, right_mask)
+// 2) figure out whether Colour<c,0> or Colour<c-1,1> was intended
+// 3) raise an error if ch1/ach1/ch2/ach2 do not work together
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, class T1, class T2>
+static ImageBase *image_blend_lua4 (lua_State *L, T1 v1, T2 v2)
+{
+    // implements (1) and (3) above
+    if (ch1 == ch2)
+        return image_blend_regular<ch1, ach1, ch2, ach2, T1, T2>(v1, v2);
+    if (ch1 == 1 && ach1 == 0)
+        return image_blend_left_mask<ch2, ach2, T1, T2>(v1, v2);
+    if (ch2 == 1 && ach2 == 0)
+        return image_blend_right_mask<ch1, ach1, T1, T2>(v1, v2);
+    my_lua_error(L, "Image blend of incompatible images/colours.");
+    return NULL;
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
+static ImageBase *image_blend_lua3 (lua_State *L, const Image<ch1,ach1> *v1, const Image<ch2,ach2> *v2)
+{
+    // both are images, must check size, but no issue with amibiguous vec(...)
+    if (!v1->sizeCompatibleWith(v2)) {
+        my_lua_error(L, "Operations require images have the same dimensions.");
+    }
+    return image_blend_lua4<ch1, ach1, ch2, ach2, const Image<ch1,ach1>*, const Image<ch2,ach2>*>(L, v1, v2);
+    
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
+static ImageBase *image_blend_lua3 (lua_State *, const Colour<ch1,ach1> *, const Colour<ch2,ach2> *)
+{
+    abort();
+    return NULL;
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
+static ImageBase *image_blend_lua3 (lua_State *L, const Image<ch1,ach1> *v1, const Colour<ch2,ach2> *v2)
+{
+    if (ch1+ach1 == ch2 && ach2 == 0) {
+        // redo the colour
+        Colour<ch1, ach1> v2_;
+        for (chan_t c=0 ; c<ch2 ; ++c) v2_[c] = (*v2)[c];
+        return image_blend_lua4<ch1, ach1, ch1, ach1, const Image<ch1,ach1>*, const Colour<ch1,ach1>*>(L, v1, &v2_);
+    } else {
+        return image_blend_lua4<ch1, ach1, ch2, ach2, const Image<ch1,ach1>*, const Colour<ch2,ach2>*>(L, v1, v2);
+    }
+}
+
+template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
+static ImageBase *image_blend_lua3 (lua_State *L, const Colour<ch1,ach1> *v1, const Image<ch2,ach2> *v2)
+{
+    if (ch1 == ch2+ach2 && ach1 == 0) {
+        // redo the colour
+        Colour<ch2, ach2> v1_;
+        for (chan_t c=0 ; c<ch1 ; ++c) v1_[c] = (*v1)[c];
+        return image_blend_lua4<ch2, ach2, ch2, ach2, const Colour<ch2,ach2>*, const Image<ch2,ach2>*>(L, &v1_, v2);
+    } else if (ch1!=ch2 && ach2==0 && ch1!=1 && ch2!=1 && ch1==ch2+1) {
+        // redo the colour
+        Colour<ch2, 1> v1_;
+        for (chan_t c=0 ; c<ch1 ; ++c) v1_[c] = (*v1)[c];
+        return image_blend_lua4<ch2, 1, ch2, ach2, const Colour<ch2,1>*, const Image<ch2,ach2>*>(L, &v1_, v2);
+    } else {
+        return image_blend_lua4<ch1, ach1, ch2, ach2, const Colour<ch1,ach1>*, const Image<ch2,ach2>*>(L, v1, v2);
+    }
+}
+
+template<chan_t ch, chan_t ach, class TA>
+static ImageBase *image_blend_lua2 (lua_State *L, TA a)
+{
+    if (is_ptr(L, 2, IMAGE_TAG)) {
+        const ImageBase *b = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+        switch (b->channels()) {
+            case 1:
+            if (b->hasAlpha()) {
+                return image_blend_lua3<ch,ach,0,1>(L, a, static_cast<const Image<0,1>*>(b));
+            } else {
+                return image_blend_lua3<ch,ach,1,0>(L, a, static_cast<const Image<1,0>*>(b));
+            }
+            case 2:
+            if (b->hasAlpha()) {
+                return image_blend_lua3<ch,ach,1,1>(L, a, static_cast<const Image<1,1>*>(b));
+            } else {
+                return image_blend_lua3<ch,ach,2,0>(L, a, static_cast<const Image<2,0>*>(b));
+            }
+            case 3:
+            if (b->hasAlpha()) {
+                return image_blend_lua3<ch,ach,2,1>(L, a, static_cast<const Image<2,1>*>(b));
+            } else {
+                return image_blend_lua3<ch,ach,3,0>(L, a, static_cast<const Image<3,0>*>(b));
+            }
+            case 4:
+            if (b->hasAlpha()) {
+                return image_blend_lua3<ch,ach,3,1>(L, a, static_cast<const Image<3,1>*>(b));
+            } else {
+                return image_blend_lua3<ch,ach,4,0>(L, a, static_cast<const Image<4,0>*>(b));
+            }
+
+            default: my_lua_error(L, "Internal error, strange number of channels.");
+        }
+        return NULL;
+    }
+    switch (get_colour_channels(L, 2)) {
+        case 1: {
+            Colour<1,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_blend_lua3<ch,ach,1,0>(L, a, &colour);
+        }
+
+        case 2: {
+            Colour<2,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_blend_lua3<ch,ach,2,0>(L, a, &colour);
+        }
+
+        case 3: {
+            Colour<3,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_blend_lua3<ch,ach,3,0>(L, a, &colour);
+        }
+
+        case 4: {
+            Colour<4,0> colour;
+            if (!check_colour(L,colour,2)) return NULL;
+            return image_blend_lua3<ch,ach,4,0>(L, a, &colour);
+        }
+
+        default:
+        my_lua_error(L, "First argument should be an image or colour.");
+    }
+    return NULL;
+}
+
+static ImageBase *image_blend_lua1 (lua_State *L)
+{
+    check_args(L,2);
+    if (is_ptr(L, 1, IMAGE_TAG)) {
+        const ImageBase *a = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        switch (a->channels()) {
+            case 1:
+            if (a->hasAlpha()) {
+                return image_blend_lua2<0,1>(L, static_cast<const Image<0,1>*>(a));
+            } else {
+                return image_blend_lua2<1,0>(L, static_cast<const Image<1,0>*>(a));
+            }
+            case 2:
+            if (a->hasAlpha()) {
+                return image_blend_lua2<1,1>(L, static_cast<const Image<1,1>*>(a));
+            } else {
+                return image_blend_lua2<2,0>(L, static_cast<const Image<2,0>*>(a));
+            }
+            case 3:
+            if (a->hasAlpha()) {
+                return image_blend_lua2<2,1>(L, static_cast<const Image<2,1>*>(a));
+            } else {
+                return image_blend_lua2<3,0>(L, static_cast<const Image<3,0>*>(a));
+            }
+            case 4:
+            if (a->hasAlpha()) {
+                return image_blend_lua2<3,1>(L, static_cast<const Image<3,1>*>(a));
+            } else {
+                return image_blend_lua2<4,0>(L, static_cast<const Image<4,0>*>(a));
+            }
+
+            default: my_lua_error(L, "Internal error, strange number of channels.");
+        }
+        return NULL;
+    }
+    switch (get_colour_channels(L, 1)) {
+        case 1: {
+            Colour<1,0> colour;
+            check_colour(L,colour,1);
+            return image_blend_lua2<1,0>(L, &colour);
+        }
+
+        case 2: {
+            Colour<2,0> colour;
+            check_colour(L,colour,1);
+            return image_blend_lua2<2,0>(L, &colour);
+        }
+
+        case 3: {
+            Colour<3,0> colour;
+            check_colour(L,colour,1);
+            return image_blend_lua2<3,0>(L, &colour);
+        }
+
+        case 4: {
+            Colour<4,0> colour;
+            check_colour(L,colour,1);
+            return image_blend_lua2<4,0>(L, &colour);
+        }
+
+        default:
+        my_lua_error(L, "First argument should be an image or colour.");
+    }
+    return NULL;
 }
 
 
@@ -265,13 +1224,13 @@ static int image_save (lua_State *L)
     return 0;
 }
 
-template<chan_t ch> void foreach (lua_State *L, ImageBase *self_, int func_index)
+template<chan_t ch, chan_t ach> void foreach (lua_State *L, const ImageBase *self_, int func_index)
 {
-    Image<ch> *self = static_cast<Image<ch>*>(self_);
+    const Image<ch,ach> *self = static_cast<const Image<ch,ach>*>(self_);
     for (uimglen_t y=0 ; y<self->height ; ++y) {
         for (uimglen_t x=0 ; x<self->width ; ++x) {
             lua_pushvalue(L, func_index);
-            push_pixel<ch>(L, self->pixel(x,y));
+            push_colour(L, self->pixel(x,y));
             lua_pushvector2(L, x, y);
             int status = lua_pcall(L, 2, 0, 0); 
             if (status != 0) {
@@ -289,46 +1248,47 @@ static int image_foreach (lua_State *L)
     check_args(L,2);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     check_is_function(L, 2);
+    int fi = 2;
 
-    switch (self->channels()) {
-        case 1:
-        foreach<1>(L, self, 2);
-        break;
-
-        case 2:
-        foreach<2>(L, self, 2);
-        break;
-
-        case 3:
-        foreach<3>(L, self, 2);
-        break;
-
-        case 4:
-        foreach<4>(L, self, 2);
-        break;
-
-        default:
-        my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+    if (self->hasAlpha()) {
+        switch (self->channels()) {
+            case 1: foreach<0,1>(L, self, fi); break;
+            case 2: foreach<1,1>(L, self, fi); break;
+            case 3: foreach<2,1>(L, self, fi); break;
+            case 4: foreach<3,1>(L, self, fi); break;
+            default:
+            my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+        }
+    } else {
+        switch (self->channels()) {
+            case 1: foreach<1,0>(L, self, fi); break;
+            case 2: foreach<2,0>(L, self, fi); break;
+            case 3: foreach<3,0>(L, self, fi); break;
+            case 4: foreach<4,0>(L, self, fi); break;
+            default:
+            my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+        }
     }
 
     return 0;
 }
 
-template<chan_t src_ch, chan_t dst_ch> Image<dst_ch> *map_with_lua_func (lua_State *L, ImageBase *src_, int func_index)
+template<chan_t src_ch, chan_t src_ach, chan_t dst_ch, chan_t dst_ach>
+ImageBase *map_with_lua_func (lua_State *L, const ImageBase *src_, int func_index)
 {
-    Image<src_ch> *src = static_cast<Image<src_ch>*>(src_);
+    const Image<src_ch, src_ach> *src = static_cast<const Image<src_ch, src_ach>*>(src_);
     uimglen_t width = src->width;
     uimglen_t height = src->height;
-    Image<dst_ch> *dst = new Image<dst_ch>(width, height);
-    Pixel<dst_ch> p(0);
+    Image<dst_ch, dst_ach> *dst = new Image<dst_ch, dst_ach>(width, height);
+    Colour<dst_ch, dst_ach> p(0);
     for (uimglen_t y=0 ; y<height ; ++y) {
         for (uimglen_t x=0 ; x<width ; ++x) {
             lua_pushvalue(L, func_index);
-            push_pixel<src_ch>(L, src->pixel(x,y));
+            push_colour(L, src->pixel(x,y));
             lua_pushvector2(L, x, y);
             int status = lua_pcall(L, 2, 1, 0); 
             if (status == 0) {
-                if (!check_pixel<dst_ch>(L, p, -1)) {
+                if (!check_colour(L, p, -1)) {
                     delete dst;
                     const char *msg = lua_tostring(L, -1);
                     std::stringstream ss;
@@ -351,104 +1311,113 @@ template<chan_t src_ch, chan_t dst_ch> Image<dst_ch> *map_with_lua_func (lua_Sta
 
 static int image_map (lua_State *L)
 {
-    check_args(L,3);
-    // img, channels, func
-    ImageBase *src = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    chan_t dst_ch = check_int(L, 2, 1, 4);
-    check_is_function(L, 3);
+    ImageBase *src;
+    chan_t dst_ch;
+    bool dst_ach = false;
+    int fi;
+    if (lua_gettop(L) == 4) {
+        src = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        dst_ch = check_int(L, 2, 1, 4);
+        dst_ach = check_bool(L, 3);
+        check_is_function(L, 4);
+        fi = 4;
+    } else {
+        check_args(L,3);
+        src = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        dst_ch = check_int(L, 2, 1, 4);
+        check_is_function(L, 3);
+        fi = 3;
+    }
+
     chan_t src_ch = src->channels();
     ImageBase *out = NULL;
 
     switch (src_ch) {
         case 1:
-        switch (dst_ch) {
-            case 1:
-            out = map_with_lua_func<1,1>(L, src, 3);
-            break;
-
-            case 2:
-            out = map_with_lua_func<1,2>(L, src, 3);
-            break;
-
-            case 3:
-            out = map_with_lua_func<1,3>(L, src, 3);
-            break;
-
-            case 4:
-            out = map_with_lua_func<1,4>(L, src, 3);
-            break;
-
-            default:
-            my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+        if (src->hasAlpha()) {
+            switch (dst_ch) {
+                case 1: out = dst_ach ? map_with_lua_func<1,0,0,1>(L, src, fi) : map_with_lua_func<1,0,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<1,0,1,1>(L, src, fi) : map_with_lua_func<1,0,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<1,0,2,1>(L, src, fi) : map_with_lua_func<1,0,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<1,0,3,1>(L, src, fi) : map_with_lua_func<1,0,4,0>(L, src, fi); break;
+                default:
+                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+            }
+        } else {
+            switch (dst_ch) {
+                case 1: out = dst_ach ? map_with_lua_func<0,1,0,1>(L, src, fi) : map_with_lua_func<0,1,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<0,1,1,1>(L, src, fi) : map_with_lua_func<0,1,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<0,1,2,1>(L, src, fi) : map_with_lua_func<0,1,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<0,1,3,1>(L, src, fi) : map_with_lua_func<0,1,4,0>(L, src, fi); break;
+                default:
+                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+            }
         }
         break;
 
         case 2:
-        switch (dst_ch) {
-            case 1:
-            out = map_with_lua_func<2,1>(L, src, 3);
-            break;
-
-            case 2:
-            out = map_with_lua_func<2,2>(L, src, 3);
-            break;
-
-            case 3:
-            out = map_with_lua_func<2,3>(L, src, 3);
-            break;
-
-            case 4:
-            out = map_with_lua_func<3,4>(L, src, 3);
-            break;
-
-            default:
-            my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+        if (src->hasAlpha()) {
+            switch (dst_ch) {
+                case 1: out = dst_ach ? map_with_lua_func<2,0,0,1>(L, src, fi) : map_with_lua_func<2,0,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<2,0,1,1>(L, src, fi) : map_with_lua_func<2,0,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<2,0,2,1>(L, src, fi) : map_with_lua_func<2,0,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<2,0,3,1>(L, src, fi) : map_with_lua_func<2,0,4,0>(L, src, fi); break;
+                default:
+                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+            }
+        } else {
+            switch (dst_ch) {
+                case 1: out = dst_ach ? map_with_lua_func<1,1,0,1>(L, src, fi) : map_with_lua_func<1,1,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<1,1,1,1>(L, src, fi) : map_with_lua_func<1,1,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<1,1,2,1>(L, src, fi) : map_with_lua_func<1,1,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<1,1,3,1>(L, src, fi) : map_with_lua_func<1,1,4,0>(L, src, fi); break;
+                default:
+                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+            }
         }
         break;
 
         case 3:
-        switch (dst_ch) {
-            case 1:
-            out = map_with_lua_func<3,1>(L, src, 3);
-            break;
-
-            case 2:
-            out = map_with_lua_func<3,2>(L, src, 3);
-            break;
-
-            case 3:
-            out = map_with_lua_func<3,3>(L, src, 3);
-            break;
-
-            case 4:
-            out = map_with_lua_func<3,4>(L, src, 3);
-            break;
-
-            default:
-            my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+        if (src->hasAlpha()) {
+            switch (dst_ch) {
+                case 1: out = dst_ach ? map_with_lua_func<3,0,0,1>(L, src, fi) : map_with_lua_func<3,0,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<3,0,1,1>(L, src, fi) : map_with_lua_func<3,0,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<3,0,2,1>(L, src, fi) : map_with_lua_func<3,0,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<3,0,3,1>(L, src, fi) : map_with_lua_func<3,0,4,0>(L, src, fi); break;
+                default:
+                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+            }
+        } else {
+            switch (dst_ch) {
+                case 1: out = dst_ach ? map_with_lua_func<2,1,0,1>(L, src, fi) : map_with_lua_func<2,1,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<2,1,1,1>(L, src, fi) : map_with_lua_func<2,1,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<2,1,2,1>(L, src, fi) : map_with_lua_func<2,1,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<2,1,3,1>(L, src, fi) : map_with_lua_func<2,1,4,0>(L, src, fi); break;
+                default:
+                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+            }
         }
         break;
 
         case 4:
-        switch (dst_ch) {
-            case 1:
-            out = map_with_lua_func<4,1>(L, src, 3);
-            break;
-
-            case 2:
-            out = map_with_lua_func<4,2>(L, src, 3);
-            break;
-
-            case 3:
-            out = map_with_lua_func<4,3>(L, src, 3);
-            break;
-
-            case 4:
-            out = map_with_lua_func<4,4>(L, src, 3);
-            break;
-
-            default:
-            my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+        if (src->hasAlpha()) {
+            switch (dst_ch) {
+                case 1: out = dst_ach ? map_with_lua_func<3,0,0,1>(L, src, fi) : map_with_lua_func<3,0,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<3,0,1,1>(L, src, fi) : map_with_lua_func<3,0,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<3,0,2,1>(L, src, fi) : map_with_lua_func<3,0,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<3,0,3,1>(L, src, fi) : map_with_lua_func<3,0,4,0>(L, src, fi); break;
+                default:
+                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+            }
+        } else {
+            switch (dst_ch) {
+                case 1: out = dst_ach ? map_with_lua_func<2,1,0,1>(L, src, fi) : map_with_lua_func<2,1,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<2,1,1,1>(L, src, fi) : map_with_lua_func<2,1,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<2,1,2,1>(L, src, fi) : map_with_lua_func<2,1,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<2,1,3,1>(L, src, fi) : map_with_lua_func<2,1,4,0>(L, src, fi); break;
+                default:
+                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
+            }
         }
         break;
 
@@ -460,19 +1429,20 @@ static int image_map (lua_State *L)
     return 1;
 }
 
-template<chan_t ch> void reduce_with_lua_func (lua_State *L, ImageBase *self_, Pixel<ch> zero, int func_index)
+template<chan_t ch, chan_t ach>
+void reduce_with_lua_func (lua_State *L, const ImageBase *self_, Colour<ch,ach> zero, int func_index)
 {
-    Image<ch> *self = static_cast<Image<ch>*>(self_);
+    const Image<ch,ach> *self = static_cast<const Image<ch,ach>*>(self_);
 
     for (uimglen_t y=0 ; y<self->height ; ++y) {
         for (uimglen_t x=0 ; x<self->width ; ++x) {
             lua_pushvalue(L, func_index);
-            push_pixel<ch>(L, zero);
-            push_pixel<ch>(L, self->pixel(x,y));
+            push_colour(L, zero);
+            push_colour(L, self->pixel(x,y));
             lua_pushvector2(L, x, y);
             int status = lua_pcall(L, 3, 1, 0); 
             if (status == 0) {
-                if (!check_pixel<ch>(L, zero, -1)) {
+                if (!check_colour(L, zero, -1)) {
                     const char *msg = lua_tostring(L, -1);
                     std::stringstream ss;
                     ss << "While reducing the image at (" << x << "," << y << "): returned value \""<<msg<<"\" has the wrong type.";
@@ -487,7 +1457,7 @@ template<chan_t ch> void reduce_with_lua_func (lua_State *L, ImageBase *self_, P
             lua_pop(L, 1);
         }   
     }
-    push_pixel(L, zero);
+    push_colour(L, zero);
 }
 
 static int image_reduce (lua_State *L)
@@ -495,36 +1465,57 @@ static int image_reduce (lua_State *L)
     check_args(L,3);
     // img:A, zero:A, func:A,A -> A
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    int pi = 2;
     check_is_function(L, 3);
+    int fi = 3;
     switch (self->channels()) {
-        case 1: {
-            Pixel<1> p;
-            if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
-            else reduce_with_lua_func(L, self, p, 3);
+        case 1:
+        if (self->hasAlpha()) {
+            Colour<0,1> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
+            else reduce_with_lua_func(L, self, p, fi);
+        } else {
+            Colour<1,0> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
+            else reduce_with_lua_func(L, self, p, fi);
         }
         break;
 
-        case 2: {
-            Pixel<2> p;
-            if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
-            else reduce_with_lua_func(L, self, p, 3);
+        case 2:
+        if (self->hasAlpha()) {
+            Colour<1,1> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
+            else reduce_with_lua_func(L, self, p, fi);
+        } else {
+            Colour<2,0> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
+            else reduce_with_lua_func(L, self, p, fi);
         }
         break;
 
-        case 3: {
-            Pixel<3> p;
-            if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
-            else reduce_with_lua_func(L, self, p, 3);
+        case 3:
+        if (self->hasAlpha()) {
+            Colour<2,1> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
+            else reduce_with_lua_func(L, self, p, fi);
+        } else {
+            Colour<3,0> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
+            else reduce_with_lua_func(L, self, p, fi);
         }
         break;
 
-        case 4: {
-            Pixel<4> p;
-            if (!check_pixel(L, p, 2)) my_lua_error(L, "Reduce 'zero' value had the wrong number of channels.");
-            else reduce_with_lua_func(L, self, p, 3);
+        case 4:
+        if (self->hasAlpha()) {
+            Colour<3,1> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
+            else reduce_with_lua_func(L, self, p, fi);
+        } else {
+            Colour<4,0> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
+            else reduce_with_lua_func(L, self, p, fi);
         }
         break;
-
 
         default:
         my_lua_error(L, "Image must have either 1, 2, 3, or 4 channels.");
@@ -534,79 +1525,15 @@ static int image_reduce (lua_State *L)
 
 static int image_crop (lua_State *L)
 {
-    if (lua_gettop(L)!=3 && lua_gettop(L)!=4) {
-        my_lua_error(L, "image_crop expected 3 or 4 params");
-    }
+    check_args(L,4);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     simglen_t left, bottom;
-    uimglen_t width, height;
     check_scoord(L, 2, left, bottom);
+    uimglen_t width, height;
     check_coord(L, 3, width, height);
-    ImageBase *out = NULL;
-    if (lua_gettop(L) == 4) {
-        switch (self->channels()) {
-            case 1: {
-                Pixel<1> p;
-                if (!check_pixel(L, p, 4)) my_lua_error(L, "Crop background had the wrong number of channels.");
-                else out = static_cast<Image<1>*>(self)->crop(left,bottom,width,height,p);
-            }
-            break;
-
-            case 2: {
-                Pixel<2> p;
-                if (!check_pixel(L, p, 4)) my_lua_error(L, "Crop background had the wrong number of channels.");
-                else out = static_cast<Image<2>*>(self)->crop(left,bottom,width,height,p);
-            }
-            break;
-
-            case 3: {
-                Pixel<3> p;
-                if (!check_pixel(L, p, 4)) my_lua_error(L, "Crop background had the wrong number of channels.");
-                else out = static_cast<Image<3>*>(self)->crop(left,bottom,width,height,p);
-            }
-            break;
-
-            case 4: {
-                Pixel<4> p;
-                if (!check_pixel(L, p, 4)) my_lua_error(L, "Crop background had the wrong number of channels.");
-                else out = static_cast<Image<4>*>(self)->crop(left,bottom,width,height,p);
-            }
-            break;
-
-            default:
-            my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
-        }
-    } else {
-        switch (self->channels()) {
-            case 1: {
-                Pixel<1> p = Pixel<1>(0.0f);
-                out = static_cast<Image<1>*>(self)->crop(left,bottom,width,height,p);
-            }
-            break;
-
-            case 2: {
-                Pixel<2> p = Pixel<2>(0.0f);
-                out = static_cast<Image<2>*>(self)->crop(left,bottom,width,height,p);
-            }
-            break;
-
-            case 3: {
-                Pixel<3> p = Pixel<3>(0.0f);
-                out = static_cast<Image<3>*>(self)->crop(left,bottom,width,height,p);
-            }
-            break;
-
-            case 4: {
-                Pixel<4> p = Pixel<4>(0.0f);
-                out = static_cast<Image<4>*>(self)->crop(left,bottom,width,height,p);
-            }
-            break;
-
-            default:
-            my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
-        }
-    }
-    push_image(L, out);
+    ColourBase *colour = alloc_colour(L, self->channels(), self->hasAlpha(), 4);
+    push_image(L, self->crop(left,bottom,width,height,*colour));
+    delete colour;
     return 1;
 }
 
@@ -671,33 +1598,29 @@ static int image_mirror (lua_State *L)
     return 1;
 }
 
-void ensure_compatible(lua_State *L, ImageBase *self, ImageBase *other)
+static int image_mean_diff (lua_State *L)
 {
-    if (self->compatibleWith(other)) return;
-    std::stringstream ss;
-    ss << "Images are incompatible: " << *self << " and " << *other;
-    my_lua_error(L, ss.str());
-}
-
-static int image_rms (lua_State *L)
-{
-    check_args(L,2);
-    // img, float
-    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    ImageBase *other = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
-    ensure_compatible(L, self, other);
-    lua_pushnumber(L, self->rms(other));
+    const ImageBase *some_image;
+    ColourBase *value = image_zip_reduce_lua1<op_diff,op_add>(L, some_image);
+    float num_pixels = some_image->numPixels();
+    for (chan_t c=0 ; c<value->channels() ; ++c) {
+        value->raw()[c] = value->raw()[c]/num_pixels;
+    }
+    push_colour(L, *value);
+    delete value;
     return 1;
 }
 
-static int image_exp (lua_State *L)
+static int image_rms_diff (lua_State *L)
 {
-    check_args(L,2);
-    // img, float
-    ImageBase *src = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    float index = luaL_checknumber(L, 2);
-    ImageBase *out = src->pow(index);
-    push_image(L, out);
+    const ImageBase *some_image;
+    ColourBase *value = image_zip_reduce_lua1<op_diffsq,op_add>(L, some_image);
+    float num_pixels = some_image->numPixels();
+    for (chan_t c=0 ; c<value->channels() ; ++c) {
+        value->raw()[c] = ::sqrtf(value->raw()[c]/num_pixels);
+    }
+    push_colour(L, *value);
+    delete value;
     return 1;
 }
 
@@ -716,38 +1639,67 @@ static int image_set (lua_State *L)
     uimglen_t y;
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     check_coord(L, 2, x, y);
+    int pi = 3;
 
     if (x>=self->width || y>=self->height) {
         std::stringstream ss;
-        ss << "Pixel coordinates out of range: (" << x << "," << y << ")";
+        ss << "Colour coordinates out of range: (" << x << "," << y << ")";
         my_lua_error(L, ss.str());
     }
     switch (self->channels()) {
-        case 1: {
-            Pixel<1> p;
-            if (!check_pixel(L, p, 3)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
-            else static_cast<Image<1>*>(self)->pixel(x,y) = p;
+        case 1:
+        if (self->hasAlpha()) {
+            const int ch=0, ach=1;
+            Colour<ch,ach> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
+            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
+        } else {
+            const int ch=1, ach=0;
+            Colour<ch,ach> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
+            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
         }
         break;
 
-        case 2: {
-            Pixel<2> p;
-            if (!check_pixel(L, p, 3)) my_lua_error(L, "Cannot set this value to a 2 channel image.");
-            else static_cast<Image<2>*>(self)->pixel(x,y) = p;
+        case 2:
+        if (self->hasAlpha()) {
+            const int ch=1, ach=1;
+            Colour<ch,ach> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
+            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
+        } else {
+            const int ch=2, ach=0;
+            Colour<ch,ach> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
+            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
         }
         break;
 
-        case 3: {
-            Pixel<3> p;
-            if (!check_pixel(L, p, 3)) my_lua_error(L, "Cannot set this value to a 3 channel image.");
-            else static_cast<Image<3>*>(self)->pixel(x,y) = p;
+        case 3:
+        if (self->hasAlpha()) {
+            const int ch=2, ach=1;
+            Colour<ch,ach> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
+            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
+        } else {
+            const int ch=3, ach=0;
+            Colour<ch,ach> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
+            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
         }
         break;
 
-        case 4: {
-            Pixel<4> p;
-            if (!check_pixel(L, p, 3)) my_lua_error(L, "Cannot set this value to a 4 channel image.");
-            else static_cast<Image<4>*>(self)->pixel(x,y) = p;
+        case 4:
+        if (self->hasAlpha()) {
+            const int ch=3, ach=1;
+            Colour<ch,ach> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
+            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
+        } else {
+            const int ch=4, ach=0;
+            Colour<ch,ach> p;
+            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
+            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
         }
         break;
 
@@ -766,226 +1718,35 @@ static int image_draw_image (lua_State *L)
     uimglen_t y;
     check_coord(L, 3, x, y);
 
-    switch (dst->channels()) {
-        case 1: {
-            Image<1> *dst_ = static_cast<Image<1>*>(dst);
-            switch (src->channels()) {
-                case 2: {
-                    dst_->drawImageNoDestAlpha(src,x,y);
-                    break;
-                }
-                default: my_lua_error(L, "When using drawImage to a 1 channel image, source image must have 2 channels.");
-            }
-        }
-        break;
-
-        case 2: {
-            Image<2> *dst_ = static_cast<Image<2>*>(dst);
-            switch (src->channels()) {
-                case 2: {
-                    dst_->drawImage(src,x,y);
-                    break;
-                }
-                case 3: {
-                    dst_->drawImageNoDestAlpha(src,x,y);
-                    break;
-                }
-                default: my_lua_error(L, "When using drawImage to a 2 channel image, source image must have 2 or 3 channels.");
-            }
-        }
-        break;
-
-        case 3: {
-            Image<3> *dst_ = static_cast<Image<3>*>(dst);
-            switch (src->channels()) {
-                case 3: {
-                    dst_->drawImage(src,x,y);
-                    break;
-                }
-                case 4: {
-                    dst_->drawImageNoDestAlpha(src,x,y);
-                    break;
-                }
-                default: my_lua_error(L, "When using drawImage to a 3 channel image, source image must have 3 or 4 channels.");
-            }
-        }
-        break;
-
-        case 4: {
-            Image<4> *dst_ = static_cast<Image<4>*>(dst);
-            switch (src->channels()) {
-                case 4: {
-                    dst_->drawImage(src,x,y);
-                    break;
-                }
-                default: my_lua_error(L, "When using drawImage to a 4 channel image, source image must have 4 channels.");
-            }
-        }
-        break;
-
-        default:
-        my_lua_error(L, "Internal error: dest image seems to have an unusual number of channels.");
+    if (!src->hasAlpha()) {
+        my_lua_error(L, "Can only draw images with alpha channels.");
     }
+
+    if (src->channelsNonAlpha() != dst->channelsNonAlpha()) {
+        my_lua_error(L, "Can only draw onto image with same number of channels.");
+    }
+
+    dst->drawImage(src, x, y);
     return 0;
 }
 
 static int image_max (lua_State *L)
 {
-    check_args(L,2);
-    int a = 1, b = 2;
-    if (!lua_isuserdata(L,a)) {
-        std::swap(a,b);
-    }
-    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
-    if (lua_isuserdata(L,b)) {
-        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        ensure_compatible(L, self, other);
-        push_image(L, self->max(other));
-    } else {
-        switch (self->channels()) {
-            case 1: {
-                Pixel<1> other;
-                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot max a 1 channel image by this value.");
-                else push_image(L, static_cast<Image<1>*>(self)->max(other));
-            }
-            break;
-
-            case 2: {
-                Pixel<2> other;
-                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot max a 2 channel image by this value.");
-                else push_image(L, static_cast<Image<2>*>(self)->max(other));
-            }
-            break;
-
-            case 3: {
-                Pixel<3> other;
-                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot max a 3 channel image by this value.");
-                else push_image(L, static_cast<Image<3>*>(self)->max(other));
-            }
-            break;
-
-            case 4: {
-                Pixel<4> other;
-                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot max a 4 channel image by this value.");
-                else push_image(L, static_cast<Image<4>*>(self)->max(other));
-            }
-            break;
-
-            default:
-            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
-        }
-    }
+    push_image(L, image_zip_lua1<op_max>(L));
     return 1;
 }
 
 static int image_min (lua_State *L)
 {
-    check_args(L,2);
-    int a = 1, b = 2;
-    if (!lua_isuserdata(L,a)) {
-        std::swap(a,b);
-    }
-    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
-    if (lua_isuserdata(L,b)) {
-        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        ensure_compatible(L, self, other);
-        push_image(L, self->min(other));
-    } else {
-        switch (self->channels()) {
-            case 1: {
-                Pixel<1> other;
-                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot min a 1 channel image by this value.");
-                else push_image(L, static_cast<Image<1>*>(self)->min(other));
-            }
-            break;
-
-            case 2: {
-                Pixel<2> other;
-                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot min a 2 channel image by this value.");
-                else push_image(L, static_cast<Image<2>*>(self)->min(other));
-            }
-            break;
-
-            case 3: {
-                Pixel<3> other;
-                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot min a 3 channel image by this value.");
-                else push_image(L, static_cast<Image<3>*>(self)->min(other));
-            }
-            break;
-
-            case 4: {
-                Pixel<4> other;
-                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot min a 4 channel image by this value.");
-                else push_image(L, static_cast<Image<4>*>(self)->min(other));
-            }
-            break;
-
-            default:
-            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
-        }
-    }
+    push_image(L, image_zip_lua1<op_min>(L));
     return 1;
 }
 
-static int image_lerp (lua_State *L)
+static int global_lerp (lua_State *L)
 {
     check_args(L,3);
-    float alpha = luaL_checknumber(L, 3);
-    int a = 1, b = 2;
-    if (!lua_isuserdata(L,a)) {
-        std::swap(a,b);
-        alpha = 1-alpha;
-    }
-    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
-    if (lua_isuserdata(L,b)) {
-        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        ensure_compatible(L, self, other);
-        push_image(L, self->lerp(other, alpha));
-    } else {
-        switch (self->channels()) {
-            case 1: {
-                Pixel<1> other;
-                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot lerp a 1 channel image by this value.");
-                else push_image(L, static_cast<Image<1>*>(self)->lerp(other, alpha));
-            }
-            break;
-
-            case 2: {
-                Pixel<2> other;
-                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot lerp a 2 channel image by this value.");
-                else push_image(L, static_cast<Image<2>*>(self)->lerp(other, alpha));
-            }
-            break;
-
-            case 3: {
-                Pixel<3> other;
-                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot lerp a 3 channel image by this value.");
-                else push_image(L, static_cast<Image<3>*>(self)->lerp(other, alpha));
-            }
-            break;
-
-            case 4: {
-                Pixel<4> other;
-                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot lerp a 4 channel image by this value.");
-                else push_image(L, static_cast<Image<4>*>(self)->lerp(other, alpha));
-            }
-            break;
-
-            default:
-            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
-        }
-    }
+    global_lerp_lua1(L);
     return 1;
-}
-
-bool check_bool(lua_State *L, int i)
-{
-    if (!lua_isboolean(L,i)) {
-        std::stringstream ss;
-        ss << "Expected a boolean in argument " << i;
-        my_lua_error(L, ss.str());
-    }
-    return lua_toboolean(L,i);
 }
 
 static int image_convolve (lua_State *L)
@@ -1004,7 +1765,10 @@ static int image_convolve (lua_State *L)
     if (kernel->channels() != 1) {
         my_lua_error(L, "Convolution kernel must have only 1 channel.");
     }
-    Image<1> *kern = static_cast<Image<1>*>(kernel);
+    if (kernel->hasAlpha()) {
+        my_lua_error(L, "Convolution kernel must not have alpha channel.");
+    }
+    Image<1,0> *kern = static_cast<Image<1,0>*>(kernel);
     if (kernel->width % 2 != 1) {
         my_lua_error(L, "Convolution kernel width must be an odd number.");
     }
@@ -1031,14 +1795,17 @@ static int image_convolve_sep (lua_State *L)
     if (kernel_x->channels() != 1) {
         my_lua_error(L, "Separable convolution kernel must have only 1 channel.");
     }
-    Image<1> *kern_x = static_cast<Image<1>*>(kernel_x);
+    if (kernel_x->hasAlpha()) {
+        my_lua_error(L, "Convolution kernel must not have alpha channel.");
+    }
+    Image<1,0> *kern_x = static_cast<Image<1,0>*>(kernel_x);
     if (kern_x->width % 2 != 1) {
         my_lua_error(L, "Separable convolution kernel width must be an odd number.");
     }
     if (kern_x->height != 1) {
         my_lua_error(L, "Separable convolution kernel height must be 1.");
     }
-    Image<1> *kern_y = kern_x->rotate(90);
+    Image<1,0> *kern_y = kern_x->rotate(90);
     ImageBase *nu = self->convolve(kern_x, wrap_x, wrap_y);
     ImageBase *nu2 = nu->convolve(kern_y, wrap_x, wrap_y);
     delete nu;
@@ -1055,64 +1822,42 @@ static int image_normalise (lua_State *L)
     return 1;
 }
 
-template<chan_t sch, chan_t dch>
-Image<dch> *image_do_swizzle (const Image<sch> *src, chan_t *mapping)
+template<chan_t sch, chan_t scha, chan_t dch, chan_t dcha>
+ImageBase *image_swizzle3 (const Image<sch,scha> *src, chan_t *mapping)
 {
-    Image<dch> *dst = new Image<dch>(src->width, src->height);
+    Image<dch,dcha> *dst = new Image<dch,dcha>(src->width, src->height);
     for (uimglen_t y=0 ; y<src->height ; ++y) {
         for (uimglen_t x=0 ; x<src->width ; ++x) {
-            for (chan_t c=0 ; c<dch ; ++c) {
+            for (chan_t c=0 ; c<dch+dcha ; ++c) {
                 dst->pixel(x,y)[c] = src->pixel(x,y)[mapping[c]];
             }
         }
     }
     return dst;
 }
+        
+template<chan_t sch, chan_t scha>
+static ImageBase *image_swizzle2 (const ImageBase *img_, chan_t ch2, bool a2, chan_t *m)
+{
+    const Image<sch,scha> *img = static_cast<const Image<sch,scha>*>(img_);
+    switch (ch2) {
+        case 1: return a2 ? image_swizzle3<sch,scha,0,1>(img, m) : image_swizzle3<sch,scha,1,0>(img, m);
+        case 2: return a2 ? image_swizzle3<sch,scha,1,1>(img, m) : image_swizzle3<sch,scha,2,0>(img, m);
+        case 3: return a2 ? image_swizzle3<sch,scha,2,1>(img, m) : image_swizzle3<sch,scha,3,0>(img, m);
+        case 4: return a2 ? image_swizzle3<sch,scha,3,1>(img, m) : image_swizzle3<sch,scha,4,0>(img, m);
+        default:;
+    }
+    return NULL;
+}
 
 // key guaranteed to be at most 4 letters long and only contain wxyz
-static ImageBase *image_swizzle (const ImageBase *img, chan_t nu_chans, chan_t *mapping)
+static ImageBase *image_swizzle (const ImageBase *img, chan_t ch2, bool a2, chan_t *m)
 {
     switch (img->channels()) {
-        case 1: {
-            const Image<1> *src = static_cast<const Image<1>*>(img);
-            switch (nu_chans) {
-                case 1: return image_do_swizzle<1,1>(src, mapping);
-                case 2: return image_do_swizzle<1,2>(src, mapping);
-                case 3: return image_do_swizzle<1,3>(src, mapping);
-                case 4: return image_do_swizzle<1,4>(src, mapping);
-                default:;
-            }
-        } break;
-        case 2: {
-            const Image<2> *src = static_cast<const Image<2>*>(img);
-            switch (nu_chans) {
-                case 1: return image_do_swizzle<2,1>(src, mapping);
-                case 2: return image_do_swizzle<2,2>(src, mapping);
-                case 3: return image_do_swizzle<2,3>(src, mapping);
-                case 4: return image_do_swizzle<2,4>(src, mapping);
-                default:;
-            }
-        } break;
-        case 3: {
-            const Image<3> *src = static_cast<const Image<3>*>(img);
-            switch (nu_chans) {
-                case 1: return image_do_swizzle<3,1>(src, mapping);
-                case 2: return image_do_swizzle<3,2>(src, mapping);
-                case 3: return image_do_swizzle<3,3>(src, mapping);
-                case 4: return image_do_swizzle<3,4>(src, mapping);
-                default:;
-            }
-        } break;
-        case 4: {
-            const Image<4> *src = static_cast<const Image<4>*>(img);
-            switch (nu_chans) {
-                case 1: return image_do_swizzle<4,1>(src, mapping);
-                case 2: return image_do_swizzle<4,2>(src, mapping);
-                case 3: return image_do_swizzle<4,3>(src, mapping);
-                case 4: return image_do_swizzle<4,4>(src, mapping);
-                default:;
-            }
-        } break;
+        case 1: return img->hasAlpha() ? image_swizzle2<0,1>(img, ch2, a2, m) : image_swizzle2<1,0>(img, ch2, a2, m);
+        case 2: return img->hasAlpha() ? image_swizzle2<1,1>(img, ch2, a2, m) : image_swizzle2<2,0>(img, ch2, a2, m);
+        case 3: return img->hasAlpha() ? image_swizzle2<2,1>(img, ch2, a2, m) : image_swizzle2<3,0>(img, ch2, a2, m);
+        case 4: return img->hasAlpha() ? image_swizzle2<3,1>(img, ch2, a2, m) : image_swizzle2<4,0>(img, ch2, a2, m);
         default:;
     }
     return NULL;
@@ -1125,12 +1870,16 @@ static int image_index (lua_State *L)
     const char *key = luaL_checkstring(L, 2);
     if (!::strcmp(key, "channels")) {
         lua_pushnumber(L, self->channels());
+    } else if (!::strcmp(key, "hasAlpha")) {
+        lua_pushboolean(L, self->hasAlpha());
     } else if (!::strcmp(key, "width")) {
         lua_pushnumber(L, self->width);
     } else if (!::strcmp(key, "height")) {
         lua_pushnumber(L, self->height);
     } else if (!::strcmp(key, "size")) {
         lua_pushvector2(L, self->width, self->height);
+    } else if (!::strcmp(key, "numPixels")) {
+        lua_pushnumber(L, self->numPixels());
     } else if (!::strcmp(key, "save")) {
         lua_pushcfunction(L, image_save);
     } else if (!::strcmp(key, "foreach")) {
@@ -1151,10 +1900,10 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_flip);
     } else if (!::strcmp(key, "mirror")) {
         lua_pushcfunction(L, image_mirror);
-    } else if (!::strcmp(key, "rms")) {
-        lua_pushcfunction(L, image_rms);
-    } else if (!::strcmp(key, "pow")) {
-        lua_pushcfunction(L, image_exp);
+    } else if (!::strcmp(key, "rmsDiff")) {
+        lua_pushcfunction(L, image_rms_diff);
+    } else if (!::strcmp(key, "meanDiff")) {
+        lua_pushcfunction(L, image_mean_diff);
     } else if (!::strcmp(key, "abs")) {
         lua_pushcfunction(L, image_abs);
     } else if (!::strcmp(key, "set")) {
@@ -1163,8 +1912,6 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_max);
     } else if (!::strcmp(key, "min")) {
         lua_pushcfunction(L, image_min);
-    } else if (!::strcmp(key, "lerp")) {
-        lua_pushcfunction(L, image_lerp);
     } else if (!::strcmp(key, "convolve")) {
         lua_pushcfunction(L, image_convolve);
     } else if (!::strcmp(key, "convolveSep")) {
@@ -1177,23 +1924,34 @@ static int image_index (lua_State *L)
         chan_t nu_chans = strlen(key);
         if (nu_chans<=4) {
             bool swizzle = true;
+            bool has_alpha = false;
             chan_t mapping[4];
             for (chan_t c=0 ; c<nu_chans ; ++c) {
                 chan_t src_chan = 0;
                 switch (key[c]) {
-                    case 'x': src_chan = 0; break;
-                    case 'y': src_chan = 1; break;
-                    case 'z': src_chan = 2; break;
-                    case 'w': src_chan = 3; break;
+                    case 'x': case 'X': src_chan = 0; break;
+                    case 'y': case 'Y': src_chan = 1; break;
+                    case 'z': case 'Z': src_chan = 2; break;
+                    case 'w': case 'W': src_chan = 3; break;
                     default: swizzle = false;
                 }
                 mapping[c] = src_chan;
+                switch (key[c]) {
+                    case 'x': case 'y': case 'z': case 'w': break;
+                    case 'X': case 'Y': case 'Z': case 'W':
+                    if (c != nu_chans-1) {
+                        my_lua_error(L, "On image swizzle, only last channel can have alpha: \""+std::string(key)+"\"");
+                    }
+                    has_alpha = true;
+                    break;
+                    default:;
+                }
                 if (src_chan >= self->channels()) {
                     my_lua_error(L, "Image does not have enough channels for swizzle: \""+std::string(key)+"\"");
                 }
             }
             if (swizzle) {
-                push_image(L, image_swizzle(self, nu_chans, mapping));
+                push_image(L, image_swizzle(self, nu_chans, has_alpha, mapping));
                 return 1;
             } else {
                 my_lua_error(L, "Not a readable Image field: \""+std::string(key)+"\"");
@@ -1226,384 +1984,46 @@ static int image_call (lua_State *L)
 
     if (x>=self->width || y>=self->height) {
         std::stringstream ss;
-        ss << "Pixel coordinates out of range: (" << x << "," << y << ")";
+        ss << "Colour coordinates out of range: (" << x << "," << y << ")";
         my_lua_error(L, ss.str());
     }
-    switch (self->channels()) {
-        case 1:
-        push_pixel<1>(L, static_cast<Pixel<1>&>(self->pixelSlow(x,y)));
-        break;
-
-        case 2:
-        push_pixel<2>(L, static_cast<Pixel<2>&>(self->pixelSlow(x,y)));
-        break;
-
-        case 3:
-        push_pixel<3>(L, static_cast<Pixel<3>&>(self->pixelSlow(x,y)));
-        break;
-
-        case 4:
-        push_pixel<4>(L, static_cast<Pixel<4>&>(self->pixelSlow(x,y)));
-        break;
-
-        default:
-        my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
-    }
+    push_colour(L, self->pixelSlow(x,y));
     return 1;
 }
 
 static int image_add (lua_State *L)
 {
-    check_args(L,2);
-    int a = 1, b = 2;
-    if (!lua_isuserdata(L,1)) {
-        std::swap(a,b);
-    }
-    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
-    if (lua_isuserdata(L,b)) {
-        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        ensure_compatible(L, self, other);
-        push_image(L, self->add(other));
-    } else {
-        switch (self->channels()) {
-            case 1: {
-                Pixel<1> other;
-                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot add this value to a 1 channel image.");
-                else push_image(L, static_cast<Image<1>*>(self)->add(other));
-            }
-            break;
-
-            case 2: {
-                Pixel<2> other;
-                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot add this value to a 2 channel image.");
-                else push_image(L, static_cast<Image<2>*>(self)->add(other));
-            }
-            break;
-
-            case 3: {
-                Pixel<3> other;
-                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot add this value to a 3 channel image.");
-                else push_image(L, static_cast<Image<3>*>(self)->add(other));
-            }
-            break;
-
-            case 4: {
-                Pixel<4> other;
-                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot add this value to a 4 channel image.");
-                else push_image(L, static_cast<Image<4>*>(self)->add(other));
-            }
-            break;
-
-            default:
-            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
-        }
-    }
+    push_image(L, image_zip_lua1<op_add>(L));
     return 1;
 }
 
 static int image_sub (lua_State *L)
 {
-    check_args(L,2);
-    int a = 1, b = 2;
-    bool swapped = false;
-    if (!lua_isuserdata(L,a)) {
-        std::swap(a,b);
-        swapped = true;
-    }
-    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
-    if (lua_isuserdata(L,b)) {
-        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        ensure_compatible(L, self, other);
-        push_image(L, swapped ? other->sub(self) : self->sub(other));
-    } else {
-        switch (self->channels()) {
-            case 1: {
-                Pixel<1> other;
-                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 1 channel image.");
-                else push_image(L, static_cast<Image<1>*>(self)->sub(other, swapped));
-            }
-            break;
-
-            case 2: {
-                Pixel<2> other;
-                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 2 channel image.");
-                else push_image(L, static_cast<Image<2>*>(self)->sub(other, swapped));
-            }
-            break;
-
-            case 3: {
-                Pixel<3> other;
-                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 3 channel image.");
-                else push_image(L, static_cast<Image<3>*>(self)->sub(other, swapped));
-            }
-            break;
-
-            case 4: {
-                Pixel<4> other;
-                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot subtract this value from a 4 channel image.");
-                else push_image(L, static_cast<Image<4>*>(self)->sub(other, swapped));
-            }
-            break;
-
-            default:
-            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
-        }
-    }
+    push_image(L, image_zip_lua1<op_sub>(L));
     return 1;
 }
 
 static int image_mul (lua_State *L)
 {
-    check_args(L,2);
-    int a = 1, b = 2;
-    if (!lua_isuserdata(L,a)) {
-        std::swap(a,b);
-    }
-    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
-    if (lua_isuserdata(L,b)) {
-        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        ensure_compatible(L, self, other);
-        push_image(L, self->mul(other));
-    } else {
-        switch (self->channels()) {
-            case 1: {
-                Pixel<1> other;
-                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot multiply a 1 channel image by this value.");
-                else push_image(L, static_cast<Image<1>*>(self)->mul(other));
-            }
-            break;
-
-            case 2: {
-                Pixel<2> other;
-                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot multiply a 2 channel image by this value.");
-                else push_image(L, static_cast<Image<2>*>(self)->mul(other));
-            }
-            break;
-
-            case 3: {
-                Pixel<3> other;
-                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot multiply a 3 channel image by this value.");
-                else push_image(L, static_cast<Image<3>*>(self)->mul(other));
-            }
-            break;
-
-            case 4: {
-                Pixel<4> other;
-                if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot multiply a 4 channel image by this value.");
-                else push_image(L, static_cast<Image<4>*>(self)->mul(other));
-            }
-            break;
-
-            default:
-            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
-        }
-    }
+    push_image(L, image_zip_lua1<op_mul>(L));
     return 1;
 }
 
 static int image_div (lua_State *L)
 {
-    check_args(L,2);
-    int a = 1, b = 2;
-    bool swapped = false;
-    if (!lua_isuserdata(L,1)) {
-        std::swap(a,b);
-        swapped = true;
-    }
-    ImageBase *self = check_ptr<ImageBase>(L, a, IMAGE_TAG);
-    if (lua_isuserdata(L,b)) {
-        ImageBase *other = check_ptr<ImageBase>(L, b, IMAGE_TAG);
-        ensure_compatible(L, self, other);
-        push_image(L, swapped ? other->div(self) : self->div(other));
-    } else {
-        switch (self->channels()) {
-            case 1: {
-                Pixel<1> other;
-                if (!check_pixel<1>(L, other, b)) my_lua_error(L, "Cannot divide a 1 channel image by this value.");
-                else push_image(L, static_cast<Image<1>*>(self)->div(other, swapped));
-            }
-            break;
-
-            case 2: {
-                Pixel<2> other;
-                if (!check_pixel<2>(L, other, b)) my_lua_error(L, "Cannot divide a 2 channel image by this value.");
-                else push_image(L, static_cast<Image<2>*>(self)->div(other, swapped));
-            }
-            break;
-
-            case 3: {
-                Pixel<3> other;
-                if (!check_pixel<3>(L, other, b)) my_lua_error(L, "Cannot divide a 3 channel image by this value.");
-                else push_image(L, static_cast<Image<3>*>(self)->div(other, swapped));
-            }
-            break;
-
-            case 4: {
-                Pixel<4> other; if (!check_pixel<4>(L, other, b)) my_lua_error(L, "Cannot divide a 4 channel image by this value.");
-                else push_image(L, static_cast<Image<4>*>(self)->div(other, swapped));
-            }
-            break;
-
-            default:
-            my_lua_error(L, "Channels must be 1, 2, 3, or 4.");
-        }
-    }
+    push_image(L, image_zip_lua1<op_div>(L));
     return 1;
 }
 
-// alpha blend (regular blend mode in photoshop)
 static int image_pow (lua_State *L)
 {
-    check_args(L,2);
-    ImageBase *icing = NULL; // icing ^ cake
-    ImageBase *cake = NULL;
-    if (is_ptr(L, 1, IMAGE_TAG)) {
-        icing = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    }
-    if (is_ptr(L, 2, IMAGE_TAG)) {
-        cake = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
-    }
-    if (icing == NULL && cake == NULL) {
-        my_lua_error(L, "Internal error: image_pow called with neither argument being an image.");
-    }
-    ImageBase *nu = NULL;
-    if (icing != NULL && cake != NULL) {
-        if (!icing->sizeCompatibleWith(cake)) {
-            my_lua_error(L, "When blending images, sizes of images did not match.");
-        }
-        if (icing->channels() == cake->channels()) {
-            nu = cake->blendImage(icing);
-        } else if (icing->channels() == cake->channels()+1) {
-            nu = cake->blendImageNoDestAlpha(icing);
-        } else {
-            my_lua_error(L, "When blending image 'icing' onto 'cake', icing's channels must be the same or 1 more than cake's channels.");
-        }
-    } else {
-        if (cake == NULL) {
-            chan_t pch = get_pixel_channels(L, 2);
-            switch (pch) {
-                case 0: my_lua_error(L, "Expected an image or pixel in first parameter of image blend");
-                case 1: {
-                    switch(icing->channels()) {
-                        case 1: {
-                            // just combine alpha channels (a bit weird, but makes sense)
-                            Pixel<1> p; check_pixel(L, p, 2);
-                            nu = icing->blendColourSwapped(p);
-                        } break;
-                        case 2: {
-                            // alpha blend greyscale image on top of greyscale solid colour
-                            Pixel<1> p; check_pixel(L, p, 2);
-                            nu = icing->blendColourNoDestAlphaSwapped(p);
-                        } break;
-                        case 3: {
-                            // promote pixel to 1 fewer channels
-                            // assume icing has an alpha channel but cake alpha channel should be effectively 1
-                            Pixel<2> p; check_pixel(L, p, 2);
-                            nu = icing->blendColourNoDestAlphaSwapped(p);
-                        } break;
-                        case 4: {
-                            // promote pixel to 1 fewer channels
-                            // assume icing has an alpha channel but cake alpha channel should be effectively 1
-                            Pixel<3> p; check_pixel(L, p, 2);
-                            nu = icing->blendColourNoDestAlphaSwapped(p);
-                        } break;
-                        default: my_lua_error(L, "Internal error: weird number of channels.");
-                    }
-                } break;
-                case 2: {
-                    Pixel<2> p; check_pixel(L, p, 2);
-                    switch(icing->channels()) {
-                        case 2: {
-                            // alpha blend greyscale image on top of greyscale solid colour with alpha
-                            nu = icing->blendColourSwapped(p);
-                        } break;
-                        case 3: {
-                            // assume icing has an alpha channel but cake alpha channel should be effectively 1
-                            nu = icing->blendColourNoDestAlphaSwapped(p);
-                        } break;
-                        default: my_lua_error(L, "Mismatch in number of channels during blend operation.");
-                    }
-                } break;
-                case 3: {
-                    Pixel<3> p; check_pixel(L, p, 2);
-                    switch(icing->channels()) {
-                        case 3: {
-                            // alpha blend 2+a channel image on top of 2+a channel solid colour
-                            nu = icing->blendColourSwapped(p);
-                        } break;
-                        case 4: {
-                            // assume icing has an alpha channel but cake is rgb
-                            nu = icing->blendColourNoDestAlphaSwapped(p);
-                        } break;
-                        default: my_lua_error(L, "Mismatch in number of channels during blend operation.");
-                    }
-                } break;
-                case 4: {
-                    if (icing->channels() != 4)
-                        my_lua_error(L, "When blending to a 4 channel colour, need a 4 channel image");
-                    Pixel<4> p; check_pixel(L, p, 2);
-                    nu = icing->blendColourSwapped(p);
-                } break;
-            }
-        } else { // icing == NULL
-            chan_t pch = get_pixel_channels(L, 1);
-            switch (pch) {
-                case 0: my_lua_error(L, "Expected an image or pixel in first parameter of image blend");
-                case 1: {
-                    if (cake->channels() == 1) {
-                        // just combine alpha channels (a bit weird, but makes sense)
-                        Pixel<1> p; check_pixel(L, p, 1);
-                        nu = cake->blendColour(p);
-                    } else {
-                        my_lua_error(L, "Blending a single number on top of an image of >1 channels is ambiguous.");
-                    }
-                } break;
-                case 2: {
-                    Pixel<2> p; check_pixel(L, p, 1);
-                    switch(cake->channels()) {
-                        case 2: {
-                            // alpha blend greyscale image on top of greyscale solid colour with alpha
-                            nu = cake->blendColour(p);
-                        } break;
-                        case 1: {
-                            // assume cake has an alpha channel but cake alpha channel should be effectively 1
-                            nu = cake->blendColourNoDestAlpha(p);
-                        } break;
-                        default: my_lua_error(L, "Internal error: weird number of channels.");
-                    }
-                } break;
-                case 3: {
-                    Pixel<3> p; check_pixel(L, p, 1);
-                    switch(cake->channels()) {
-                        case 3: {
-                            // alpha blend 2+a channel image on top of 2+a channel solid colour
-                            nu = cake->blendColour(p);
-                        } break;
-                        case 2: {
-                            // assume cake has an alpha channel but cake is rgb
-                            nu = cake->blendColourNoDestAlpha(p);
-                        } break;
-                        default: my_lua_error(L, "Internal error: weird number of channels.");
-                    }
-                } break;
-                case 4: {
-                    Pixel<4> p; check_pixel(L, p, 1);
-                    switch(cake->channels()) {
-                        case 4: {
-                            // alpha blend 2+a channel image on top of 2+a channel solid colour
-                            nu = cake->blendColour(p);
-                        } break;
-                        case 3: {
-                            // assume cake has an alpha channel but cake is rgb
-                            nu = cake->blendColourNoDestAlpha(p);
-                        } break;
-                        default: my_lua_error(L, "Internal error: weird number of channels.");
-                    }
-                } break;
-            }
-        }
-    }
-    push_image(L, nu);
+    push_image(L, image_zip_lua1<powf>(L));
+    return 1;
+}
+
+static int image_concat (lua_State *L)
+{
+    push_image(L, image_blend_lua1(L));
     return 1;
 }
 
@@ -1629,6 +2049,7 @@ const luaL_reg image_meta_table[] = {
     {"__sub",      image_sub}, 
     {"__div",      image_div}, 
     {"__pow",      image_pow},
+    {"__concat",   image_concat},
 
     {NULL, NULL}
 };
@@ -1727,30 +2148,28 @@ const luaL_reg vimage_meta_table[] = {
 
 
 
-template<chan_t ch> Image<ch> *image_from_lua_func (lua_State *L, uimglen_t width, uimglen_t height, int func_index)
+template<chan_t ch, chan_t ach>
+ImageBase *image_from_lua_func (lua_State *L, uimglen_t width, uimglen_t height, int func_index)
 {
-    Image<ch> *my_image = new Image<ch>(width, height);
-    Pixel<ch> p(0);
+    Image<ch,ach> *my_image = new Image<ch,ach>(width, height);
     for (uimglen_t y=0 ; y<height ; ++y) {
         for (uimglen_t x=0 ; x<width ; ++x) {
             lua_pushvalue(L, func_index);
             lua_pushvector2(L, x, y);
             int status = lua_pcall(L, 1, 1, 0); 
             if (status == 0) {
-                if (!check_pixel<ch>(L, p, -1)) {
+                Colour<ch, ach> p;
+                if (!check_colour(L, p, -1)) {
                     delete my_image;
-                    const char *msg = lua_tostring(L, -1);
-                    std::stringstream ss;
-                    ss << "While initialising the image at (" << x << "," << y << "): returned value \""<<msg<<"\" has the wrong type.";
-                    my_lua_error(L, ss.str());
+                    my_lua_error(L, "While initialising the image at ("+str(x)+","+str(y)+"): "
+                                    "returned value had bad type: "+type_name(L,-1));
+                } else {
+                    my_image->pixel(x,y) = p;
                 }
-                my_image->pixel(x,y) = p;
             } else {
                 const char *msg = lua_tostring(L, -1);
                 delete my_image;
-                std::stringstream ss;
-                ss << "While initialising the image at (" << x << "," << y << "): " << msg;
-                my_lua_error(L, ss.str());
+                my_lua_error(L, "While initialising the image at ("+str(x)+","+str(y)+"): "+str(msg));
             }
             lua_pop(L, 1);
         }   
@@ -1758,28 +2177,25 @@ template<chan_t ch> Image<ch> *image_from_lua_func (lua_State *L, uimglen_t widt
     return my_image;
 }
 
-template<chan_t ch> Image<ch> *image_from_lua_table (lua_State *L, uimglen_t width, uimglen_t height, int tab_index)
+template<chan_t ch, chan_t ach>
+ImageBase *image_from_lua_table (lua_State *L, uimglen_t width, uimglen_t height, int tab_index)
 {
-    unsigned int elements = luaL_getn(L, 3);
-    if (elements != width * height) {
-        std::stringstream ss;
-        ss << "Initialisation table for image "<<width<<"x"<<height<<" has "<<elements<<" elements.";
-        my_lua_error(L, ss.str());
-    }
+    unsigned int elements = luaL_getn(L, tab_index);
+    if (elements != width * height)
+        my_lua_error(L, "Initialisation table for image "+str(width)+"x"+str(height)+" has "+str(elements)+" elements.");
 
-    Image<ch> *my_image = new Image<ch>(width, height);
-    Pixel<ch> p(0);
+    Image<ch,ach> *my_image = new Image<ch,ach>(width, height);
+    Colour<ch,ach> p;
     for (uimglen_t y=0 ; y<height ; ++y) {
         for (uimglen_t x=0 ; x<width ; ++x) {
             lua_rawgeti(L, tab_index, y*width+x+1);
-            if (!check_pixel<ch>(L, p, -1)) {
+            if (!check_colour(L, p, -1)) {
                 delete my_image;
-                const char *msg = lua_tostring(L, -1);
-                std::stringstream ss;
-                ss << "While initialising the image at (" << x << "," << y << "): initialisation table value \""<<msg<<"\" has the wrong type.";
-                my_lua_error(L, ss.str());
+                my_lua_error(L, "While initialising the image at ("+str(x)+","+str(y)+"): "
+                                "initialisation table contained bad type: "+type_name(L,-1));
+            } else {
+                my_image->pixel(x,y) = p;
             }
-            my_image->pixel(x,y) = p;
             lua_pop(L, 1);
         }   
     }   
@@ -1799,7 +2215,7 @@ static int global_gaussian (lua_State *L)
 {
     check_args(L,1);
     uimglen_t size = check_t<uimglen_t>(L, 1);
-    Image<1> *my_image = new Image<1>(size, 1);
+    Image<1,0> *my_image = new Image<1,0>(size, 1);
     for (uimglen_t x=0 ; x<size ; ++x) {
         my_image->pixel(x,0) = fact(size-1) / (fact(x) * fact(size-1-x));
     }
@@ -1811,81 +2227,57 @@ static int global_gaussian (lua_State *L)
 
 static int global_make (lua_State *L)
 {
-    check_args(L,3);
-    // sz, channels, func
-    uimglen_t width, height;
-    check_coord(L, 1, width, height);
-    chan_t channels = check_int(L, 2, 1, 4);
+    uimglen_t w, h;
+    chan_t channels;
+    bool alpha = false;
+    int ii;
+    if (lua_gettop(L) == 4) {
+        check_coord(L, 1, w, h);
+        channels = check_int(L, 2, 1, 4);
+        alpha = check_bool(L, 3);
+        ii = 4;
+    } else {
+        check_args(L,3);
+        check_coord(L, 1, w, h);
+        channels = check_int(L, 2, 1, 4);
+        ii = 3;
+    }
+
     ImageBase *image = NULL;
-    switch (lua_type(L, 3)) {
-        case LUA_TNUMBER:  {
-            if (channels != 1) my_lua_error(L, "If initial colour is a number, image must have 1 channel.");
-            float init[1] = { (float) lua_tonumber(L, 3) };
-            image = image_make(width, height, init);
-        }
-        break;
-        case LUA_TVECTOR2: {
-            if (channels != 2) my_lua_error(L, "If initial colour is a vector2, image must have 2 channels.");
-            float init[2];
-            lua_checkvector2(L, 3, &init[0], &init[1]);
-            image = image_make(width, height, init);
-        }
-        break;
-        case LUA_TVECTOR3: {
-            if (channels != 3) my_lua_error(L, "If initial colour is a vector3, image must have 3 channels.");
-            float init[3];
-            lua_checkvector3(L, 3, &init[0], &init[1], &init[2]);
-            image = image_make(width, height, init);
-        }
-        break;
+
+    switch (lua_type(L, ii)) {
         case LUA_TFUNCTION: {
             switch (channels) {
-                case 1:
-                image = image_from_lua_func<1>(L, width, height, 3);
-                break;
-
-                case 2:
-                image = image_from_lua_func<2>(L, width, height, 3);
-                break;
-
-                case 3:
-                image = image_from_lua_func<3>(L, width, height, 3);
-                break;
-
-                case 4:
-                image = image_from_lua_func<4>(L, width, height, 3);
-                break;
-
-                default:
-                my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+                case 1: image = alpha ? image_from_lua_func<0,1>(L,w,h,ii) : image_from_lua_func<1,0>(L,w,h,ii); break;
+                case 2: image = alpha ? image_from_lua_func<1,1>(L,w,h,ii) : image_from_lua_func<2,0>(L,w,h,ii); break;
+                case 3: image = alpha ? image_from_lua_func<2,1>(L,w,h,ii) : image_from_lua_func<3,0>(L,w,h,ii); break;
+                case 4: image = alpha ? image_from_lua_func<3,1>(L,w,h,ii) : image_from_lua_func<4,0>(L,w,h,ii); break;
+                default: my_lua_error(L, "Internal error");
             }
         }
         break;
         case LUA_TTABLE: {
             switch (channels) {
-                case 1:
-                image = image_from_lua_table<1>(L, width, height, 3);
-                break;
-
-                case 2:
-                image = image_from_lua_table<2>(L, width, height, 3);
-                break;
-
-                case 3:
-                image = image_from_lua_table<3>(L, width, height, 3);
-                break;
-
-                case 4:
-                image = image_from_lua_table<4>(L, width, height, 3);
-                break;
-
-                default:
-                my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+                case 1: image = alpha ? image_from_lua_table<0,1>(L,w,h,ii) : image_from_lua_table<1,0>(L,w,h,ii); break;
+                case 2: image = alpha ? image_from_lua_table<1,1>(L,w,h,ii) : image_from_lua_table<2,0>(L,w,h,ii); break;
+                case 3: image = alpha ? image_from_lua_table<2,1>(L,w,h,ii) : image_from_lua_table<3,0>(L,w,h,ii); break;
+                case 4: image = alpha ? image_from_lua_table<3,1>(L,w,h,ii) : image_from_lua_table<4,0>(L,w,h,ii); break;
+                default: my_lua_error(L, "Internal error");
             }
         }
         break;
         default:
-        my_lua_error(L, "Expected a number, vector, table, or function at index 3.");
+        if (get_colour_channels(L,ii)==0)
+            my_lua_error(L, "Expected a number, vector, table, or function to initialise image");
+        ColourBase *init = alloc_colour(L, channels, alpha, ii);
+        switch (channels) {
+            case 1: image = alpha ? image_make<0,1>(w,h,*init) : image_make<1,0>(w,h,*init); break;
+            case 2: image = alpha ? image_make<1,1>(w,h,*init) : image_make<2,0>(w,h,*init); break;
+            case 3: image = alpha ? image_make<2,1>(w,h,*init) : image_make<3,0>(w,h,*init); break;
+            case 4: image = alpha ? image_make<3,1>(w,h,*init) : image_make<4,0>(w,h,*init); break;
+            default: my_lua_error(L, "Internal error");
+        }
+        delete init;
     }
 
     push_image(L, image);
@@ -1982,54 +2374,6 @@ static int global_colour (lua_State *L)
         case 3: lua_pushvector3(L, f, f, f); break;
         case 4: lua_pushvector4(L, f, f, f, f); break;
         default: my_lua_error(L, "Internal error: weird number of channels.");
-    }
-    return 1;
-}
-
-static int global_lerp (lua_State *L)
-{
-    check_args(L,3);
-    if (lua_type(L,1) != lua_type(L,2)) {
-        my_lua_error(L, "First two params of lerp must be the same type.");
-    }
-    lua_Number a = luaL_checknumber(L,3);
-    float x1,y1,z1,w1, x2,y2,z2,w2;
-
-    switch (lua_type(L, 1)) {
-        case LUA_TNUMBER: {
-            lua_Number v1 = lua_tonumber(L, 1);
-            lua_Number v2 = lua_tonumber(L, 2);
-            lua_pushnumber(L, (1-a)*v1 + a*v2);
-        } break;
-
-        case LUA_TVECTOR2:
-        lua_checkvector2(L, 1, &x1, &y1);
-        lua_checkvector2(L, 2, &x2, &y2);
-        lua_pushvector2(L, (1-a)*x1 + a*x2, (1-a)*y1 + a*y2);
-        break;
-
-        case LUA_TVECTOR3:
-        lua_checkvector3(L, 1, &x1, &y1, &z1);
-        lua_checkvector3(L, 2, &x2, &y2, &z2);
-        lua_pushvector3(L, (1-a)*x1 + a*x2, (1-a)*y1 + a*y2, (1-a)*z1 + a*z2);
-        break;
-
-        case LUA_TVECTOR4:
-        lua_checkvector4(L, 1, &x1, &y1, &z1, &w1);
-        lua_checkvector4(L, 2, &x2, &y2, &z2, &w2);
-        lua_pushvector4(L, (1-a)*x1 + a*x2, (1-a)*y1 + a*y2, (1-a)*z1 + a*z2, (1-a)*w1 + a*w2);
-        break;
-
-        case LUA_TUSERDATA: {
-            ImageBase *img1 = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-            ImageBase *img2 = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
-            push_image(L, img1->lerp(img2, a));
-        }
-        break;
-
-        default:
-        my_lua_error(L, "lerp() supports number, vector2, and vector3 only.");
-        break;
     }
     return 1;
 }

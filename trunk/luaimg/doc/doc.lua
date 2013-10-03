@@ -64,7 +64,8 @@ end
 
 local examples = {
 
-[[make(vec(64,64), 3, vec(1,0,0)):save("red.png")]],
+[[my_img = make(vec(32,32), 3, vec(1,0,0))
+my_img:save("red.png")]],
 
 [[local sz = vec(64,64)
 function init(pos)
@@ -72,19 +73,28 @@ function init(pos)
     local alpha = clamp(30-rad, 0, 1)
     return vec(0, 0, 1, alpha)
 end
-make(sz, 4, init):save("circle.png")]],
+circle = make(sz, 4, true, init)
+circle:save("circle.png")]],
 
-[[(open("circle.png") ^ vec(1,1,0)):save("circle_bg.png")]],
+[[(circle .. vec(1,1,0)):save("circle_bg.png")]],
 
-[[(open("circle.png") ^ open("red.png")):save("circle_bg2.png")]],
+[[smaller = circle:scale(vec(32,32),"BICUBIC")
+blended = smaller .. open("red.png")
+blended:save("circle_bg2.png")]],
 
-[[open("circle.png").w:save("circle_a.png")]],
+[[my_mask = circle.w
+my_mask:save("circle_a.png")]],
 
-[[make(vec(64,64), 3, function() return vec(random(), random(), random()) end):save("random.png")]],
+[[
+function randvec() return vec(random(), random(), random()) end
+my_noise = make(vec(64,64), 3, randvec)
+my_noise:save("random.png")]],
 
-[[open("random.png"):convolveSep(gaussian(7), true, true):save("perlin.png")]],
+[[
+my_perlin = my_noise:convolveSep(gaussian(7), true, true)
+my_perlin:save("perlin.png")]],
 
-[[((open("random.png")-open("perlin.png")) + 0.5):save("noise_hifreq.png")]]
+[[((my_noise-my_perlin) + 0.5):save("noise_hifreq.png")]]
 
 }
 
@@ -112,16 +122,39 @@ function emit_page()
 
     <div class="prose">
 
-        <p>LuaImg is a programming framework for scripted image manipulation.  It does not compete with Gimp/Photoshop since those applications are for interactive image manipulation.  It is more similar to ImageMagick and netpbm.  However, those tools encourage the use of the shell to glue everything together.  LuaImg is more like sed or awk, in that a single LuaImg process can do an arbitrary amount of manipulation using an internal domain-specific language.  LuaImg is based on the Lua fork used in the <a href="http://www.gritengine.com/">Grit</a> project.  The goals of LuaImg are, in order:</p>
+        <p>LuaImg is a programming framework for scripted (i.e.
+non-interactive) image manipulation.  The images are stored in single precision
+floating point, and manipulated with a high-level scripting language based on
+the Lua fork from the <a href="http://www.gritengine.com/">Grit</a> project.
+Intermediate images are garbage-collected instead of being explicitly re-used.
+This allow complex mathematical algorithms to be written in a natural way.
+While these niceties come with a performance cost, the productivity gains more
+than make up for it, especially for rapid prototyping or experimentation with
+images.  Having said this, performance is generally quite good.  Large images
+such as the 5760x3840 resolution images created by the Canon 5DmkIII can be
+processed pixel-by-pixel with custom Lua code in a few seconds.</p>
+
+<p> LuaImg is similar to ImageMagick and netpbm.  However, those tools
+encourage the use of shell programming to glue everything together.  They are
+also somewhat limited in their programmability. LuaImg is more like sed or awk,
+in that a single LuaImg process can do an arbitrary amount of manipulation
+using an internal domain-specific language.  LuaImg shares some idioms with
+shader programming, although all code runs on the CPU.  The goals of LuaImg
+are, in order:</p>
+
         <ol>
-            <li>Expressive power: To allow the expression of a wide variety of image manipulation algorithms on HDR and LDR images.</li>
+            <li>Expressive power: To allow the expression of a wide variety of image manipulation algorithms on HDR images.</li>
             <li>Simplicity:  To provide the smallest set of features, allow complicated effects to be achieved through easy and intuitive combinations of these features.</li>
             <li>Performance:  To provide the best performance possible without compromising goals 1 and 2.  The use of script interpretion does limit performance, but we try to keep the garbage collection costs under control with a customised virtual machine.</li>
         </ol>
 
+        <p>Note that with any programming framework, the point is not to do simple
+    one-off things, but to perform complex, precise, or
+    repetitive tasks that are difficult or time-consuming without programming.</p>
+
         <p>LuaImg has so far been used for detecting northern lights in photos
-of the sky, preparing bitmap font textures for computer games, attempting to
-undo blend operations, and more.</p>
+of the sky, preparing bitmap font textures for computer games, extracting alpha
+masks from blended images, and more.</p>
 
     </div>
 
@@ -136,24 +169,29 @@ important because they  do not incur garbage collection overhead, just like
 number, boolean, and nil.  These types are vector2, vector3, and vector4, which
 are useful for representing coordinates and colours.  (There is also a
 quaternion type which is arguably less useful in this context.)  These values
-are created using constructors, e.g., vector2(10,20) or vector4(1,2,3,4).
+are created using constructors, e.g., vec(10,20) or vec(1,2,3,4).
 Individual fields can be accessed using .x, .y, .z, or .w field accesses (the
 fields can be read but not written).  It is also possible to swizzle, e.g.,
 .xyz will produce a vector3, .xz will produce a vector2, etc.</p>
 
         <p>Arithmetic operations on the vector types operate in a point-wise
-manner, e.g.  vector3(1,2,3) * vector3(-1,2,1) = vector3(-1,4,3).  The #
+manner, e.g.  vec(1,2,3) * vec(-1,2,1) = vec(-1,4,3).  The #
 operator on a vector provides its length (Euclidian length, i.e. Pythagoras).
-Some of the standard lua math functions (pow, max, min, clamp) have been
-adapted to handle vector values, but the rest still operate on number only.
-Additional functions like dot product, etc, are described below. </p>
+</p>
 
     </div>
 
     <h2>Other differences from Lua</h2>
 
     <div class="prose">
-        <p>All of the math functions have been moved out of the math package into global scope.</p>
+
+        <p>All of the math functions have been moved out of the math package
+into global scope.Some of the standard Lua math functions (pow, ceil, floor,
+abs, clamp) have been adapted to also support vector values, but the rest still
+operate on number only.  The unpack function will convert vectors to their
+components. Additional functions like dot product, etc, are described below.
+</p>
+
     </div>
 
     <h2>Examples</h2>
@@ -164,41 +202,37 @@ Additional functions like dot product, etc, are described below. </p>
         <pre>
 print "Hello world!" </pre>
 
-        <p>Create a 64x64 image with 3 channels containing solid red (vector3(1,0,0)).  Save to a file:</p>
-        <img src="red.png" style="float:right;" alt="luaimg output"/>
+        <p>Create a 32x32 image with 3 channels containing solid red (vec(1,0,0)).  Save to a file (can also be written on one line):</p>
+        <img src="red.png" style="float:right;" alt="LuaImg output"/>
         <pre>]]..examples[1]..[[</pre>
 
-        <p>Initialising an image with a function (draws an antialiased blue circle with alpha):</p>
-        <img src="circle.png" style="float:right;" alt="luaimg output" />
+        <p>Initialising a 3 channel image with alpha, initialised with a function (computes an antialiased blue circle with alpha):</p>
+        <img src="circle.png" style="float:right;" alt="LuaImg output" />
         <pre>]]..examples[2]..[[</pre>
 
         <p>Blend the circle image onto a solid yellow background:</p>
-        <img src="circle_bg.png" style="float:right;" alt="luaimg output" />
+        <img src="circle_bg.png" style="float:right;" alt="LuaImg output" />
         <pre>]]..examples[3]..[[</pre>
 
         <p>Blend the circle image onto red.png:</p>
-        <img src="circle_bg2.png" style="float:right;" alt="luaimg output" />
+        <img src="circle_bg2.png" style="float:right;" alt="LuaImg output" />
         <pre>]]..examples[4]..[[</pre>
 
-        <p>Load the circle image, extract alpha channel and save it:</p>
-        <img src="circle_a.png" style="float:right;" alt="luaimg output" />
+        <p>Extract alpha channel and save it:</p>
+        <img src="circle_a.png" style="float:right;" alt="LuaImg output" />
         <pre>]]..examples[5]..[[</pre>
 
         <p>Random noise:</p>
-        <img src="random.png" style="float:right;" alt="luaimg output" />
+        <img src="random.png" style="float:right;" alt="LuaImg output" />
         <pre>]]..examples[6]..[[</pre>
 
         <p>Random noise with gaussian blur.  The gaussian(n) function returns an nx1 image that represents a separated normalised gaussian blur kernel.  One can also use custom kernels by providing an image instead of using the result of gaussian() -- and these can be provided either in separated form, or as a general rectangular matrix.</p>
-        <img src="perlin.png" style="float:right;" alt="luaimg output" />
+        <img src="perlin.png" style="float:right;" alt="LuaImg output" />
         <pre>]]..examples[7]..[[</pre>
 
         <p>Subtract the two to create a high frequency noise texture.  Generally, using arithmetic to combine images is supported.</p>
-        <img src="noise_hifreq.png" style="float:right;" alt="luaimg output" />
+        <img src="noise_hifreq.png" style="float:right;" alt="LuaImg output" />
         <pre>]]..examples[8]..[[</pre>
-
-        <p>Note that with any programming framework, the point is not to do simple
-    one-off things like in these examples, but to build complex, precise, or
-    repetitive things that are not possible except through programming.</p>
 
     </div>
 
@@ -213,7 +247,7 @@ print "Hello world!" </pre>
         depending on how many channels are required (this should be clear from the
         context).</li>
             <li>Images are said to be <i>compatible</i> if they have the same size
-        and number of channels.</li>
+        and number of channels, or one of them has only a single channel (a mask).  Number/vector values can be used in place of an image, in which case they act like a solid colour image.</li>
             <li>An <i>array</i> is defined to be a Lua table
         containing only number keys between 1 and some other number (without any gaps).</li>
             <li> The type of a function, when passed as a value, is denoted in the API
@@ -365,11 +399,12 @@ doc {
     "function",
     "make",
     [[Create a new image of the specificed size, with the specified number of
-    channels.  The init parameter can be either a single colour (for a solid
+    channels (alpha defaults to false).  The init parameter can be either a single colour (for a solid
     image), an array of colours of size W*H, or a function that returns the colour
     at each pixel.]],
     { "param", "size", "vector2" },
     { "param", "channels", {1,2,3,4} },
+    { "param", "alpha", "boolean", optional=true },
     { "param", "init", {"colour", "array[colour]",  "(vector2)->(colour)"} },
     { "return", "Image" },
 }
@@ -395,7 +430,7 @@ doc {
 doc {
     "function",
     "gaussian",
-    "Generate a separated gaussian convolution kernel.  This is an nx1 image containing that row of Pascal's triangle, normalised so it all sums to 1.",
+    "Generate a separated Gaussian convolution kernel.  This is an nx1 image containing that row of Pascal's triangle, normalised so it all sums to 1.",
     { "param", "n", "number" },
     { "return", "Image" },
 }
@@ -407,6 +442,50 @@ doc {
     { "param", "d", "number" },
     { "param", "n", "number" },
     { "return", "vector" },
+}
+
+doc {
+    "function",
+    "dot",
+    "Compute the dot product of the given vectors.",
+    { "param", "a", "vector" },
+    { "param", "b", "vector" },
+    { "return", "number" },
+}
+
+doc {
+    "function",
+    "cross",
+    "Compute the cross product of the given vectors.",
+    { "param", "a", "vector3" },
+    { "param", "b", "vector3" },
+    { "return", "vector3" },
+}
+
+doc {
+    "function",
+    "inv",
+    "Invert a quaternion.",
+    { "param", "a", "quat" },
+    { "return", "quat" },
+}
+
+doc {
+    "function",
+    "slerp",
+    "Interpolate between two quaternions.",
+    { "param", "a", "quat" },
+    { "param", "b", "quat" },
+    { "param", "alpha", "number" },
+    { "return", "quat" },
+}
+
+doc {
+    "function",
+    "norm",
+    "Normalise the vector or quaternion (return a value that has length 1 but is otherwise equivalent).",
+    { "param", "a", {"vector","quat"} },
+    { "return", {"vector","quat"} },
 }
 
 acros = { "HSL", "HSV", "RGB" }
@@ -424,8 +503,24 @@ end
 doc {
     "class",
     "Image",
-    [[A 2d rectangular grid of pixels.  Pixels are represented in single precision floating point.  The image can have 1,2,3, or 4 channels.  Images can be manipulated by ordinary arithmetic and are garbage collected.  The ^ operator combines images according to alpha blending (i.e. regular blend mode in Photoshop/Gimp) but other operators behave in an obvious pointwise mathematical fashion.  You can therefore mask images using the multiplication operator, add using the add operator, etc (see provided examples).  Individual pixel values of an image can be accessed using the function call syntax, e.g. img(10,20).  Other functionality is exposed via specific methods, including raising to the power which would ordinarily be accessed through the ^ operator.  ]],
+
+    [[A 2d rectangular grid of pixels.  Pixels are represented in single
+precision floating point.  The image can have 1,2,3, or 4 channels.  The last
+channel can be an alpha channel (alpha channels have special behaviours when
+composing images).  Images can be combined by arithmetic (+,-,*,/,^).  The ..
+operator combines images according to alpha blending (i.e. regular blend mode
+in Photoshop/Gimp).  Other blend modes are available via the mathematical
+operators.  You can therefore mask images using the multiplication operator,
+add using the add operator, etc (see examples above).  Individual pixel values
+of an image can be accessed using the function call syntax, e.g. img(10,20).
+Other functionality is exposed via specific methods on images.  Images can be
+swizzled to extract specific channels.  If a swizzle's last character is a
+capital letter, this creates an alpha channel.  E.g. img.yX will yield a
+greyscale image with alpha channel.  The value channel is the old green channel
+and the alpha channel is the old red channel.]],
+
     { "field", "channels", "number", "The number of channels in the image.", },
+    { "field", "hasAlpha", "boolean", "Whether or not the last channel is an alpha channel.", },
     { "field", "width", "number", "The number of pixels in a row of the image.", },
     { "field", "height", "number", "The number of pixels in a column of the image.", },
     { "field", "size", "vector2", "The width and height as a single value.", },
@@ -444,8 +539,9 @@ doc {
     {
         "method",
         "map",
-        "Create a new image with the given number of channels, the same size as this image, initailised by executing the function provided to map each pixel from this image into the new image.  The function is called with both the colour from the existing image, and the coordinate being set (like make).",
+        "Create a new image with the given number of channels, the same size as this image, initialised by executing the function provided to map each pixel from this image into the new image.  The function is called with both the colour from the existing image, and the coordinate being set (like make).",
         { "param", "channels", "number" },
+        { "param", "alpha", "boolean", optional=true },
         { "param", "func", "(colour, vector2)->(colour)" },
         { "return", "Image" },
     },
@@ -501,17 +597,17 @@ doc {
     },
     {
         "method",
-        "rms",
-        "Subtract one image from the other.  Square every pixel channel value, sum them all, and square root the result.  This is a common method for objectively measuring the difference between two compatible images.",
+        "meanDiff",
+        "The average difference between pixels in two compatible images.",
         { "param", "other", "Image" },
-        { "return", "number" },
+        { "return", "colour" },
     },
     {
         "method",
-        "pow",
-        "Return a new image with each pixel raised to the given power.  This is useful for gamma conversions, e.g. to decode a gamma-encoded image, use img:pow(2.2).",
-        { "param", "index", "number" },
-        { "return", "Image" },
+        "rmsDiff",
+        "Subtract one image from the other.  Square every pixel channel value, average them all, and square root the result.  This is a common method for objectively measuring the difference between two compatible images.  The resulting value is a colour, but you can use the # operator to reduce this to a single value, e.g. #img:rms(other).",
+        { "param", "other", "Image" },
+        { "return", "colour" },
     },
     {
         "method",
@@ -538,14 +634,6 @@ doc {
         "method",
         "abs",
         "The returned image is the absolute value of this image, i.e. negative pixel channel values are made positive.",
-        { "return", "Image" },
-    },
-    {
-        "method",
-        "lerp",
-        "The returned image is the lerp of the two given images according to the given alpha value.  It is also allowed to give a single colour value in place of the other image.",
-        { "param", "other", "Image/colour" },
-        { "param", "alpha", "number" },
         { "return", "Image" },
     },
     {
