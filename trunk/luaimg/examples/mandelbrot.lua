@@ -7,15 +7,16 @@ function mb_generate (w, iters)
     iters = iters or 500
     local sz = vec(w, w * 1.5/4)
     print("Generating mandelbrot set of size: "..sz)
-    local function mb(c)
+    -- 1 channel texture, no alpha channel
+    mb = make(sz, 1, function(pos)
+        local c = vec(lerp(-2.5,1.5,pos.x/sz.x), lerp(0,1.5,pos.y/sz.y))
         local p = c
         for i=1,iters do
             p = vec(p.x*p.x - p.y*p.y, 2*p.x*p.y) + c
             if #p > 2 then return i end
         end
         return iters+1
-    end
-    mb = make(sz, 1, function(pos) return mb(vec(lerp(-2.5,1.5,pos.x/sz.x), lerp(0,1.5,pos.y/sz.y))) end)
+    end)
 end
 
 function mb_load() mb = open("mandelbrot.sfi") end
