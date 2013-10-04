@@ -21,7 +21,7 @@ function process_names(list)
                 counter = counter + qty
             end
         end)
-        print(fname..": "..floor(counter).." "..(counter > northern_lights_threshold and "YES" or "NO"))
+        print(floor(counter))
     end
 end
 
