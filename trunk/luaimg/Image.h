@@ -51,6 +51,14 @@ void HSVtoRGB (float H, float S, float L, float &R, float &G, float &B);
 #include <ostream>
 #include <string>
 
+static inline simglen_t mymod (simglen_t a, simglen_t b)
+{
+    simglen_t c = a % b;
+    // maybe -b < c <= 0
+    c = (c + b) %b;
+    return c;
+}
+
 enum ScaleFilter {
     SF_BOX,
     SF_BILINEAR,
@@ -61,12 +69,14 @@ enum ScaleFilter {
 };
 
 struct ColourBase {
+/*
     virtual chan_t channels() const = 0;
     virtual bool hasAlpha() const = 0;
     virtual chan_t channelsNonAlpha() const = 0;
     virtual float *raw (void) = 0;
     virtual const float *raw (void) const = 0;
     virtual ~ColourBase (void) { }
+*/
 };
 
 // ach can be 0 or 1
@@ -215,6 +225,9 @@ class ImageBase {
     unsigned long numPixels() const { return (unsigned long)(height) * width; };
     unsigned long numBytes() const { return numPixels()*4; }
 
+    virtual float *raw (void) = 0;
+    virtual const float *raw (void) const = 0;
+
     virtual ~ImageBase (void) { }
 
     bool sizeCompatibleWith (const ImageBase *other) const {
@@ -234,7 +247,7 @@ class ImageBase {
 
     virtual ImageBase *scale (uimglen_t width, uimglen_t height, ScaleFilter filter) const;
     virtual ImageBase *rotate (float angle) const;
-    virtual ImageBase *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const ColourBase &bg) const = 0;
+    virtual ImageBase *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const ColourBase *bg) const = 0;
 
     virtual void drawImage (const ImageBase *src_, uimglen_t left, uimglen_t bottom) = 0;
     virtual ImageBase *convolve (const Image<1,0> *kernel, bool wrap_x, bool wrap_y) const = 0;
@@ -268,6 +281,9 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         delete [] data;
     }
 
+    float *raw (void) { return data[0].raw(); }
+    const float *raw (void) const { return data[0].raw(); }
+
     Colour<ch,ach> &pixel (uimglen_t x, uimglen_t y) { return data[y*width+x]; }
     const Colour<ch,ach> &pixel (uimglen_t x, uimglen_t y) const { return data[y*width+x]; }
 
@@ -298,15 +314,25 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
 
 
 
-    Image<ch,ach> *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const ColourBase &bg_) const
+    Image<ch,ach> *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const ColourBase *bg_) const
     {
         Image<ch, ach> *ret = new Image<ch, ach>(w, h);
-        const Colour<ch, ach> &bg = static_cast<const Colour<ch,ach>&>(bg_);
-        for (uimglen_t y=0 ; y<h ; ++y) {
-            for (uimglen_t x=0 ; x<w ; ++x) {
-                uimglen_t old_x = x+left;
-                uimglen_t old_y = y+bottom;
-                ret->pixel(x,y) = (old_x<width && old_y<height) ? this->pixel(old_x, old_y) : bg;
+        if (bg_ == NULL) {
+            for (uimglen_t y=0 ; y<h ; ++y) {
+                for (uimglen_t x=0 ; x<w ; ++x) {
+                    uimglen_t old_x = mymod(x+left, width);
+                    uimglen_t old_y = mymod(y+bottom, height);
+                    ret->pixel(x,y) = this->pixel(old_x, old_y);
+                }
+            }
+        } else {
+            const Colour<ch, ach> &bg = *static_cast<const Colour<ch,ach>*>(bg_);
+            for (uimglen_t y=0 ; y<h ; ++y) {
+                for (uimglen_t x=0 ; x<w ; ++x) {
+                    uimglen_t old_x = x+left;
+                    uimglen_t old_y = y+bottom;
+                    ret->pixel(x,y) = (old_x<width && old_y<height) ? this->pixel(old_x, old_y) : bg;
+                }
             }
         }
         return ret;
@@ -411,10 +437,8 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
                         float kv = kernel->pixel(kx+kcx, ky+kcy)[0];
                         simglen_t this_x = x+kx;
                         simglen_t this_y = y+ky;
-                        while (this_x < 0) this_x = wrap_x ? this_x + width: 0;
-                        while (this_y < 0) this_y = wrap_y ? this_y + height: 0;
-                        while (this_x >= (simglen_t)width) this_x = wrap_x ? this_x - width: width-1;
-                        while (this_y >= (simglen_t)height) this_y = wrap_y ? this_y - height: height-1;
+                        while (this_x < 0) this_x = wrap_x ? mymod(this_x, width): 0;
+                        while (this_y < 0) this_y = wrap_y ? mymod(this_y, height): 0;
                         Colour<ch,ach> thisv = this->pixel((uimglen_t)this_x, (uimglen_t)this_y);
                         for (chan_t c=0 ; c<ch+ach ; ++c) {
                             p[c] += thisv[c] * kv;

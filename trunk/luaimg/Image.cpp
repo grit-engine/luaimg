@@ -19,10 +19,16 @@
  * THE SOFTWARE.
  */
 
+
+#include <cstdlib>
+#include <cstdio>
 #include <cmath>
+#include <cassert>
+#include <cstring>
 
 #include <string>
 #include <iostream>
+#include <fstream>
 
 extern "C" {
 	#include <FreeImage.h>
@@ -364,160 +370,258 @@ template<> FIBITMAP *image_to_fibitmap (Image<1,0> *image, uimglen_t width, uimg
 
 ImageBase *image_load (const std::string &filename)
 {
-
-    FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(filename.c_str(), 0);
-    if (fif == FIF_UNKNOWN) {
-        fif = FreeImage_GetFIFFromFilename(filename.c_str());
-    }
-    if (fif == FIF_UNKNOWN) {
-        std::cerr << "Unknown format." << std::endl;
+    size_t dot = filename.rfind('.');
+    if (dot == std::string::npos) {
+        std::cerr << "No file extension." << std::endl;
         return NULL;
     }
-    if (!FreeImage_FIFSupportsReading(fif)) {
-        std::cerr << "Unreadable format." << std::endl;
+    std::string ext = filename.substr(dot+1);
+    if (ext == "") {
+        std::cerr << "No file extension." << std::endl;
         return NULL;
     }
 
-    FIBITMAP *input = FreeImage_Load(fif, filename.c_str());
-    if (input == NULL) {
-        return NULL;
-    }
 
-    FREE_IMAGE_TYPE input_type = FreeImage_GetImageType(input);
-    uimglen_t width = FreeImage_GetWidth(input);
-    uimglen_t height = FreeImage_GetHeight(input);
+    if (ext == "sfi") {
 
-    switch (input_type) {
-        case FIT_BITMAP: {
-
-            // how many channels?
-            int bits = FreeImage_GetBPP(input);
-
-            if (FreeImage_GetColorsUsed(input) != 0 && bits != 8) {
-                std::cerr << "Images with palettes not supported when number of bits is" << bits << "." << std::endl;
-                FreeImage_Unload(input);
-                return NULL;
-            }
-        
-            switch (bits) {
-                case 1:
-                std::cerr << "Images with 1 bit colour not supported." << std::endl;
-                FreeImage_Unload(input);
-                return NULL;
-
-                case 4:
-                std::cerr << "Images with 4 bit colour not supported." << std::endl;
-                FreeImage_Unload(input);
-                return NULL;
-
-                case 8: {
-                    ImageBase *my_image = image_from_fibitmap<1,0>(input, width, height);
-                    FreeImage_Unload(input);
-                    return my_image;
-                }
-                    
-                case 16: {
-                    ImageBase *my_image = image_from_fibitmap<3,0>(input, width, height);
-                    FreeImage_Unload(input);
-                    return my_image;
-                }
-                    
-                case 24: {
-                    ImageBase *my_image = image_from_fibitmap<3,0>(input, width, height);
-                    FreeImage_Unload(input);
-                    return my_image;
-                }
-                    
-                case 32: {
-                    ImageBase *my_image = image_from_fibitmap<3,1>(input, width, height);
-                    FreeImage_Unload(input);
-                    return my_image;
-                }
-                
-                default:
-                std::cerr << "Only 8, 16, 24, and 32 bit images supported (not "<<bits<<")." << std::endl;
-                FreeImage_Unload(input);
-                return NULL;
-            }
-
+        std::ifstream in;
+        in.open(filename);
+        if (!in.good()) {
+            std::cerr<<filename<<": "<<std::string(strerror(errno))<<std::endl;
+            return NULL;
         }
+
+
+        uimglen_t width, height;
+        in.read((char*)&width, sizeof(width));
+        if (!in.good()) {
+            std::cerr<<filename<<": "<<std::string(strerror(errno))<<std::endl;
+            return NULL;
+        }
+        in.read((char*)&height, sizeof(height));
+        if (!in.good()) {
+            std::cerr<<filename<<": "<<std::string(strerror(errno))<<std::endl;
+            return NULL;
+        }
+        chan_t channels;
+        in.read((char*)&channels, sizeof(channels));
+        if (!in.good()) {
+            std::cerr<<filename<<": "<<std::string(strerror(errno))<<std::endl;
+            return NULL;
+        }
+        char alpha_char;
+        in.read(&alpha_char, 1);
+        if (!in.good()) {
+            std::cerr<<filename<<": "<<std::string(strerror(errno))<<std::endl;
+            return NULL;
+        }
+
+        bool has_alpha;
+        if (alpha_char == 'A') {
+            has_alpha = true;
+        } else if (alpha_char == 'a') {
+            has_alpha = false;
+        } else {
+            std::cerr<<filename<<": corrupted image file"<<std::endl;
+            return NULL;
+        }
+
+        ImageBase *img = NULL;
+
+        switch (channels) {
+            case 1: if (has_alpha) {
+                img = new Image<0,1>(width,height);
+            } else {
+                img = new Image<1,0>(width,height);
+            } break;
+            case 2: if (has_alpha) {
+                img = new Image<1,1>(width,height);
+            } else {
+                img = new Image<2,0>(width,height);
+            } break;
+            case 3: if (has_alpha) {
+                img = new Image<2,1>(width,height);
+            } else {
+                img = new Image<3,0>(width,height);
+            } break;
+            case 4: if (has_alpha) {
+                img = new Image<3,1>(width,height);
+            } else {
+                img = new Image<4,0>(width,height);
+            } break;
+            default:
+            std::cerr<<filename<<": corrupted image file"<<std::endl;
+            return NULL;
+        }
+
+        float *raw = img->raw();
+        for (size_t i=0 ; i<width*height*channels ; ++i) {
+            in.read((char*)&raw[i], sizeof(float));
+        }
+
+        if (!in.good()) {
+            std::cerr<<filename<<": "<<std::string(strerror(errno))<<std::endl;
+            delete img;
+            return NULL;
+        }
+
+        in.close();
+
+        return img;
+
+    } else {
+
+        FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(filename.c_str(), 0);
+        if (fif == FIF_UNKNOWN) {
+            fif = FreeImage_GetFIFFromFilename(filename.c_str());
+        }
+        if (fif == FIF_UNKNOWN) {
+            std::cerr << "Unknown format." << std::endl;
+            return NULL;
+        }
+        if (!FreeImage_FIFSupportsReading(fif)) {
+            std::cerr << "Unreadable format." << std::endl;
+            return NULL;
+        }
+
+        FIBITMAP *input = FreeImage_Load(fif, filename.c_str());
+        if (input == NULL) {
+            return NULL;
+        }
+
+        FREE_IMAGE_TYPE input_type = FreeImage_GetImageType(input);
+        uimglen_t width = FreeImage_GetWidth(input);
+        uimglen_t height = FreeImage_GetHeight(input);
+
+        switch (input_type) {
+            case FIT_BITMAP: {
+
+                // how many channels?
+                int bits = FreeImage_GetBPP(input);
+
+                if (FreeImage_GetColorsUsed(input) != 0 && bits != 8) {
+                    std::cerr << "Images with palettes not supported when number of bits is" << bits << "." << std::endl;
+                    FreeImage_Unload(input);
+                    return NULL;
+                }
+            
+                switch (bits) {
+                    case 1:
+                    std::cerr << "Images with 1 bit colour not supported." << std::endl;
+                    FreeImage_Unload(input);
+                    return NULL;
+
+                    case 4:
+                    std::cerr << "Images with 4 bit colour not supported." << std::endl;
+                    FreeImage_Unload(input);
+                    return NULL;
+
+                    case 8: {
+                        ImageBase *my_image = image_from_fibitmap<1,0>(input, width, height);
+                        FreeImage_Unload(input);
+                        return my_image;
+                    }
+                        
+                    case 16: {
+                        ImageBase *my_image = image_from_fibitmap<3,0>(input, width, height);
+                        FreeImage_Unload(input);
+                        return my_image;
+                    }
+                        
+                    case 24: {
+                        ImageBase *my_image = image_from_fibitmap<3,0>(input, width, height);
+                        FreeImage_Unload(input);
+                        return my_image;
+                    }
+                        
+                    case 32: {
+                        ImageBase *my_image = image_from_fibitmap<3,1>(input, width, height);
+                        FreeImage_Unload(input);
+                        return my_image;
+                    }
                     
-        case FIT_UINT16:
-        std::cerr << "Unsupported image type: UINT16." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+                    default:
+                    std::cerr << "Only 8, 16, 24, and 32 bit images supported (not "<<bits<<")." << std::endl;
+                    FreeImage_Unload(input);
+                    return NULL;
+                }
 
-        case FIT_INT16:
-        std::cerr << "Unsupported image type: INT16." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            }
+                        
+            case FIT_UINT16:
+            std::cerr << "Unsupported image type: UINT16." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_UINT32:
-        std::cerr << "Unsupported image type: UINT32." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_INT16:
+            std::cerr << "Unsupported image type: INT16." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_INT32:
-        std::cerr << "Unsupported image type: INT32." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_UINT32:
+            std::cerr << "Unsupported image type: UINT32." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_FLOAT:
-        std::cerr << "Unsupported image type: FLOAT." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_INT32:
+            std::cerr << "Unsupported image type: INT32." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_DOUBLE:
-        std::cerr << "Unsupported image type: DOUBLE." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_FLOAT:
+            std::cerr << "Unsupported image type: FLOAT." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_COMPLEX:
-        std::cerr << "Unsupported image type: COMPLEX." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_DOUBLE:
+            std::cerr << "Unsupported image type: DOUBLE." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_RGB16:
-        std::cerr << "Unsupported image type: RGB16." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_COMPLEX:
+            std::cerr << "Unsupported image type: COMPLEX." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_RGBA16:
-        std::cerr << "Unsupported image type: RGBA16." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_RGB16:
+            std::cerr << "Unsupported image type: RGB16." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_RGBF:
-        std::cerr << "Unsupported image type: RGBF." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_RGBA16:
+            std::cerr << "Unsupported image type: RGBA16." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_RGBAF:
-        std::cerr << "Unsupported image type: RGBAF." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_RGBF:
+            std::cerr << "Unsupported image type: RGBF." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
 
-        case FIT_UNKNOWN:
-        default:
-        std::cerr << "Unknown type." << std::endl;
-        FreeImage_Unload(input);
-        return NULL;
+            case FIT_RGBAF:
+            std::cerr << "Unsupported image type: RGBAF." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
+
+            case FIT_UNKNOWN:
+            default:
+            std::cerr << "Unknown type." << std::endl;
+            FreeImage_Unload(input);
+            return NULL;
+        }
     }
 }
 
 bool image_save (ImageBase *image, const std::string &filename)
 {
-
-    FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(filename.c_str(), 0);
-    if (fif == FIF_UNKNOWN) {
-        fif = FreeImage_GetFIFFromFilename(filename.c_str());
-    }
-    if (fif == FIF_UNKNOWN) {
-        std::cerr << "Unknown format." << std::endl;
+    size_t dot = filename.rfind('.');
+    if (dot == std::string::npos) {
+        std::cerr << "No file extension." << std::endl;
         return false;
     }
-    if (!FreeImage_FIFSupportsWriting(fif)) {
-        std::cerr << "Unwritable format." << std::endl;
+    std::string ext = filename.substr(dot+1);
+    if (ext == "") {
+        std::cerr << "No file extension." << std::endl;
         return false;
     }
 
@@ -525,52 +629,93 @@ bool image_save (ImageBase *image, const std::string &filename)
     uimglen_t height = image->height;
     chan_t channels = image->channels();
 
-    // make new fibitmap as a copy of image
-    FIBITMAP *output;
-    switch (channels) {
-        case 1:
-        if (image->hasAlpha()) {
-            output = image_to_fibitmap(static_cast<Image<0,1>*>(image), width, height);
-        } else {
-            output = image_to_fibitmap(static_cast<Image<1,0>*>(image), width, height);
-        }
-        break;
+    if (ext == "sfi") {
 
-        case 2:
-        if (image->hasAlpha()) {
-            output = image_to_fibitmap(static_cast<Image<1,1>*>(image), width, height);
-        } else {
-            output = image_to_fibitmap(static_cast<Image<2,0>*>(image), width, height);
+        std::ofstream out;
+        out.open(filename);
+        if (!out.good()) {
+            std::cerr<<filename<<": "<<std::string(strerror(errno))<<std::endl;
+            return false;
         }
-        break;
 
-        case 3:
-        if (image->hasAlpha()) {
-            output = image_to_fibitmap(static_cast<Image<2,1>*>(image), width, height);
-        } else {
-            output = image_to_fibitmap(static_cast<Image<3,0>*>(image), width, height);
+        out.write((char*)&width, sizeof(width));
+        out.write((char*)&height, sizeof(height));
+        out.write((char*)&channels, sizeof(channels));
+        out << (image->hasAlpha() ? 'A' : 'a');
+        float *raw = image->raw();
+        for (size_t i=0 ; i<width*height*channels ; ++i) {
+            out.write((char*)&raw[i], sizeof(float));
         }
-        break;
-
-        case 4:
-        if (image->hasAlpha()) {
-            output = image_to_fibitmap(static_cast<Image<3,1>*>(image), width, height);
-        } else {
-            output = image_to_fibitmap(static_cast<Image<4,0>*>(image), width, height);
+        if (!out.good()) {
+            std::cerr<<filename<<": "<<std::string(strerror(errno))<<std::endl;
+            return false;
         }
-        break;
+        out.close();
 
-        default:
-        std::cerr << "Can only save images with 1, 2, 3, or 4 channels." << std::endl;
-        return false;
+        return true;
+        
+    } else {
+
+        FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(filename.c_str(), 0);
+        if (fif == FIF_UNKNOWN) {
+            fif = FreeImage_GetFIFFromFilename(filename.c_str());
+        }
+        if (fif == FIF_UNKNOWN) {
+            std::cerr << "Unknown format." << std::endl;
+            return false;
+        }
+        if (!FreeImage_FIFSupportsWriting(fif)) {
+            std::cerr << "Unwritable format." << std::endl;
+            return false;
+        }
+
+        // make new fibitmap as a copy of image
+        FIBITMAP *output;
+        switch (channels) {
+            case 1:
+            if (image->hasAlpha()) {
+                output = image_to_fibitmap(static_cast<Image<0,1>*>(image), width, height);
+            } else {
+                output = image_to_fibitmap(static_cast<Image<1,0>*>(image), width, height);
+            }
+            break;
+
+            case 2:
+            if (image->hasAlpha()) {
+                output = image_to_fibitmap(static_cast<Image<1,1>*>(image), width, height);
+            } else {
+                output = image_to_fibitmap(static_cast<Image<2,0>*>(image), width, height);
+            }
+            break;
+
+            case 3:
+            if (image->hasAlpha()) {
+                output = image_to_fibitmap(static_cast<Image<2,1>*>(image), width, height);
+            } else {
+                output = image_to_fibitmap(static_cast<Image<3,0>*>(image), width, height);
+            }
+            break;
+
+            case 4:
+            if (image->hasAlpha()) {
+                output = image_to_fibitmap(static_cast<Image<3,1>*>(image), width, height);
+            } else {
+                output = image_to_fibitmap(static_cast<Image<4,0>*>(image), width, height);
+            }
+            break;
+
+            default:
+            std::cerr << "Can only save images with 1, 2, 3, or 4 channels." << std::endl;
+            return false;
+        }
+
+        // save it
+        bool status = 0!=FreeImage_Save(fif, output, filename.c_str());
+
+        FreeImage_Unload(output);
+
+        return status;
     }
-
-    // save it
-    bool status = 0!=FreeImage_Save(fif, output, filename.c_str());
-
-    FreeImage_Unload(output);
-
-    return status;
 }
 
 FREE_IMAGE_FILTER to_fi (ScaleFilter sf)

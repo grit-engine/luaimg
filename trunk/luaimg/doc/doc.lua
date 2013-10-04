@@ -524,6 +524,7 @@ and the alpha channel is the old red channel.]],
     { "field", "width", "number", "The number of pixels in a row of the image.", },
     { "field", "height", "number", "The number of pixels in a column of the image.", },
     { "field", "size", "vector2", "The width and height as a single value.", },
+    { "field", "numPixels", "vector2", "The width x height.", },
     {
         "method",
         "save",

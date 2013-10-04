@@ -33,6 +33,9 @@ extern "C" {
 #define IMAGE_TAG "Image"
 #define VIMAGE_TAG "VoxelImage"
 
+void my_lua_error (lua_State *L, const std::string &msg, unsigned long level=1);
+void check_args (lua_State *L, int expected);
+
 void lua_wrappers_image_init (lua_State *L);
 void lua_wrappers_image_shutdown (lua_State *L);
 

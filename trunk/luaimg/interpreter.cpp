@@ -326,6 +326,35 @@ void interpreter_exec_interactively (const std::string &prompt)
     std::cout << std::endl;
 }
 
+static int global_include (lua_State *L)
+{
+    check_args(L,1);
+    std::string filename = luaL_checkstring(L,1);
+
+    lua_pushcfunction(L, my_lua_error_handler);
+    int error_handler = lua_gettop(L);
+
+    int status = luaL_loadfile(L, filename.c_str());
+    if (status) {
+        const char *str = lua_tostring(L,-1);
+        // call error function manually, lua will not do this for us in lua_load
+        my_lua_error(L, str);
+    } else {
+        status = lua_pcall(L, 0, 0, error_handler);
+        if (status) {
+            lua_pop(L,1); //message
+        }
+    }
+
+    lua_pop(L,1); // error handler
+    return 0;
+}
+
+static const luaL_reg global[] = {
+    {"include", global_include},
+
+    {NULL, NULL}
+};
 void interpreter_init (void)
 {
     L = lua_open();
@@ -353,6 +382,9 @@ void interpreter_init (void)
         lua_settable(L, LUA_GLOBALSINDEX);
     }
     lua_pop(L,1); // math table
+
+    luaL_register(L, "_G", global);
+    lua_pop(L, 1);
 
     lua_wrappers_image_init(L);
 }

@@ -48,7 +48,7 @@ static std::string str (const T &v)
 
 static void push_string (lua_State *L, const std::string &str) { lua_pushstring(L, str.c_str()); }
 
-static void my_lua_error (lua_State *L, const std::string &msg, unsigned long level=1)
+void my_lua_error (lua_State *L, const std::string &msg, unsigned long level)
 {
     luaL_where(L,level);
     std::string str = lua_tostring(L,-1);
@@ -59,7 +59,7 @@ static void my_lua_error (lua_State *L, const std::string &msg, unsigned long le
 }
 
 
-static void check_args (lua_State *L, int expected)
+void check_args (lua_State *L, int expected)
 {
     int got = lua_gettop(L);
     if (got == expected) return;
@@ -340,15 +340,33 @@ ColourBase *alloc_colour (lua_State *L, int ch, bool alpha, int index)
     }
 }
 
-
-void push_colour (lua_State *L, const ColourBase &colour)
+template<chan_t ch, chan_t ach>
+void push_colour (lua_State *L, const Colour<ch,ach> &p)
 {
-    const float *p = colour.raw();
-    switch (colour.channels()) {
+    switch (p.channels()) {
         case 1: lua_pushnumber(L, p[0]); break;
         case 2: lua_pushvector2(L, p[0], p[1]); break;
         case 3: lua_pushvector3(L, p[0], p[1], p[2]); break;
         case 4: lua_pushvector4(L, p[0], p[1], p[2], p[3]); break;
+        default: my_lua_error(L, "Internal error: weird channels");
+    }
+}
+
+void push_colour (lua_State *L, chan_t channels, bool has_alpha, const ColourBase &p)
+{
+    switch (channels) {
+        case 1: if (has_alpha) push_colour(L, static_cast<const Colour<0,1>&>(p));
+                else           push_colour(L, static_cast<const Colour<1,0>&>(p));
+                break;
+        case 2: if (has_alpha) push_colour(L, static_cast<const Colour<1,1>&>(p));
+                else           push_colour(L, static_cast<const Colour<2,0>&>(p));
+                break;
+        case 3: if (has_alpha) push_colour(L, static_cast<const Colour<2,1>&>(p));
+                else           push_colour(L, static_cast<const Colour<3,0>&>(p));
+                break;
+        case 4: if (has_alpha) push_colour(L, static_cast<const Colour<3,1>&>(p));
+                else           push_colour(L, static_cast<const Colour<4,0>&>(p));
+                break;
         default: my_lua_error(L, "Internal error: weird channels");
     }
 }
@@ -1525,15 +1543,24 @@ static int image_reduce (lua_State *L)
 
 static int image_crop (lua_State *L)
 {
-    check_args(L,4);
-    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    simglen_t left, bottom;
-    check_scoord(L, 2, left, bottom);
-    uimglen_t width, height;
-    check_coord(L, 3, width, height);
-    ColourBase *colour = alloc_colour(L, self->channels(), self->hasAlpha(), 4);
-    push_image(L, self->crop(left,bottom,width,height,*colour));
-    delete colour;
+    if (lua_gettop(L) == 3) {
+        ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        simglen_t left, bottom;
+        check_scoord(L, 2, left, bottom);
+        uimglen_t width, height;
+        check_coord(L, 3, width, height);
+        push_image(L, self->crop(left,bottom,width,height,NULL));
+    } else {
+        check_args(L,4);
+        ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        simglen_t left, bottom;
+        check_scoord(L, 2, left, bottom);
+        uimglen_t width, height;
+        check_coord(L, 3, width, height);
+        ColourBase *colour = alloc_colour(L, self->channels(), self->hasAlpha(), 4);
+        push_image(L, self->crop(left,bottom,width,height,colour));
+        delete colour;
+    }
     return 1;
 }
 
@@ -1603,10 +1630,11 @@ static int image_mean_diff (lua_State *L)
     const ImageBase *some_image;
     ColourBase *value = image_zip_reduce_lua1<op_diff,op_add>(L, some_image);
     float num_pixels = some_image->numPixels();
-    for (chan_t c=0 ; c<value->channels() ; ++c) {
-        value->raw()[c] = value->raw()[c]/num_pixels;
+    float *raw = (float*)value; // maybe UB in C++ (OK in C)
+    for (chan_t c=0 ; c<some_image->channels() ; ++c) {
+        raw[c] = raw[c]/num_pixels;
     }
-    push_colour(L, *value);
+    push_colour(L, some_image->channels(), some_image->hasAlpha(), *value);
     delete value;
     return 1;
 }
@@ -1616,10 +1644,11 @@ static int image_rms_diff (lua_State *L)
     const ImageBase *some_image;
     ColourBase *value = image_zip_reduce_lua1<op_diffsq,op_add>(L, some_image);
     float num_pixels = some_image->numPixels();
-    for (chan_t c=0 ; c<value->channels() ; ++c) {
-        value->raw()[c] = ::sqrtf(value->raw()[c]/num_pixels);
+    float *raw = (float*)value; // maybe UB in C++ (OK in C)
+    for (chan_t c=0 ; c<some_image->channels() ; ++c) {
+        raw[c] = raw[c]/num_pixels;
     }
-    push_colour(L, *value);
+    push_colour(L, some_image->channels(), some_image->hasAlpha(), *value);
     delete value;
     return 1;
 }
@@ -1987,7 +2016,7 @@ static int image_call (lua_State *L)
         ss << "Colour coordinates out of range: (" << x << "," << y << ")";
         my_lua_error(L, ss.str());
     }
-    push_colour(L, self->pixelSlow(x,y));
+    push_colour(L, self->channels(), self->hasAlpha(), self->pixelSlow(x,y));
     return 1;
 }
 
