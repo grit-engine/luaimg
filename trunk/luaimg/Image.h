@@ -266,6 +266,8 @@ static inline std::ostream &operator<<(std::ostream &o, ImageBase &img)
     return o;
 }
 
+template<> class Image<0,0> : public ImageBase { };
+
 template<chan_t ch, chan_t ach> class Image : public ImageBase {
 
     Colour<ch, ach> *data;

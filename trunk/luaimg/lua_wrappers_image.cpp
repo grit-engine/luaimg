@@ -121,7 +121,7 @@ bool check_bool(lua_State *L, int i)
         ss << "Expected a boolean in argument " << i;
         my_lua_error(L, ss.str());
     }
-    return lua_toboolean(L,i);
+    return 0!=lua_toboolean(L,i);
 }
 
 static void check_scoord (lua_State *L, int index, simglen_t &x, simglen_t &y)
@@ -156,13 +156,6 @@ chan_t get_colour_channels (lua_State *L, int index)
 template<chan_t ch, chan_t ach> bool check_colour (lua_State *L, Colour<ch, ach> &p, int index);
 
 template<> bool check_colour<1,0> (lua_State *L, Colour<1,0> &p, int index)
-{
-    if (lua_type(L,index) != LUA_TNUMBER) return false;
-    p[0] = lua_tonumber(L, index);
-    return true;
-}
-
-template<> bool check_colour<0,1> (lua_State *L, Colour<0,1> &p, int index)
 {
     if (lua_type(L,index) != LUA_TNUMBER) return false;
     p[0] = lua_tonumber(L, index);
@@ -250,26 +243,16 @@ template<> bool check_colour<3,1> (lua_State *L, Colour<3,1> &p, int index)
 ColourBase *alloc_colour (lua_State *L, int ch, bool alpha, int index)
 {
     switch (ch) {
-        case 1:
-        if (alpha) {
-            Colour<0,1> *r = new Colour<0,1>();
-            if (!check_colour(L, *r, index)) {
-                delete r;
-                my_lua_error(L, "Expected a colour with "+str(ch)
-                               +" elements, got "+type_name(L,index));
-                return NULL;
-            }
-            return r;
-        } else {
-            Colour<1,0> *r = new Colour<1,0>();
-            if (!check_colour(L, *r, index)) {
-                delete r;
-                my_lua_error(L, "Expected a colour with "+str(ch)
-                               +" elements, got "+type_name(L,index));
-                return NULL;
-            }
-            return r;
-        }
+        case 1: {
+			Colour<1,0> *r = new Colour<1,0>();
+			if (!check_colour(L, *r, index)) {
+				delete r;
+				my_lua_error(L, "Expected a colour with "+str(ch)
+								+" elements, got "+type_name(L,index));
+				return NULL;
+			}
+			return r;
+		}
 
         case 2:
         if (alpha) {
@@ -355,8 +338,7 @@ void push_colour (lua_State *L, const Colour<ch,ach> &p)
 void push_colour (lua_State *L, chan_t channels, bool has_alpha, const ColourBase &p)
 {
     switch (channels) {
-        case 1: if (has_alpha) push_colour(L, static_cast<const Colour<0,1>&>(p));
-                else           push_colour(L, static_cast<const Colour<1,0>&>(p));
+        case 1: push_colour(L, static_cast<const Colour<1,0>&>(p));
                 break;
         case 2: if (has_alpha) push_colour(L, static_cast<const Colour<1,1>&>(p));
                 else           push_colour(L, static_cast<const Colour<2,0>&>(p));
@@ -469,11 +451,7 @@ static ImageBase *image_zip_lua2 (lua_State *L, TA a)
         const ImageBase *b = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
         switch (b->channels()) {
             case 1:
-            if (b->hasAlpha()) {
-                return image_zip_lua3<ch,ach,0,1,op>(L, a, static_cast<const Image<0,1>*>(b));
-            } else {
-                return image_zip_lua3<ch,ach,1,0,op>(L, a, static_cast<const Image<1,0>*>(b));
-            }
+            return image_zip_lua3<ch,ach,1,0,op>(L, a, static_cast<const Image<1,0>*>(b));
             case 2:
             if (b->hasAlpha()) {
                 return image_zip_lua3<ch,ach,1,1,op>(L, a, static_cast<const Image<1,1>*>(b));
@@ -536,11 +514,7 @@ static ImageBase *image_zip_lua1 (lua_State *L)
         const ImageBase *a = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
         switch (a->channels()) {
             case 1:
-            if (a->hasAlpha()) {
-                return image_zip_lua2<0,1,op>(L, static_cast<const Image<0,1>*>(a));
-            } else {
-                return image_zip_lua2<1,0,op>(L, static_cast<const Image<1,0>*>(a));
-            }
+            return image_zip_lua2<1,0,op>(L, static_cast<const Image<1,0>*>(a));
             case 2:
             if (a->hasAlpha()) {
                 return image_zip_lua2<1,1,op>(L, static_cast<const Image<1,1>*>(a));
@@ -680,11 +654,8 @@ static void global_lerp_lua2 (lua_State *L, TA a)
         const ImageBase *b = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
         switch (b->channels()) {
             case 1:
-            if (b->hasAlpha()) {
-                global_lerp_lua3<ch,ach,0,1>(L, a, static_cast<const Image<0,1>*>(b), param);
-            } else {
-                global_lerp_lua3<ch,ach,1,0>(L, a, static_cast<const Image<1,0>*>(b), param);
-            } break;
+            global_lerp_lua3<ch,ach,1,0>(L, a, static_cast<const Image<1,0>*>(b), param);
+            break;
             case 2:
             if (b->hasAlpha()) {
                 global_lerp_lua3<ch,ach,1,1>(L, a, static_cast<const Image<1,1>*>(b), param);
@@ -749,11 +720,8 @@ static void global_lerp_lua1 (lua_State *L)
         const ImageBase *a = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
         switch (a->channels()) {
             case 1:
-            if (a->hasAlpha()) {
-                global_lerp_lua2<0,1>(L, static_cast<const Image<0,1>*>(a));
-            } else {
-                global_lerp_lua2<1,0>(L, static_cast<const Image<1,0>*>(a));
-            } break;
+            global_lerp_lua2<1,0>(L, static_cast<const Image<1,0>*>(a));
+            break;
             case 2:
             if (a->hasAlpha()) {
                 global_lerp_lua2<1,1>(L, static_cast<const Image<1,1>*>(a));
@@ -878,11 +846,7 @@ static ColourBase *image_zip_reduce_lua2 (lua_State *L, TA a, const ImageBase *&
         some_image = b;
         switch (b->channels()) {
             case 1:
-            if (b->hasAlpha()) {
-                return image_zip_reduce_lua3<ch,ach,0,1,zop,rop>(L, a, static_cast<const Image<0,1>*>(b));
-            } else {
-                return image_zip_reduce_lua3<ch,ach,1,0,zop,rop>(L, a, static_cast<const Image<1,0>*>(b));
-            }
+            return image_zip_reduce_lua3<ch,ach,1,0,zop,rop>(L, a, static_cast<const Image<1,0>*>(b));
             case 2:
             if (b->hasAlpha()) {
                 return image_zip_reduce_lua3<ch,ach,1,1,zop,rop>(L, a, static_cast<const Image<1,1>*>(b));
@@ -946,11 +910,7 @@ static ColourBase *image_zip_reduce_lua1 (lua_State *L, const ImageBase *&some_i
         some_image = a;
         switch (a->channels()) {
             case 1:
-            if (a->hasAlpha()) {
-                return image_zip_reduce_lua2<0,1,zop,rop>(L, static_cast<const Image<0,1>*>(a), some_image);
-            } else {
-                return image_zip_reduce_lua2<1,0,zop,rop>(L, static_cast<const Image<1,0>*>(a), some_image);
-            }
+            return image_zip_reduce_lua2<1,0,zop,rop>(L, static_cast<const Image<1,0>*>(a), some_image);
             case 2:
             if (a->hasAlpha()) {
                 return image_zip_reduce_lua2<1,1,zop,rop>(L, static_cast<const Image<1,1>*>(a), some_image);
@@ -1045,7 +1005,7 @@ static ImageBase *image_blend_lua3 (lua_State *, const Colour<ch1,ach1> *, const
 template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
 static ImageBase *image_blend_lua3 (lua_State *L, const Image<ch1,ach1> *v1, const Colour<ch2,ach2> *v2)
 {
-    if (ch1+ach1 == ch2 && ach2 == 0) {
+    if (ch1+ach1==ch2 && ach1==1 && ach2==0) {
         // redo the colour
         Colour<ch1, ach1> v2_;
         for (chan_t c=0 ; c<ch2 ; ++c) v2_[c] = (*v2)[c];
@@ -1058,14 +1018,13 @@ static ImageBase *image_blend_lua3 (lua_State *L, const Image<ch1,ach1> *v1, con
 template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
 static ImageBase *image_blend_lua3 (lua_State *L, const Colour<ch1,ach1> *v1, const Image<ch2,ach2> *v2)
 {
-    if (ch1 == ch2+ach2 && ach1 == 0) {
-        // redo the colour
-        Colour<ch2, ach2> v1_;
-        for (chan_t c=0 ; c<ch1 ; ++c) v1_[c] = (*v1)[c];
-        return image_blend_lua4<ch2, ach2, ch2, ach2, const Colour<ch2,ach2>*, const Image<ch2,ach2>*>(L, &v1_, v2);
-    } else if (ch1!=ch2 && ach2==0 && ch1!=1 && ch2!=1 && ch1==ch2+1) {
-        // redo the colour
-        Colour<ch2, 1> v1_;
+	if (ach1 != 0) abort();
+    if (ch1==ch2+1 && (ach2==1 || (ach2==0 && ch2>1))) {
+		// e.g. vec(1,1,1,1)..make(sz, 3, true)
+		// if ach2==0 then we have to worry about a mask image on the right, so require ch2>1 
+		// e.g. vec(1,1,1,1)..make(sz, 3, false)
+		// redo the colour, it was assumed to have no alpha channel but only fits if it does have alpha channel 
+		Colour<ch2, 1> v1_;
         for (chan_t c=0 ; c<ch1 ; ++c) v1_[c] = (*v1)[c];
         return image_blend_lua4<ch2, 1, ch2, ach2, const Colour<ch2,1>*, const Image<ch2,ach2>*>(L, &v1_, v2);
     } else {
@@ -1080,11 +1039,7 @@ static ImageBase *image_blend_lua2 (lua_State *L, TA a)
         const ImageBase *b = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
         switch (b->channels()) {
             case 1:
-            if (b->hasAlpha()) {
-                return image_blend_lua3<ch,ach,0,1>(L, a, static_cast<const Image<0,1>*>(b));
-            } else {
-                return image_blend_lua3<ch,ach,1,0>(L, a, static_cast<const Image<1,0>*>(b));
-            }
+            return image_blend_lua3<ch,ach,1,0>(L, a, static_cast<const Image<1,0>*>(b));
             case 2:
             if (b->hasAlpha()) {
                 return image_blend_lua3<ch,ach,1,1>(L, a, static_cast<const Image<1,1>*>(b));
@@ -1146,11 +1101,7 @@ static ImageBase *image_blend_lua1 (lua_State *L)
         const ImageBase *a = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
         switch (a->channels()) {
             case 1:
-            if (a->hasAlpha()) {
-                return image_blend_lua2<0,1>(L, static_cast<const Image<0,1>*>(a));
-            } else {
-                return image_blend_lua2<1,0>(L, static_cast<const Image<1,0>*>(a));
-            }
+            return image_blend_lua2<1,0>(L, static_cast<const Image<1,0>*>(a));
             case 2:
             if (a->hasAlpha()) {
                 return image_blend_lua2<1,1>(L, static_cast<const Image<1,1>*>(a));
@@ -1177,25 +1128,25 @@ static ImageBase *image_blend_lua1 (lua_State *L)
     switch (get_colour_channels(L, 1)) {
         case 1: {
             Colour<1,0> colour;
-            check_colour(L,colour,1);
+            if (!check_colour(L,colour,1)) return NULL;
             return image_blend_lua2<1,0>(L, &colour);
         }
 
         case 2: {
             Colour<2,0> colour;
-            check_colour(L,colour,1);
+            if (!check_colour(L,colour,1)) return NULL;
             return image_blend_lua2<2,0>(L, &colour);
         }
 
         case 3: {
             Colour<3,0> colour;
-            check_colour(L,colour,1);
+            if (!check_colour(L,colour,1)) return NULL;
             return image_blend_lua2<3,0>(L, &colour);
         }
 
         case 4: {
             Colour<4,0> colour;
-            check_colour(L,colour,1);
+            if (!check_colour(L,colour,1)) return NULL;
             return image_blend_lua2<4,0>(L, &colour);
         }
 
@@ -1270,12 +1221,11 @@ static int image_foreach (lua_State *L)
 
     if (self->hasAlpha()) {
         switch (self->channels()) {
-            case 1: foreach<0,1>(L, self, fi); break;
             case 2: foreach<1,1>(L, self, fi); break;
             case 3: foreach<2,1>(L, self, fi); break;
             case 4: foreach<3,1>(L, self, fi); break;
             default:
-            my_lua_error(L, "Channels must be either 1, 2, 3, or 4.");
+            my_lua_error(L, "Channels must be either 2, 3, or 4.");
         }
     } else {
         switch (self->channels()) {
@@ -1338,6 +1288,7 @@ static int image_map (lua_State *L)
         dst_ch = check_int(L, 2, 1, 4);
         dst_ach = check_bool(L, 3);
         check_is_function(L, 4);
+		if (dst_ach && dst_ch==1) my_lua_error(L, "Image with alpha channel must have at least one other channel.");
         fi = 4;
     } else {
         check_args(L,3);
@@ -1352,31 +1303,20 @@ static int image_map (lua_State *L)
 
     switch (src_ch) {
         case 1:
-        if (src->hasAlpha()) {
-            switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<0,1,0,1>(L, src, fi) : map_with_lua_func<0,1,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<0,1,1,1>(L, src, fi) : map_with_lua_func<0,1,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<0,1,2,1>(L, src, fi) : map_with_lua_func<0,1,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<0,1,3,1>(L, src, fi) : map_with_lua_func<0,1,4,0>(L, src, fi); break;
-                default:
-                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
-            }
-        } else {
-            switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<1,0,0,1>(L, src, fi) : map_with_lua_func<1,0,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<1,0,1,1>(L, src, fi) : map_with_lua_func<1,0,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<1,0,2,1>(L, src, fi) : map_with_lua_func<1,0,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<1,0,3,1>(L, src, fi) : map_with_lua_func<1,0,4,0>(L, src, fi); break;
-                default:
-                my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
-            }
+        switch (dst_ch) {
+            case 1: out =                                                    map_with_lua_func<1,0,1,0>(L, src, fi); break;
+            case 2: out = dst_ach ? map_with_lua_func<1,0,1,1>(L, src, fi) : map_with_lua_func<1,0,2,0>(L, src, fi); break;
+            case 3: out = dst_ach ? map_with_lua_func<1,0,2,1>(L, src, fi) : map_with_lua_func<1,0,3,0>(L, src, fi); break;
+            case 4: out = dst_ach ? map_with_lua_func<1,0,3,1>(L, src, fi) : map_with_lua_func<1,0,4,0>(L, src, fi); break;
+            default:
+            my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
         }
         break;
 
         case 2:
         if (src->hasAlpha()) {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<1,1,0,1>(L, src, fi) : map_with_lua_func<1,1,1,0>(L, src, fi); break;
+                case 1: out =                                                    map_with_lua_func<1,1,1,0>(L, src, fi); break;
                 case 2: out = dst_ach ? map_with_lua_func<1,1,1,1>(L, src, fi) : map_with_lua_func<1,1,2,0>(L, src, fi); break;
                 case 3: out = dst_ach ? map_with_lua_func<1,1,2,1>(L, src, fi) : map_with_lua_func<1,1,3,0>(L, src, fi); break;
                 case 4: out = dst_ach ? map_with_lua_func<1,1,3,1>(L, src, fi) : map_with_lua_func<1,1,4,0>(L, src, fi); break;
@@ -1385,7 +1325,7 @@ static int image_map (lua_State *L)
             }
         } else {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<2,0,0,1>(L, src, fi) : map_with_lua_func<2,0,1,0>(L, src, fi); break;
+                case 1: out =                                                    map_with_lua_func<2,0,1,0>(L, src, fi); break;
                 case 2: out = dst_ach ? map_with_lua_func<2,0,1,1>(L, src, fi) : map_with_lua_func<2,0,2,0>(L, src, fi); break;
                 case 3: out = dst_ach ? map_with_lua_func<2,0,2,1>(L, src, fi) : map_with_lua_func<2,0,3,0>(L, src, fi); break;
                 case 4: out = dst_ach ? map_with_lua_func<2,0,3,1>(L, src, fi) : map_with_lua_func<2,0,4,0>(L, src, fi); break;
@@ -1398,7 +1338,7 @@ static int image_map (lua_State *L)
         case 3:
         if (src->hasAlpha()) {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<2,1,0,1>(L, src, fi) : map_with_lua_func<2,1,1,0>(L, src, fi); break;
+                case 1: out =                                                    map_with_lua_func<2,1,1,0>(L, src, fi); break;
                 case 2: out = dst_ach ? map_with_lua_func<2,1,1,1>(L, src, fi) : map_with_lua_func<2,1,2,0>(L, src, fi); break;
                 case 3: out = dst_ach ? map_with_lua_func<2,1,2,1>(L, src, fi) : map_with_lua_func<2,1,3,0>(L, src, fi); break;
                 case 4: out = dst_ach ? map_with_lua_func<2,1,3,1>(L, src, fi) : map_with_lua_func<2,1,4,0>(L, src, fi); break;
@@ -1407,7 +1347,7 @@ static int image_map (lua_State *L)
             }
         } else {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<3,0,0,1>(L, src, fi) : map_with_lua_func<3,0,1,0>(L, src, fi); break;
+                case 1: out =                                                    map_with_lua_func<3,0,1,0>(L, src, fi); break;
                 case 2: out = dst_ach ? map_with_lua_func<3,0,1,1>(L, src, fi) : map_with_lua_func<3,0,2,0>(L, src, fi); break;
                 case 3: out = dst_ach ? map_with_lua_func<3,0,2,1>(L, src, fi) : map_with_lua_func<3,0,3,0>(L, src, fi); break;
                 case 4: out = dst_ach ? map_with_lua_func<3,0,3,1>(L, src, fi) : map_with_lua_func<3,0,4,0>(L, src, fi); break;
@@ -1420,7 +1360,7 @@ static int image_map (lua_State *L)
         case 4:
         if (src->hasAlpha()) {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<3,1,0,1>(L, src, fi) : map_with_lua_func<3,1,1,0>(L, src, fi); break;
+                case 1: out =                                                    map_with_lua_func<3,1,1,0>(L, src, fi); break;
                 case 2: out = dst_ach ? map_with_lua_func<3,1,1,1>(L, src, fi) : map_with_lua_func<3,1,2,0>(L, src, fi); break;
                 case 3: out = dst_ach ? map_with_lua_func<3,1,2,1>(L, src, fi) : map_with_lua_func<3,1,3,0>(L, src, fi); break;
                 case 4: out = dst_ach ? map_with_lua_func<3,1,3,1>(L, src, fi) : map_with_lua_func<3,1,4,0>(L, src, fi); break;
@@ -1429,7 +1369,7 @@ static int image_map (lua_State *L)
             }
         } else {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<4,0,0,1>(L, src, fi) : map_with_lua_func<4,0,1,0>(L, src, fi); break;
+                case 1: out =                                                    map_with_lua_func<4,0,1,0>(L, src, fi); break;
                 case 2: out = dst_ach ? map_with_lua_func<4,0,1,1>(L, src, fi) : map_with_lua_func<4,0,2,0>(L, src, fi); break;
                 case 3: out = dst_ach ? map_with_lua_func<4,0,2,1>(L, src, fi) : map_with_lua_func<4,0,3,0>(L, src, fi); break;
                 case 4: out = dst_ach ? map_with_lua_func<4,0,3,1>(L, src, fi) : map_with_lua_func<4,0,4,0>(L, src, fi); break;
@@ -1489,9 +1429,7 @@ static int image_reduce (lua_State *L)
     switch (self->channels()) {
         case 1:
         if (self->hasAlpha()) {
-            Colour<0,1> p;
-            if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
-            else reduce_with_lua_func(L, self, p, fi);
+			my_lua_error(L, "Internal error");
         } else {
             Colour<1,0> p;
             if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
@@ -1676,13 +1614,7 @@ static int image_set (lua_State *L)
         my_lua_error(L, ss.str());
     }
     switch (self->channels()) {
-        case 1:
-        if (self->hasAlpha()) {
-            const int ch=0, ach=1;
-            Colour<ch,ach> p;
-            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
-            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
-        } else {
+        case 1: {
             const int ch=1, ach=0;
             Colour<ch,ach> p;
             if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
@@ -1883,7 +1815,7 @@ static ImageBase *image_swizzle2 (const ImageBase *img_, chan_t ch2, bool a2, ch
 static ImageBase *image_swizzle (const ImageBase *img, chan_t ch2, bool a2, chan_t *m)
 {
     switch (img->channels()) {
-        case 1: return img->hasAlpha() ? image_swizzle2<0,1>(img, ch2, a2, m) : image_swizzle2<1,0>(img, ch2, a2, m);
+        case 1: image_swizzle2<1,0>(img, ch2, a2, m);
         case 2: return img->hasAlpha() ? image_swizzle2<1,1>(img, ch2, a2, m) : image_swizzle2<2,0>(img, ch2, a2, m);
         case 3: return img->hasAlpha() ? image_swizzle2<2,1>(img, ch2, a2, m) : image_swizzle2<3,0>(img, ch2, a2, m);
         case 4: return img->hasAlpha() ? image_swizzle2<3,1>(img, ch2, a2, m) : image_swizzle2<4,0>(img, ch2, a2, m);
@@ -2264,6 +2196,7 @@ static int global_make (lua_State *L)
         check_coord(L, 1, w, h);
         channels = check_int(L, 2, 1, 4);
         alpha = check_bool(L, 3);
+		if (channels==1 && alpha) my_lua_error(L, "Image cannot be just a single alpha channel.  Did you mean 2,true?");
         ii = 4;
     } else {
         check_args(L,3);
@@ -2277,7 +2210,7 @@ static int global_make (lua_State *L)
     switch (lua_type(L, ii)) {
         case LUA_TFUNCTION: {
             switch (channels) {
-                case 1: image = alpha ? image_from_lua_func<0,1>(L,w,h,ii) : image_from_lua_func<1,0>(L,w,h,ii); break;
+                case 1: image = image_from_lua_func<1,0>(L,w,h,ii); break;
                 case 2: image = alpha ? image_from_lua_func<1,1>(L,w,h,ii) : image_from_lua_func<2,0>(L,w,h,ii); break;
                 case 3: image = alpha ? image_from_lua_func<2,1>(L,w,h,ii) : image_from_lua_func<3,0>(L,w,h,ii); break;
                 case 4: image = alpha ? image_from_lua_func<3,1>(L,w,h,ii) : image_from_lua_func<4,0>(L,w,h,ii); break;
@@ -2287,7 +2220,7 @@ static int global_make (lua_State *L)
         break;
         case LUA_TTABLE: {
             switch (channels) {
-                case 1: image = alpha ? image_from_lua_table<0,1>(L,w,h,ii) : image_from_lua_table<1,0>(L,w,h,ii); break;
+                case 1: image = image_from_lua_table<1,0>(L,w,h,ii); break;
                 case 2: image = alpha ? image_from_lua_table<1,1>(L,w,h,ii) : image_from_lua_table<2,0>(L,w,h,ii); break;
                 case 3: image = alpha ? image_from_lua_table<2,1>(L,w,h,ii) : image_from_lua_table<3,0>(L,w,h,ii); break;
                 case 4: image = alpha ? image_from_lua_table<3,1>(L,w,h,ii) : image_from_lua_table<4,0>(L,w,h,ii); break;
@@ -2300,7 +2233,7 @@ static int global_make (lua_State *L)
             my_lua_error(L, "Expected a number, vector, table, or function to initialise image");
         ColourBase *init = alloc_colour(L, channels, alpha, ii);
         switch (channels) {
-            case 1: image = alpha ? image_make<0,1>(w,h,*init) : image_make<1,0>(w,h,*init); break;
+            case 1: image = image_make<1,0>(w,h,*init); break;
             case 2: image = alpha ? image_make<1,1>(w,h,*init) : image_make<2,0>(w,h,*init); break;
             case 3: image = alpha ? image_make<2,1>(w,h,*init) : image_make<3,0>(w,h,*init); break;
             case 4: image = alpha ? image_make<3,1>(w,h,*init) : image_make<4,0>(w,h,*init); break;

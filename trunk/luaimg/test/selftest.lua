@@ -15,6 +15,14 @@ function print_errors()
     end
 end
 
+function require_close(name, a,b, thresh)
+    if abs(a/b - 1) > thresh then
+        append_error(name..": Expected these to be approximately equal: "..tostring(a).." and "..tostring(b).." with tolerance "..thresh)
+    else
+        num_success = num_success + 1
+    end
+end
+
 function require_eq(name, a,b)
     if a ~= b then
         append_error(name..": Expected these to be equal: "..tostring(a).." and "..tostring(b))
@@ -94,13 +102,15 @@ for _,val in ipairs{0.5, vec(1,2), vec(1,2,3),vec(1,2,3,4)} do
     require_rms("make-map-"..d.."-rms", img1b, val)
     require_rms("make-both-"..d.."-rms", img1, img1b)
 
-    local img2 = make(vec(40,30),d,true,val)
-    local img2b = make(vec(40,30),d,true,function()return val end)
-    require_img_eq_val("make-val-alpha-"..d, img2, val)
-    require_img_eq_val("make-map-alpha-"..d, img2b, val)
-    require_rms("make-val-alpha"..d.."-rms", img2, val)
-    require_rms("make-map-alpha"..d.."-rms", img2b, val)
-    require_rms("make-both-alpha"..d.."-rms", img2, img2b)
+    if d > 1 then
+        local img2 = make(vec(40,30),d,true,val)
+        local img2b = make(vec(40,30),d,true,function()return val end)
+        require_img_eq_val("make-val-alpha-"..d, img2, val)
+        require_img_eq_val("make-map-alpha-"..d, img2b, val)
+        require_rms("make-val-alpha"..d.."-rms", img2, val)
+        require_rms("make-map-alpha"..d.."-rms", img2b, val)
+        require_rms("make-both-alpha"..d.."-rms", img2, img2b)
+    end
 end
 
 imgbase_init = function(p)return vec3(p,0)/39 end
@@ -207,10 +217,10 @@ require_rms("add-alpha", lena_a + lena:mirror(), make(lena.size, 3, init), 1e-7)
 init = function(p) return lena_a(p).w * lena_a(p).xyz + (1-lena_a(p).w) * lena(p*vec(-1,1)+vec(lena.width-1,0)) end
 require_rms("blend-alpha", lena_a .. lena:mirror(), make(lena.size, 3, init), 1e-7)
 
-require_rms("blend-alpha2", make(vec(1,1),2,true,vec(0.3,0.4))..make(vec(1,1),1,vec(0.7)), lerp(0.7,0.3,0.4))
+require_rms("blend-alpha2", make(vec(1,1),2,true,vec(0.3,0.4))..make(vec(1,1),1,vec(0.7)), lerp(0.7,0.3,0.4), 1e-10)
 require_rms("blend-alpha3", vec(1,1,1,0.25)..make(vec(1,1),3,0.2), make(vec(1,1),3,0.4))
 require_rms("blend-alpha3", vec(1,1,1)..make(vec(1,1),3,0.2), make(vec(1,1),3,1))
-require_eq("lerp", lerp(10,20,0.4), 14)
+require_close("lerp", lerp(10,20,0.4), 14, 1e-7)
 
 require_rms("crop", lena:crop(vec(10,10),vec(100,100),0), make(vec(100,100),3,function(p) return lena(p+vec(10,10)) end))
 require_rms("crop2", lena:crop(vec(-10,-10),vec(800,800),vec(0.5,0.5,0.2)), make(vec(800,800),3,function(p)
