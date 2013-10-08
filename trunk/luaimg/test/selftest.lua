@@ -145,6 +145,7 @@ end
 require_rms("gaussian", gaussian(10), make(vec(10,1), 1, {1,9,36,84,126,126,84,36,9,1}):normalise())
 simpletrans("lena",lena)
 simpletrans("lena-a",lena_a)
+simpletrans("lena.x",lena.x)
 simpletrans("imgbase",imgbase)
 
 --ARITHMETIC
@@ -225,12 +226,13 @@ end))
 kernel = make(vec(5,5), 1, { 0,1,5,3,2, 0,1,6,2,3, 4,7,1,0,0, 2,5,4,4,1, 1,1,2,1,1, }):normalise()
 img = make(vec(5,5), 1, 0)
 img:set(vec(2,2), 2);
-require_rms("convolve", img:convolve(kernel):flip():mirror()/2, kernel)
+kernel_match = img:convolve(kernel):flip():mirror()/2
+require_rms("convolve", kernel_match, kernel)
 
-kernel = make(vec(5,1), 1, { 0,1,1,1,0 }):normalise()
+kernel3 = make(vec(5,1), 1, { 0,1,1,1,0 }):normalise()
 kernel2 = make(vec(5,5), 1, { 0,0,0,0,0, 0,1,1,1,0, 0,1,1,1,0, 0,1,1,1,0, 0,0,0,0,0, }):normalise()
-img = make(vec(5,5), 1, 0)
-img:set(vec(2,2), 2);
-require_rms("convolve", img:convolveSep(kernel):flip():mirror()/2, kernel2,1e-8)
+img2 = make(vec(5,5), 1, 0)
+img2:set(vec(2,2), 2);
+require_rms("convolvesep", img2:convolveSep(kernel3):flip():mirror()/2, kernel2,1e-8)
 
 print_errors()
