@@ -1354,19 +1354,19 @@ static int image_map (lua_State *L)
         case 1:
         if (src->hasAlpha()) {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<1,0,0,1>(L, src, fi) : map_with_lua_func<1,0,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<1,0,1,1>(L, src, fi) : map_with_lua_func<1,0,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<1,0,2,1>(L, src, fi) : map_with_lua_func<1,0,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<1,0,3,1>(L, src, fi) : map_with_lua_func<1,0,4,0>(L, src, fi); break;
+                case 1: out = dst_ach ? map_with_lua_func<0,1,0,1>(L, src, fi) : map_with_lua_func<0,1,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<0,1,1,1>(L, src, fi) : map_with_lua_func<0,1,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<0,1,2,1>(L, src, fi) : map_with_lua_func<0,1,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<0,1,3,1>(L, src, fi) : map_with_lua_func<0,1,4,0>(L, src, fi); break;
                 default:
                 my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
             }
         } else {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<0,1,0,1>(L, src, fi) : map_with_lua_func<0,1,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<0,1,1,1>(L, src, fi) : map_with_lua_func<0,1,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<0,1,2,1>(L, src, fi) : map_with_lua_func<0,1,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<0,1,3,1>(L, src, fi) : map_with_lua_func<0,1,4,0>(L, src, fi); break;
+                case 1: out = dst_ach ? map_with_lua_func<1,0,0,1>(L, src, fi) : map_with_lua_func<1,0,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<1,0,1,1>(L, src, fi) : map_with_lua_func<1,0,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<1,0,2,1>(L, src, fi) : map_with_lua_func<1,0,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<1,0,3,1>(L, src, fi) : map_with_lua_func<1,0,4,0>(L, src, fi); break;
                 default:
                 my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
             }
@@ -1376,19 +1376,19 @@ static int image_map (lua_State *L)
         case 2:
         if (src->hasAlpha()) {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<2,0,0,1>(L, src, fi) : map_with_lua_func<2,0,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<2,0,1,1>(L, src, fi) : map_with_lua_func<2,0,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<2,0,2,1>(L, src, fi) : map_with_lua_func<2,0,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<2,0,3,1>(L, src, fi) : map_with_lua_func<2,0,4,0>(L, src, fi); break;
+                case 1: out = dst_ach ? map_with_lua_func<1,1,0,1>(L, src, fi) : map_with_lua_func<1,1,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<1,1,1,1>(L, src, fi) : map_with_lua_func<1,1,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<1,1,2,1>(L, src, fi) : map_with_lua_func<1,1,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<1,1,3,1>(L, src, fi) : map_with_lua_func<1,1,4,0>(L, src, fi); break;
                 default:
                 my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
             }
         } else {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<1,1,0,1>(L, src, fi) : map_with_lua_func<1,1,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<1,1,1,1>(L, src, fi) : map_with_lua_func<1,1,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<1,1,2,1>(L, src, fi) : map_with_lua_func<1,1,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<1,1,3,1>(L, src, fi) : map_with_lua_func<1,1,4,0>(L, src, fi); break;
+                case 1: out = dst_ach ? map_with_lua_func<2,0,0,1>(L, src, fi) : map_with_lua_func<2,0,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<2,0,1,1>(L, src, fi) : map_with_lua_func<2,0,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<2,0,2,1>(L, src, fi) : map_with_lua_func<2,0,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<2,0,3,1>(L, src, fi) : map_with_lua_func<2,0,4,0>(L, src, fi); break;
                 default:
                 my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
             }
@@ -1398,19 +1398,19 @@ static int image_map (lua_State *L)
         case 3:
         if (src->hasAlpha()) {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<3,0,0,1>(L, src, fi) : map_with_lua_func<3,0,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<3,0,1,1>(L, src, fi) : map_with_lua_func<3,0,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<3,0,2,1>(L, src, fi) : map_with_lua_func<3,0,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<3,0,3,1>(L, src, fi) : map_with_lua_func<3,0,4,0>(L, src, fi); break;
+                case 1: out = dst_ach ? map_with_lua_func<2,1,0,1>(L, src, fi) : map_with_lua_func<2,1,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<2,1,1,1>(L, src, fi) : map_with_lua_func<2,1,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<2,1,2,1>(L, src, fi) : map_with_lua_func<2,1,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<2,1,3,1>(L, src, fi) : map_with_lua_func<2,1,4,0>(L, src, fi); break;
                 default:
                 my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
             }
         } else {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<2,1,0,1>(L, src, fi) : map_with_lua_func<2,1,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<2,1,1,1>(L, src, fi) : map_with_lua_func<2,1,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<2,1,2,1>(L, src, fi) : map_with_lua_func<2,1,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<2,1,3,1>(L, src, fi) : map_with_lua_func<2,1,4,0>(L, src, fi); break;
+                case 1: out = dst_ach ? map_with_lua_func<3,0,0,1>(L, src, fi) : map_with_lua_func<3,0,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<3,0,1,1>(L, src, fi) : map_with_lua_func<3,0,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<3,0,2,1>(L, src, fi) : map_with_lua_func<3,0,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<3,0,3,1>(L, src, fi) : map_with_lua_func<3,0,4,0>(L, src, fi); break;
                 default:
                 my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
             }
@@ -1420,19 +1420,19 @@ static int image_map (lua_State *L)
         case 4:
         if (src->hasAlpha()) {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<3,0,0,1>(L, src, fi) : map_with_lua_func<3,0,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<3,0,1,1>(L, src, fi) : map_with_lua_func<3,0,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<3,0,2,1>(L, src, fi) : map_with_lua_func<3,0,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<3,0,3,1>(L, src, fi) : map_with_lua_func<3,0,4,0>(L, src, fi); break;
+                case 1: out = dst_ach ? map_with_lua_func<3,1,0,1>(L, src, fi) : map_with_lua_func<3,1,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<3,1,1,1>(L, src, fi) : map_with_lua_func<3,1,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<3,1,2,1>(L, src, fi) : map_with_lua_func<3,1,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<3,1,3,1>(L, src, fi) : map_with_lua_func<3,1,4,0>(L, src, fi); break;
                 default:
                 my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
             }
         } else {
             switch (dst_ch) {
-                case 1: out = dst_ach ? map_with_lua_func<2,1,0,1>(L, src, fi) : map_with_lua_func<2,1,1,0>(L, src, fi); break;
-                case 2: out = dst_ach ? map_with_lua_func<2,1,1,1>(L, src, fi) : map_with_lua_func<2,1,2,0>(L, src, fi); break;
-                case 3: out = dst_ach ? map_with_lua_func<2,1,2,1>(L, src, fi) : map_with_lua_func<2,1,3,0>(L, src, fi); break;
-                case 4: out = dst_ach ? map_with_lua_func<2,1,3,1>(L, src, fi) : map_with_lua_func<2,1,4,0>(L, src, fi); break;
+                case 1: out = dst_ach ? map_with_lua_func<4,0,0,1>(L, src, fi) : map_with_lua_func<4,0,1,0>(L, src, fi); break;
+                case 2: out = dst_ach ? map_with_lua_func<4,0,1,1>(L, src, fi) : map_with_lua_func<4,0,2,0>(L, src, fi); break;
+                case 3: out = dst_ach ? map_with_lua_func<4,0,2,1>(L, src, fi) : map_with_lua_func<4,0,3,0>(L, src, fi); break;
+                case 4: out = dst_ach ? map_with_lua_func<4,0,3,1>(L, src, fi) : map_with_lua_func<4,0,4,0>(L, src, fi); break;
                 default:
                 my_lua_error(L, "Dest channels must be either 1, 2, 3, or 4.");
             }

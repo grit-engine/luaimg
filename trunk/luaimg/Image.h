@@ -171,8 +171,14 @@ Colour<ch2,ach2> colour_blend (const Colour<ch1,ach1> &a, const Colour<ch2,ach2>
             float alpha = std::max(0.0f, std::min(1.0f, a[ch2]));
             float old_alpha = std::max(0.0f, std::min(1.0f, b[ch2]));
             float new_alpha = 1 - (1-alpha)*(1-old_alpha);
-            for (chan_t c=0 ; c<ch2 ; ++c) {
-                r[c] = alpha/new_alpha*a[c] + (1-alpha/new_alpha)*b[c];
+            if (alpha == 0) {
+                for (chan_t c=0 ; c<ch2 ; ++c) {
+                    r[c] = b[c];
+                }
+            } else {
+                for (chan_t c=0 ; c<ch2 ; ++c) {
+                    r[c] = alpha/new_alpha*a[c] + (1-alpha/new_alpha)*b[c];
+                }
             }
             r[ch2] = new_alpha;
         } else {
@@ -413,8 +419,11 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         const Image<ch,1> *src = static_cast<const Image<ch,1>*>(src_);
         uimglen_t w = src->width;
         uimglen_t h = src->height;
-        if (left+w >= width) w = width - left - 1;
-        if (bottom+h >= height) h = height - bottom - 1;
+        // if left and bottom are way too large, do nothing
+        if (left >= width) return;
+        if (bottom >= height) return;
+        if (left+w > width) w = width - left - 1;
+        if (bottom+h > height) h = height - bottom - 1;
         for (uimglen_t y=0 ; y<h ; ++y) {
             for (uimglen_t x=0 ; x<w ; ++x) {
                 this->pixel(x+left,y+bottom) = colour_blend(src->pixel(x,y), this->pixel(x+left,y+bottom));
@@ -437,8 +446,10 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
                         float kv = kernel->pixel(kx+kcx, ky+kcy)[0];
                         simglen_t this_x = x+kx;
                         simglen_t this_y = y+ky;
-                        while (this_x < 0) this_x = wrap_x ? mymod(this_x, width): 0;
-                        while (this_y < 0) this_y = wrap_y ? mymod(this_y, height): 0;
+                        if (this_x < 0) this_x = wrap_x ? mymod(this_x, width): 0;
+                        if (this_y < 0) this_y = wrap_y ? mymod(this_y, height): 0;
+                        if (uimglen_t(this_x) >= width) this_x = wrap_x ? mymod(this_x, width): width-1;
+                        if (uimglen_t(this_y) >= height) this_y = wrap_y ? mymod(this_y, height): height-1;
                         Colour<ch,ach> thisv = this->pixel((uimglen_t)this_x, (uimglen_t)this_y);
                         for (chan_t c=0 ; c<ch+ach ; ++c) {
                             p[c] += thisv[c] * kv;

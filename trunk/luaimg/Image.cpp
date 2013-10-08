@@ -272,7 +272,7 @@ template<chan_t ch, chan_t ach> FIBITMAP *image_to_fibitmap (Image<ch,ach> *imag
 }
 template<> FIBITMAP *image_to_fibitmap (Image<1,1> *image, uimglen_t width, uimglen_t height)
 {
-    FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 24, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
+    FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 32, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
 
     for (uimglen_t y=0 ; y<height ; y++) {
 
@@ -280,21 +280,17 @@ template<> FIBITMAP *image_to_fibitmap (Image<1,1> *image, uimglen_t width, uimg
 
         for (uimglen_t x=0 ; x<width ; x++) {
 
-            {
-                float v = image->pixel(x, y)[0];
-                v = v < 0 ? 0 : v > 1 ? 1 : v;
-                raw[FI_RGBA_RED] = BYTE(v * 255);
-            }
-            {
-                float v = image->pixel(x, y)[1];
-                v = v < 0 ? 0 : v > 1 ? 1 : v;
-                raw[FI_RGBA_GREEN] = BYTE(v * 255);
-            }
-            {
-                raw[FI_RGBA_BLUE] = 0;
-            }
+            float v = image->pixel(x, y)[0];
+            v = v < 0 ? 0 : v > 1 ? 1 : v;
+            raw[FI_RGBA_RED] = BYTE(v * 255);
+            raw[FI_RGBA_GREEN] = BYTE(v * 255);
+            raw[FI_RGBA_BLUE] = BYTE(v * 255);
 
-            raw += 3;
+            v = image->pixel(x, y)[1];
+            v = v < 0 ? 0 : v > 1 ? 1 : v;
+            raw[FI_RGBA_ALPHA] = BYTE(v * 255);
+
+            raw += 4;
         }
     }
 
@@ -325,23 +321,6 @@ template<> FIBITMAP *image_to_fibitmap (Image<2,0> *image, uimglen_t width, uimg
             }
 
             raw += 3;
-        }
-    }
-
-    return output;
-}
-template<> FIBITMAP *image_to_fibitmap (Image<0,1> *image, uimglen_t width, uimglen_t height)
-{
-    FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 8);
-
-    for (uimglen_t y=0 ; y<height ; y++) {
-
-        BYTE *raw = FreeImage_GetScanLine(output, y);
-
-        for (uimglen_t x=0 ; x<width ; x++) {
-            float v = image->pixel(x, y)[0];
-            v = v < 0 ? 0 : v > 1 ? 1 : v;
-            raw[x] = BYTE(v * 255);
         }
     }
 
