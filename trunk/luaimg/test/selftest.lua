@@ -128,7 +128,7 @@ function try_io(img, ext, thresh)
     local filename = os.tmpname()..ext
     img:save(filename)
     require_rms("png-io-"..filename,open(filename),img, thresh)
-    --os.remove(filename)
+    os.remove(filename)
 end
 
 try_io(imgbase, ".png", 1/255)
@@ -147,7 +147,7 @@ function simpletrans(name,img)
     require_rms(name.."-map-identity2-rms", img, img:map(img.channels, img.hasAlpha, function(col, pos) return img(pos) end))
     require_rms(name.."-map-mirror-rms", img:mirror(), img:map(img.channels, img.hasAlpha, function(col, pos) return img(pos*vec(-1,1)+vec(img.width-1,0)) end))
     require_rms(name.."-map-flip-rms", img:flip(), img:map(img.channels, img.hasAlpha, function(col, pos) return img(pos*vec(1,-1)+vec(0,img.height-1)) end))
-    require_rms(name.."-map-rotate180-rms", img:flip():mirror(), img:rotate(180))
+    require_rms(name.."-flip-mirror-rotate180-rms", img:flip():mirror(), img:rotate(180), 1e-6)
     local scaled = make(img.size*2, img.channels, img.hasAlpha, function(p) return img(p/2) end)
     require_rms(name.."-map-scale-rms", img:scale(img.size*2,"LANCZOS3"), scaled,0.05)
 end
@@ -243,6 +243,7 @@ kernel3 = make(vec(5,1), 1, { 0,1,1,1,0 }):normalise()
 kernel2 = make(vec(5,5), 1, { 0,0,0,0,0, 0,1,1,1,0, 0,1,1,1,0, 0,1,1,1,0, 0,0,0,0,0, }):normalise()
 img2 = make(vec(5,5), 1, 0)
 img2:set(vec(2,2), 2);
-require_rms("convolvesep", img2:convolveSep(kernel3):flip():mirror()/2, kernel2,1e-8)
+convolved = img2:convolveSep(kernel3):flip():mirror()/2
+require_rms("convolvesep", convolved, kernel2, 1e-8)
 
 print_errors()
