@@ -46,6 +46,8 @@ void HSVtoRGB (float H, float S, float L, float &R, float &G, float &B);
 #ifndef IMAGE_H
 #define IMAGE_H
 
+#define PI 3.1415926535897932385
+
 #include <cmath>
 
 #include <ostream>
@@ -55,7 +57,7 @@ static inline simglen_t mymod (simglen_t a, simglen_t b)
 {
     simglen_t c = a % b;
     // maybe -b < c <= 0
-    c = (c + b) %b;
+    c = (c + b) % b;
     return c;
 }
 
@@ -367,8 +369,8 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         // calculate these later
         Colour<ch,ach> bg(0);
         if (bg_ != NULL) bg = *static_cast<const Colour<ch,ach>*>(bg_);
-        float s = ::sin(angle*M_PI/180);
-        float c = ::cos(angle*M_PI/180);
+        float s = ::sin(angle*PI/180);
+        float c = ::cos(angle*PI/180);
         uimglen_t w = (fabs(c)*width + fabs(s)*height + 0.5);
         uimglen_t h = (fabs(s)*width + fabs(c)*height + 0.5);
         Image<ch, ach> *ret = new Image<ch, ach>(w, h);
