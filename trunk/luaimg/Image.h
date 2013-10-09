@@ -252,10 +252,10 @@ class ImageBase {
     virtual ImageBase *normalise (void) const = 0;
 
     virtual ImageBase *scale (uimglen_t width, uimglen_t height, ScaleFilter filter) const;
-    virtual ImageBase *rotate (float angle) const;
+    virtual ImageBase *rotate (float angle, const ColourBase *bg_) const = 0;
     virtual ImageBase *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const ColourBase *bg) const = 0;
 
-    virtual void drawImage (const ImageBase *src_, uimglen_t left, uimglen_t bottom) = 0;
+    virtual void drawImage (const ImageBase *src_, simglen_t left, simglen_t bottom) = 0;
     virtual ImageBase *convolve (const Image<1,0> *kernel, bool wrap_x, bool wrap_y) const = 0;
 
 };
@@ -297,6 +297,13 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
 
     Colour<ch,ach> &pixelSlow (uimglen_t x, uimglen_t y) { return pixel(x,y); }
     const Colour<ch,ach> &pixelSlow (uimglen_t x, uimglen_t y) const { return pixel(x,y); }
+
+    Colour<ch,ach> pixelSafe (float x, float y, const Colour<ch,ach> &bg) const
+    {
+        if (x < 0 || y < 0) return bg;
+        if (x >= width || y >= height) return bg;
+        return pixel(x, y);
+    }
 
     Image<ch,ach> *unm (void) const
     {
@@ -340,6 +347,51 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
                     uimglen_t old_x = x+left;
                     uimglen_t old_y = y+bottom;
                     ret->pixel(x,y) = (old_x<width && old_y<height) ? this->pixel(old_x, old_y) : bg;
+                }
+            }
+        }
+        return ret;
+    }
+
+/*
+    -------------+-------------
+    |            |            |
+    |            |            |
+  --+------------|------------+--
+    |            |            |
+    |            |            |
+    -------------+-------------
+*/
+    Image<ch,ach> *rotate (float angle, const ColourBase *bg_) const
+    {
+        // calculate these later
+        Colour<ch,ach> bg(0);
+        if (bg_ != NULL) bg = *static_cast<const Colour<ch,ach>*>(bg_);
+        float s = ::sin(angle*M_PI/180);
+        float c = ::cos(angle*M_PI/180);
+        uimglen_t w = (fabs(c)*width + fabs(s)*height + 0.5);
+        uimglen_t h = (fabs(s)*width + fabs(c)*height + 0.5);
+        Image<ch, ach> *ret = new Image<ch, ach>(w, h);
+        for (uimglen_t y=0 ; y<h; ++y) {
+            for (uimglen_t x=0 ; x<w; ++x) {
+                float rel_x = float(x) - w/2.0f + 0.5f; // 0.5
+                float rel_y = float(y) - h/2.0f + 0.5f; // -2 to 2
+                float src_x = c*rel_x - s*rel_y + width/2.0f; // 0.5
+                float src_y = s*rel_x + c*rel_y + height/2.0f; // 0.5 to 4.5
+                if (src_x>=0 && src_x<width && src_y>=0 && src_y<height) {
+                    src_x -= 0.5; // 0
+                    src_y -= 0.5; // 0 to 4
+                    Colour<ch,ach> c00 = this->pixelSafe(floorf(src_x+0), floorf(src_y+0), bg);
+                    Colour<ch,ach> c01 = this->pixelSafe(floorf(src_x+1), floorf(src_y+0), bg);
+                    Colour<ch,ach> c10 = this->pixelSafe(floorf(src_x+0), floorf(src_y+1), bg);
+                    Colour<ch,ach> c11 = this->pixelSafe(floorf(src_x+1), floorf(src_y+1), bg);
+                    float frac_x = src_x - floorf(src_x);
+                    float frac_y = src_y - floorf(src_y);
+                    Colour<ch,ach> c0x = colour_lerp(c00, c01, frac_x);
+                    Colour<ch,ach> c1x = colour_lerp(c10, c11, frac_x);
+                    ret->pixel(x,y) = colour_lerp(c0x, c1x, frac_y);
+                } else {
+                    ret->pixel(x,y) = bg;
                 }
             }
         }
@@ -411,23 +463,22 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         return static_cast<Image<ch,ach>*>(ImageBase::scale(w,h, filter));
     }
 
-    Image<ch,ach> *rotate (float angle) const
-    {
-        return static_cast<Image<ch,ach>*>(ImageBase::rotate(angle));
-    }
-
-    void drawImage (const ImageBase *src_, uimglen_t left, uimglen_t bottom)
+    void drawImage (const ImageBase *src_, simglen_t left, simglen_t bottom)
     {
         const Image<ch,1> *src = static_cast<const Image<ch,1>*>(src_);
         uimglen_t w = src->width;
         uimglen_t h = src->height;
-        // if left and bottom are way too large, do nothing
-        if (left >= width) return;
-        if (bottom >= height) return;
-        if (left+w > width) w = width - left - 1;
-        if (bottom+h > height) h = height - bottom - 1;
-        for (uimglen_t y=0 ; y<h ; ++y) {
-            for (uimglen_t x=0 ; x<w ; ++x) {
+
+        // ignore pixels that go off the left of the image
+        simglen_t crop_left = left<0 ? -left : 0;
+        simglen_t crop_bottom = bottom<0 ? -bottom : 0;
+
+        // ignore pixels that go off the top or right
+        if (left+w > width) w = width - left;
+        if (bottom+h > height) h = height - bottom;
+
+        for (uimglen_t y=crop_bottom ; y<h ; ++y) {
+            for (uimglen_t x=crop_left ; x<w ; ++x) {
                 this->pixel(x+left,y+bottom) = colour_blend(src->pixel(x,y), this->pixel(x+left,y+bottom));
             }
         }

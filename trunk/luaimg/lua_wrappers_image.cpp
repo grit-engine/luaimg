@@ -1528,11 +1528,18 @@ static int image_scale (lua_State *L)
 
 static int image_rotate (lua_State *L)
 {
-    check_args(L, 2);
-    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    float angle = luaL_checknumber(L, 2);
-    ImageBase *out = self->rotate(angle);
-    push_image(L, out);
+    if (lua_gettop(L) == 2) {
+        ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        float angle = luaL_checknumber(L, 2);
+        push_image(L, self->rotate(angle, NULL));
+    } else {
+        check_args(L,3);
+        ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        float angle = luaL_checknumber(L, 2);
+        ColourBase *colour = alloc_colour(L, self->channels(), self->hasAlpha(), 3);
+        push_image(L, self->rotate(angle, colour));
+        delete colour;
+    }
     return 1;
 }
 
@@ -1675,9 +1682,9 @@ static int image_draw_image (lua_State *L)
     check_args(L,3);
     ImageBase *dst = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     ImageBase *src = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
-    uimglen_t x;
-    uimglen_t y;
-    check_coord(L, 3, x, y);
+    simglen_t x;
+    simglen_t y;
+    check_scoord(L, 3, x, y);
 
     if (!src->hasAlpha()) {
         my_lua_error(L, "Can only draw images with alpha channels.");
@@ -1766,7 +1773,7 @@ static int image_convolve_sep (lua_State *L)
     if (kern_x->height != 1) {
         my_lua_error(L, "Separable convolution kernel height must be 1.");
     }
-    Image<1,0> *kern_y = kern_x->rotate(90);
+    Image<1,0> *kern_y = kern_x->rotate(90,NULL);
     ImageBase *nu = self->convolve(kern_x, wrap_x, wrap_y);
     ImageBase *nu2 = nu->convolve(kern_y, wrap_x, wrap_y);
     delete nu;

@@ -814,27 +814,3 @@ ImageBase *ImageBase::scale (uimglen_t dst_width, uimglen_t dst_height, ScaleFil
         default: return NULL;
     }
 }
-
-template<chan_t ch, chan_t ach>
-ImageBase *do_rotate (const ImageBase *src, float angle)
-{
-    FIBITMAP *fib = image_to_fifloat<ch,ach>(src);
-    
-    FIBITMAP *rotated = FreeImage_Rotate(fib, angle, NULL);
-    FreeImage_Unload(fib);
-
-    ImageBase *r = image_from_fifloat<ch,ach>(rotated);
-    FreeImage_Unload(rotated);
-    return r;
-}
-
-ImageBase *ImageBase::rotate (float angle) const
-{
-    switch (channels()) {
-        case 1: return hasAlpha() ? do_rotate<0,1>(this, angle) : do_rotate<1,0>(this, angle);
-        case 2: return hasAlpha() ? do_rotate<1,1>(this, angle) : do_rotate<2,0>(this, angle);
-        case 3: return hasAlpha() ? do_rotate<2,1>(this, angle) : do_rotate<3,0>(this, angle);
-        case 4: return hasAlpha() ? do_rotate<3,1>(this, angle) : do_rotate<4,0>(this, angle);
-        default: return NULL;
-    }
-}
