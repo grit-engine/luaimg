@@ -12,7 +12,7 @@ end
 include "../../grit_core/media/system/misc.fixed.lua"
 
 desired_codepoint_ranges = {
-    {0x00021, 0x0007e}, -- basic latin
+    {0x00020, 0x0007e}, -- basic latin
     {0x000a1, 0x000ff}, -- latin 1 supplement
     {0x00100, 0x0017f}, -- latin extended a
     {0x00300, 0x0036f}, -- combining diacritical marks
@@ -53,7 +53,6 @@ for _,range in ipairs(desired_codepoint_ranges) do
         if curr_x + w >= new_tex.width then
             curr_y = curr_y + h
             curr_x = 0
-        else
         end
         new_tex:drawImage(0*shadow.xX, vec(curr_x, curr_y))
         new_tex:drawImage(letter.xX, vec(curr_x, curr_y))
@@ -73,4 +72,4 @@ for k=0,2^16 do
 end
 print ("}");
 
-(new_tex.xxxY..vec(0,0,1)):save("new_font.png")
+new_tex.xxxY:save("new_font.png")

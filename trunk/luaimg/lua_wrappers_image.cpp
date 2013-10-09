@@ -1809,7 +1809,7 @@ static ImageBase *image_swizzle2 (const ImageBase *img_, chan_t ch2, bool a2, ch
 {
     const Image<sch,scha> *img = static_cast<const Image<sch,scha>*>(img_);
     switch (ch2) {
-        case 1: return a2 ? image_swizzle3<sch,scha,0,1>(img, m) : image_swizzle3<sch,scha,1,0>(img, m);
+        case 1: return image_swizzle3<sch,scha,1,0>(img, m);
         case 2: return a2 ? image_swizzle3<sch,scha,1,1>(img, m) : image_swizzle3<sch,scha,2,0>(img, m);
         case 3: return a2 ? image_swizzle3<sch,scha,2,1>(img, m) : image_swizzle3<sch,scha,3,0>(img, m);
         case 4: return a2 ? image_swizzle3<sch,scha,3,1>(img, m) : image_swizzle3<sch,scha,4,0>(img, m);
@@ -1822,7 +1822,7 @@ static ImageBase *image_swizzle2 (const ImageBase *img_, chan_t ch2, bool a2, ch
 static ImageBase *image_swizzle (const ImageBase *img, chan_t ch2, bool a2, chan_t *m)
 {
     switch (img->channels()) {
-        case 1: image_swizzle2<1,0>(img, ch2, a2, m);
+        case 1: return image_swizzle2<1,0>(img, ch2, a2, m);
         case 2: return img->hasAlpha() ? image_swizzle2<1,1>(img, ch2, a2, m) : image_swizzle2<2,0>(img, ch2, a2, m);
         case 3: return img->hasAlpha() ? image_swizzle2<2,1>(img, ch2, a2, m) : image_swizzle2<3,0>(img, ch2, a2, m);
         case 4: return img->hasAlpha() ? image_swizzle2<3,1>(img, ch2, a2, m) : image_swizzle2<4,0>(img, ch2, a2, m);

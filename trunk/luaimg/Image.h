@@ -472,8 +472,8 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         uimglen_t h = src->height;
 
         // ignore pixels that go off the left of the image
-        simglen_t crop_left = left<0 ? -left : 0;
-        simglen_t crop_bottom = bottom<0 ? -bottom : 0;
+        uimglen_t crop_left = left<0 ? -left : 0;
+        uimglen_t crop_bottom = bottom<0 ? -bottom : 0;
 
         // ignore pixels that go off the top or right
         if (left+w > width) w = width - left;
