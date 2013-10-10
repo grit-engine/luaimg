@@ -1,72 +1,23 @@
-local docs = {
-    functions = {},
-    classes = {}
-}
-
-function doc_func(tab, entry)
-    entry.params = {}
-    entry.returns = {}
-    for k=4,#tab do
-        if tab[k][1] == "param" then
-            local dest = entry.params
-            dest[#dest+1] = { name = tab[k][2], kind = tab[k][3], optional = tab[k].optional }
-        elseif tab[k][1] == "return" then
-            local dest = entry.returns
-            dest[#dest+1] = { kind = tab[k][2] }
-        end
-    end
-end
-
-function doc(tab)
-    local kind=tab[1]
-    local name=tab[2]
-    local entry = {
-        desc = tab[3],
-    }
-    if kind == "function" then
-        doc_func(tab, entry)
-        docs.functions[name] = entry
-    elseif kind == "class" then
-        entry.fields = {}
-        entry.methods = {}
-        for k=4,#tab do
-            local n = tab[k][2]
-            if tab[k][1] == "field" then
-                entry.fields[n] = { kind = tab[k][3], desc=tab[k][4] }
-            elseif tab[k][1] == "method" then
-                local meth = { desc=tab[k][3] }
-                doc_func(tab[k], meth)
-                entry.methods[n] = meth
-            end
-        end
-        docs.classes[name] = entry
-    end
-end
-
-
-
-local function sorted_keys_from(tab)
-    local keys = {}
-    for name,_ in pairs(tab) do
-        keys[#keys+1] = name
-    end
-    table.sort(keys)
-    return keys
-end
-
-local function concat(...)
-    local content = ""
-    for i=1,select("#",...) do
-        content = content..select(i,...)
-    end
-    return content
-end
+include "docgen.lua"
 
 local examples = {
 
+    {
+        "Lua programs are also LuaImg programs, so the Lua hello world program stands:",
+        false,
+[[print "Hello world!"]]
+    },
+
+    {
+        "Create a 32x32 image with 3 channels containing solid red (vec(1,0,0)).  Save to a file (can also be written on one line):",
+        "red.png",
 [[my_img = make(vec(32,32), 3, vec(1,0,0))
 my_img:save("red.png")]],
+    },
 
+    {
+        "Initialising a 3 channel image with alpha, initialised with a function (computes an antialiased blue circle with alpha):",
+        "circle.png",
 [[local sz = vec(64,64)
 function init(pos)
     local rad = #(pos - sz/2);
@@ -75,430 +26,212 @@ function init(pos)
 end
 circle = make(sz, 4, true, init)
 circle:save("circle.png")]],
+    },
 
+    {
+        "Blend the circle image onto a solid yellow background:",
+        "circle_bg.png",
 [[(circle .. vec(1,1,0)):save("circle_bg.png")]],
+    },
 
+    {
+        "Blend the circle image onto red.png:",
+        "circle_bg2.png",
 [[smaller = circle:scale(vec(32,32),"BICUBIC")
 blended = smaller .. open("red.png")
 blended:save("circle_bg2.png")]],
+    },
 
+    {
+        "Extract alpha channel and save it:",
+        "circle_a.png",
 [[my_mask = circle.w
 my_mask:save("circle_a.png")]],
+    },
 
+    {
+        "Random RGB noise:",
+        "random.png",
 [[
 function randvec() return vec(random(), random(), random()) end
 my_noise = make(vec(64,64), 3, randvec)
 my_noise:save("random.png")]],
+    },
 
+    {
+        "Random noise with gaussian blur.  The gaussian(n) function returns an nx1 image that represents a separated normalised gaussian blur kernel.  One can also use custom kernels by providing an image instead of using the result of gaussian() -- and these can be provided either in separated form, or as a general rectangular matrix.",
+        "perlin.png",
 [[
 my_perlin = my_noise:convolveSep(gaussian(7), true, true)
 my_perlin:save("perlin.png")]],
+    },
 
+    {
+        "Subtract the two to create a high frequency noise texture.  Generally, using arithmetic to combine images is supported.",
+        "noise_hifreq.png",
 [[((my_noise-my_perlin) + 0.5):save("noise_hifreq.png")]]
+    },
 
 }
 
 function generate_imgs()
 
     for _,v in ipairs(examples) do
-        loadstring(v)()
+        local text, image, code = unpack(v)
+        loadstring(code)()
     end
 
 end
 
-function emit_page()
-    print ([[<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <title>LuaImg Documentation</title>
-    <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
-    <link rel="stylesheet" type="text/css" href="doc.css" />
-</head>
-<body>
+function emit_examples(file)
+    file:write('    <h2>Examples</h2>\n')
+    file:write('    <div class="prose">\n')
 
-    <h1>LuaImg Documentation</h1>
-
-    <h2>Overview</h2>
-
-    <div class="prose">
-
-        <p>LuaImg is a programming framework for scripted (i.e.
-non-interactive) image manipulation.  The images are stored in single precision
-floating point, and manipulated with a high-level scripting language based on
-the Lua fork from the <a href="http://www.gritengine.com/">Grit</a> project.
-Intermediate images are garbage-collected instead of being explicitly re-used.
-This allow complex mathematical algorithms to be written in a natural way.
-While these niceties come with a performance cost, the productivity gains more
-than make up for it, especially for rapid prototyping or experimentation with
-images.  Having said this, performance is generally quite good.  Large images
-such as the 5760x3840 resolution images created by the Canon 5DmkIII can be
-processed pixel-by-pixel with custom Lua code in a few seconds.</p>
-
-<p> LuaImg is similar to ImageMagick and netpbm.  However, those tools
-encourage the use of shell programming to glue everything together.  They are
-also somewhat limited in their programmability. LuaImg is more like sed or awk,
-in that a single LuaImg process can do an arbitrary amount of manipulation
-using an internal domain-specific language.  LuaImg shares some idioms with
-shader programming, although all code runs on the CPU.  The goals of LuaImg
-are, in order:</p>
-
-        <ol>
-            <li>Expressive power: To allow the expression of a wide variety of image manipulation algorithms on HDR images.</li>
-            <li>Simplicity:  To provide the smallest set of features, allow complicated effects to be achieved through easy and intuitive combinations of these features.</li>
-            <li>Performance:  To provide the best performance possible without compromising goals 1 and 2.  The use of script interpretion does limit performance, but we try to keep the garbage collection costs under control with a customised virtual machine.</li>
-        </ol>
-
-        <p>Note that with any programming framework, the point is not to do simple
-    one-off things, but to perform complex, precise, or
-    repetitive tasks that are difficult or time-consuming without programming.</p>
-
-        <p>LuaImg has so far been used for detecting northern lights in photos
-of the sky, preparing bitmap font textures for computer games, extracting alpha
-masks from blended images, and more.</p>
-
-    </div>
-
-    <h2>Types</h2>
-
-    <div class="prose">
-
-        <p>LuaImg has all the types from regular Lua (number, boolean, string, function, table, and the nil type).</p>
-
-        <p>In addition, it has a number of compound value types.  This is
-important because they  do not incur garbage collection overhead, just like
-number, boolean, and nil.  These types are vector2, vector3, and vector4, which
-are useful for representing coordinates and colours.  (There is also a
-quaternion type which is arguably less useful in this context.)  These values
-are created using constructors, e.g., vec(10,20) or vec(1,2,3,4).
-Individual fields can be accessed using .x, .y, .z, or .w field accesses (the
-fields can be read but not written).  It is also possible to swizzle, e.g.,
-.xyz will produce a vector3, .xz will produce a vector2, etc.</p>
-
-        <p>Arithmetic operations on the vector types operate in a point-wise
-manner, e.g.  vec(1,2,3) * vec(-1,2,1) = vec(-1,4,3).  The #
-operator on a vector provides its length (Euclidian length, i.e. Pythagoras).
-</p>
-
-    </div>
-
-    <h2>Other differences from Lua</h2>
-
-    <div class="prose">
-
-        <p>All of the math functions have been moved out of the math package
-into global scope.Some of the standard Lua math functions (pow, ceil, floor,
-abs, clamp) have been adapted to also support vector values, but the rest still
-operate on number only.  The unpack function will convert vectors to their
-components. Additional functions like dot product, etc, are described below.
-</p>
-
-    </div>
-
-    <h2>Examples</h2>
-
-    <div class="prose">
-
-        <p>Lua programs are also LuaImg programs, so the Lua hello world program stands:</p>
-        <pre>
-print "Hello world!" </pre>
-
-        <p>Create a 32x32 image with 3 channels containing solid red (vec(1,0,0)).  Save to a file (can also be written on one line):</p>
-        <img src="red.png" style="float:right;" alt="LuaImg output"/>
-        <pre>]]..examples[1]..[[</pre>
-
-        <p>Initialising a 3 channel image with alpha, initialised with a function (computes an antialiased blue circle with alpha):</p>
-        <img src="circle.png" style="float:right;" alt="LuaImg output" />
-        <pre>]]..examples[2]..[[</pre>
-
-        <p>Blend the circle image onto a solid yellow background:</p>
-        <img src="circle_bg.png" style="float:right;" alt="LuaImg output" />
-        <pre>]]..examples[3]..[[</pre>
-
-        <p>Blend the circle image onto red.png:</p>
-        <img src="circle_bg2.png" style="float:right;" alt="LuaImg output" />
-        <pre>]]..examples[4]..[[</pre>
-
-        <p>Extract alpha channel and save it:</p>
-        <img src="circle_a.png" style="float:right;" alt="LuaImg output" />
-        <pre>]]..examples[5]..[[</pre>
-
-        <p>Random noise:</p>
-        <img src="random.png" style="float:right;" alt="LuaImg output" />
-        <pre>]]..examples[6]..[[</pre>
-
-        <p>Random noise with gaussian blur.  The gaussian(n) function returns an nx1 image that represents a separated normalised gaussian blur kernel.  One can also use custom kernels by providing an image instead of using the result of gaussian() -- and these can be provided either in separated form, or as a general rectangular matrix.</p>
-        <img src="perlin.png" style="float:right;" alt="LuaImg output" />
-        <pre>]]..examples[7]..[[</pre>
-
-        <p>Subtract the two to create a high frequency noise texture.  Generally, using arithmetic to combine images is supported.</p>
-        <img src="noise_hifreq.png" style="float:right;" alt="LuaImg output" />
-        <pre>]]..examples[8]..[[</pre>
-
-    </div>
-
-    <h2>API notation conventions</h2>
-
-    <div class="prose">
-
-        <p>The required types are written in the documentation, but with a few
-        ingenuities:</p>
-        <ul>
-            <li>  A <i>colour</i> can be a number, vector2, vector3, or vector4
-        depending on how many channels are required (this should be clear from the
-        context).</li>
-            <li>Images are said to be <i>compatible</i> if they have the same size
-        and number of channels, or one of them has only a single channel (a mask).  Number/vector values can be used in place of an image, in which case they act like a solid colour image.</li>
-            <li>An <i>array</i> is defined to be a Lua table
-        containing only number keys between 1 and some other number (without any gaps).</li>
-            <li> The type of a function, when passed as a value, is denoted in the API
-        documentation with an arrow, e.g., math.sqrt() would be described as
-        (number)->(number).</li>
-            <li>Optional parameters are given in square brackets.</li>
-        </ul>
-    </div>
-]])
-
-    print '    <h2>Global Functions</h2>'
-    for _,name in ipairs(sorted_keys_from(docs.functions)) do
-        print(translate_func(name,docs.functions[name]))
-    end
-
-    print '    <h2>Classes</h2>'
-    for _,name in ipairs(sorted_keys_from(docs.classes)) do
-        print(translate_class(name,docs.classes[name]))
-    end
-
-    print [[    <p style="float:right;"><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a></p>
-</body>
-</html>
-]]
-end
-
-local function span(class, ...)
-    return "<span class=\""..class.."\">"..concat(...).."</span>"
-end
-local function div(class, ...)
-    return "<div class=\""..class.."\">"..concat(...).."</div>"
-end
-function para(p)
-    return "<p>"..p.."</p>"
-end
-
--- Different whitespace variations
-local function spanline(indent, class, ...)
-    return indent.."<span class=\""..class.."\">"..concat(...).."</span>".."\n"
-end
-local function divline(indent, class, ...)
-    return indent.."<div class=\""..class.."\">"..concat(...).."</div>".."\n"
-end
-local function divblk(indent, class, ...)
-    return indent.."<div class=\""..class.."\">\n"..concat(...)..indent.."</div>\n"
-end
-
-
-function translate_type(kind)
-    if type(kind) == "table" then
-        local r = ""
-        local sep = "{ "
-        for _,v in ipairs(kind) do
-            r = r..sep..tostring(v)
-            sep = ", "
+    for _,v in ipairs(examples) do
+        local text, image, code = unpack(v)
+        file:write('        <p>'..text..'</p>\n')
+        if image then
+            file:write('        <img src="'..image..'" style="float:right;" alt="LuaImg output" />\n')
         end
-        return r.." }"
-    else
-        return kind
+        emit_code(file, code)
+        file:write('\n')
     end
+
+    file:write("    </div>\n")
+
 end
 
-function translate_func_body(indent, nameclass, descclass, name, entry)
-    local paramlist = ""
-    local endline = #entry.params>2 and " <br/>" or ""
-    for k,v in ipairs(entry.params) do
-        local before, after = "", ""
-        if v.optional then before, after = "[", "]" end
-        paramlist = paramlist .. before ..  span("paramname", v.name)
-                              .. span("paramtype", " : "..translate_type(v.kind)) .. after
-                              .. (k==#entry.params and "" or span("paramparen",",")
-                              .. endline)
-    end
-    paramlist = divline(indent.."    ","paramlist", paramlist..span("paramparen",")"))
+doc { "function", "make",
 
-    local returnlist = ""
-    if #entry.returns ~= 0 then
-        if #entry.returns > 2 then
-            for k,v in ipairs(entry.returns) do
-                returnlist = returnlist .. span("paramtype", translate_type(v.kind))
-                                        .. (k==#entry.returns and "" or span("returncomma",", ").."<br/>")
-            end
-        else
-            for k,v in ipairs(entry.returns) do
-                returnlist = returnlist .. span("paramtype", translate_type(v.kind))
-                                        .. (k==#entry.returns and "" or span("returncomma",", ")) 
-            end
-        end
-        returnlist = divline(indent.."    ","returnlist", returnlist)
-        returnlist = spanline(indent.."    ","returns", "Returns:")..returnlist
-        returnlist = divblk(indent, "returns_sec", returnlist)
-    end
+[[Create a new image of the specificed size, with the specified number of
+channels.  If there is more than 1 channel, the last channel may be an alpha
+channel.  Alpha channels behave differently than regular channels.  The init
+parameter can be either a single colour (for a solid image), an array of
+colours of size W*H, or a function that provides the colour at each pixel.]],
 
-    return divblk(indent, "signature",
-                divline(indent.."    ", nameclass, name, span("paramparen","(")),
-                paramlist
-            ),
-            divline(indent, descclass, para(entry.desc)),
-            returnlist
-end
-
-function translate_func(name, entry)
-
-    return divblk("    ","function",
-            divline("    ","functionhead", name, " (global function)"),
-            divblk("    ","functionbody", translate_func_body("        ", "name", "desc", name, entry))
-        )
-end
-
-function translate_class(name, entry)
-    local fieldlist = ""
-    local fieldkeys = sorted_keys_from(entry.fields)
-    if #fieldkeys ~= 0 then
-        for _,k in ipairs(fieldkeys) do
-            local v = entry.fields[k]
-            fieldlist = fieldlist .. divline("                ","classfield",
-                                                span("classfieldname", k),
-                                                span("paramtype", " : "..translate_type(v.kind)),
-                                                div("classfielddesc", para(v.desc))
-                                            )
-        end
-        fieldlist = divblk("            ","classfieldlist", fieldlist)
-        fieldlist = divline("            ","classdivider", "Fields:")..fieldlist
-    end
-
-
-    local methodlist = ""
-    local methodkeys = sorted_keys_from(entry.methods)
-    if #methodkeys ~= 0 then
-        for _,k in ipairs(methodkeys) do
-            local v = entry.methods[k]
-            methodlist = methodlist .. divblk("                ","classmethod",translate_func_body("                    ", "classmethodname", "classmethoddesc", k, v))
-        end
-        methodlist = divblk("            ","classmethodlist", methodlist)
-        methodlist = divline("            ","classdivider", "Methods:")..methodlist
-    end
-
-    return divblk("    ","class",
-        divline("        ","classhead",name.." (class)"),
-        divblk("        ","classbody",
-            divline("            ","desc", para(entry.desc)),
-            fieldlist,
-            methodlist
-        )
-    )
-end
-
-doc {
-    "function",
-    "make",
-    [[Create a new image of the specificed size, with the specified number of
-    channels (alpha defaults to false).  The init parameter can be either a single colour (for a solid
-    image), an array of colours of size W*H, or a function that returns the colour
-    at each pixel.]],
     { "param", "size", "vector2" },
     { "param", "channels", {1,2,3,4} },
     { "param", "alpha", "boolean", optional=true },
     { "param", "init", {"colour", "array[colour]",  "(vector2)->(colour)"} },
     { "return", "Image" },
 }
+
+-- vec, vec2, vec3, vec4
     
-doc {
-    "function",
-    "open",
-    "Load an image file from disk.",
+doc { "function", "vec",
+
+[[Convert to a vector value, the number of arguments determine the size of the vector.]],
+
+    { "param", "x", "number" },
+    { "param", "y", "number", optional=true },
+    { "param", "z", "number", optional=true },
+    { "param", "w", "number", optional=true },
+    { "return", "vector" },
+}
+
+doc { "function", "vec4",
+
+[[Convert to a vector4 value.  The arguments can be either numbers or other
+vectors of any size as long as the total number of elements is 2.  There are
+similar functions vec2 and vec3 for creating vectors of other sizes.]],
+
+    { "param", "...", {"number","vector","..."} },
+    { "return", "vector4" },
+}
+
+doc { "function", "open",
+
+[[Load an image file from disk.  The file extension is used to determine
+the format.  The extension 'sfi' is a special raw format.  This can be used to
+save and restore images in LuaImg's internal representation, but it takes a lot
+of space on disk.  All other loading uses libfreeimage.]],
+
     { "param", "filename", "string" },
     { "return", "Image" },
 }
 
-doc {
-    "function",
-    "lerp",
-    "Interpolate between two colours / images.  T can be number, vector2/3/4, or Image.  If lerping images, they must be compatible.",
+doc { "function", "lerp",
+
+[[Interpolate between two colours / images.  T can be number, vector2/3/4,
+or Image.  If lerping images, they must be compatible.]],
+
     { "param", "v1", "T" },
     { "param", "v2", "T" },
     { "param", "alpha", "number" },
     { "return", "T" },
 }
 
-doc {
-    "function",
-    "gaussian",
-    "Generate a separated Gaussian convolution kernel.  This is an nx1 image containing that row of Pascal's triangle, normalised so it all sums to 1.",
+doc { "function", "gaussian",
+
+[[Generate a separated Gaussian convolution kernel.  This is an nx1 image
+containing that row of Pascal's triangle, normalised so it all sums to 1.]],
+
     { "param", "n", "number" },
     { "return", "Image" },
 }
 
-doc {
-    "function",
-    "colour",
-    "Return a vector value of the given dimensionality, all of whose elements are the given value.",
+doc { "function", "colour",
+
+[[Return a vector value of the given dimensionality, all of whose elements
+are the given value.]],
+
     { "param", "d", "number" },
     { "param", "n", "number" },
     { "return", "vector" },
 }
 
-doc {
-    "function",
-    "dot",
-    "Compute the dot product of the given vectors.",
+doc { "function", "dot",
+
+[[Compute the dot product of the given vectors.]],
+
     { "param", "a", "vector" },
     { "param", "b", "vector" },
     { "return", "number" },
 }
 
-doc {
-    "function",
-    "cross",
-    "Compute the cross product of the given vectors.",
+doc { "function", "cross",
+
+[[Compute the cross product of the given vectors.]],
+
     { "param", "a", "vector3" },
     { "param", "b", "vector3" },
     { "return", "vector3" },
 }
 
-doc {
-    "function",
-    "inv",
-    "Invert a quaternion.",
+doc { "function", "inv",
+
+[[Invert a quaternion.]],
+
     { "param", "a", "quat" },
     { "return", "quat" },
 }
 
-doc {
-    "function",
-    "slerp",
-    "Interpolate between two quaternions.",
+doc { "function", "slerp",
+
+[[Interpolate between two quaternions.]],
+
     { "param", "a", "quat" },
     { "param", "b", "quat" },
     { "param", "alpha", "number" },
     { "return", "quat" },
 }
 
-doc {
-    "function",
-    "norm",
-    "Normalise the vector or quaternion (return a value that has length 1 but is otherwise equivalent).",
+doc { "function", "norm",
+
+[[Normalise the vector or quaternion (return a value that has length 1 but is
+otherwise equivalent).]],
+
     { "param", "a", {"vector","quat"} },
     { "return", {"vector","quat"} },
 }
 
-acros = { "HSL", "HSV", "RGB" }
-exploded = { "hue/saturation/luminance", "hue/saturation/value", "red/green/blue" }
-for _,pair in ipairs{{1,2},{2,1},{1,3},{3,1},{2,3},{3,2}} do
-    doc {
-        "function",
-        acros[pair[1]].."to"..acros[pair[2]],
-        "Convert "..exploded[pair[1]].." to "..exploded[pair[2]]..".",
-        { "param", "colour", "vector3" },
-        { "return", "vector3" },
-    }
-end
+doc { "function", "HSLtoRGB",
+
+[[There are 6 functions for converting between RGB, HSV, and HSL.]],
+
+    { "param", "colour", "vector3" },
+    { "return", "vector3" },
+}
 
 doc {
     "class",
@@ -519,7 +252,7 @@ capital letter, this creates an alpha channel.  E.g. img.yX will yield a
 greyscale image with alpha channel.  The value channel is the old green channel
 and the alpha channel is the old red channel.]],
 
-    { "field", "channels", "number", "The number of channels in the image.", },
+    { "field", "channels", "number", "The number of channels in the image (including alpha).", },
     { "field", "hasAlpha", "boolean", "Whether or not the last channel is an alpha channel.", },
     { "field", "width", "number", "The number of pixels in a row of the image.", },
     { "field", "height", "number", "The number of pixels in a column of the image.", },
@@ -670,5 +403,53 @@ and the alpha channel is the old red channel.]],
     },
 }
 
-emit_page()
+
+function file_as_string(name)
+    local file = io.open(name, "r")
+    local str = file:read("*all")
+    file:close()
+    return str
+end
+
+function emit_title(file, title)
+    file:write("    <div class='titleblock'>")
+    file:write("        <h1>"..title.."</h1>")
+    file:write("        <div class='toplinks'>")
+    file:write("            <a class=toplink href='index.html'>Overview</a>")
+    file:write("            <a class=toplink href='examples.html'>Examples</a>")
+    file:write("            <a class=toplink href='download.html'>Download</a>")
+    file:write("            <a class=toplink href='api.html'>API</a>")
+    file:write("        </div>")
+    file:write("    </div>")
+end
+    
+file = io.open("index.html","w")
+file:write(file_as_string("header.html"))
+emit_title(file, "LuaImg")
+file:write(file_as_string("index_content.html"))
+file:write(file_as_string("footer.html"))
+file:close()
+
+file = io.open("examples.html","w")
+file:write(file_as_string("header.html"))
+emit_title(file, "LuaImg")
+emit_examples(file)
+file:write(file_as_string("footer.html"))
+file:close()
+
+file = io.open("download.html","w")
+file:write(file_as_string("header.html"))
+emit_title(file, "LuaImg")
+file:write(file_as_string("download_content.html"))
+file:write(file_as_string("footer.html"))
+file:close()
+
+file = io.open("api.html","w")
+file:write(file_as_string("header.html"))
+emit_title(file, "LuaImg")
+file:write(file_as_string("api_content.html"))
+emit_api(file)
+file:write(file_as_string("footer.html"))
+file:close()
+
 generate_imgs()

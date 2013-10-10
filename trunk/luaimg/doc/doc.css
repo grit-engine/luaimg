@@ -11,40 +11,74 @@ body {
     margin-right: 2em;
 }
 
-pre {
+.code {
+    font-family: monospace;
     padding: 0.5em;
     padding-left: 1em;
     padding-right: 1em;
     margin-left: 2em;
     margin-right: auto;
     margin-bottom:2.2em;
-    background-color: #e0e0f0;
     width:85%;
     -moz-border-radius: 6px;
     border-radius: 6px;
+    background-color: #e0e0f0;
 }
 
+.codekeyword {
+    color: #0000ff;
+}
 
-h1, h2 {
-    background-color: #305070;
-    color: #ffffff;
+.codestring {
+    color: #800000;
+}
+
+.codeliteral {
+    color: #0000a0;
+}
+
+.titleblock {
     -moz-border-radius: 8px;
     border-radius: 8px;
     box-shadow: 12px 8px 16px #e4e4e4;
+    background-color: #305070;
+    color: #ffffff;
 }
 
 h1 {
-    padding: 32px;
+    margin: 0;
+    padding-top: 16px;
+/*
+    margin-top: 2em;
+    margin-bottom: 1.6em;
+*/
     text-align: center;
-    font-size: 40pt;
-    font-weight: bold;
+    font-size: 50pt;
+}
+
+.toplinks {
+    padding: 16px;
+    text-align: center;
+}
+
+/* text-decoration: none; */
+.toplink {
+    color: #ffffff;
+    margin: 1.5em;
 }
 
 h2 {
     padding: 0.5em;
     margin-top: 2em;
     margin-bottom: 1.6em;
+    font-weight: bold;
+    -moz-border-radius: 8px;
+    border-radius: 8px;
+    box-shadow: 12px 8px 16px #e4e4e4;
+    background-color: #305070;
+    color: #ffffff;
 }
+
 
 .signature {
 }
