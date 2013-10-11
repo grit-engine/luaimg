@@ -353,6 +353,7 @@ void push_colour (lua_State *L, chan_t channels, bool has_alpha, const ColourBas
     }
 }
 
+// image must never have been pushed before, or it will be double-freed upon GC
 void push_image (lua_State *L, ImageBase *image)
 {
     if (image == NULL) {
@@ -360,6 +361,7 @@ void push_image (lua_State *L, ImageBase *image)
         abort();
     }
     void **self_ptr = static_cast<void**>(lua_newuserdata(L, sizeof(*self_ptr)));
+    lua_extmemburden(L, image->numBytes());
     *self_ptr = image;
     luaL_getmetatable(L, IMAGE_TAG);
     lua_setmetatable(L, -2);
@@ -1161,6 +1163,7 @@ static int image_gc (lua_State *L)
 { 
     check_args(L, 1); 
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    lua_extmemburden(L, -self->numBytes());
     delete self; 
     return 0; 
 }
