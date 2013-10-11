@@ -413,6 +413,7 @@ end
 
 function emit_title(file, title)
     file:write("    <div class='titleblock'>")
+    file:write("        <img class='logo' src='logo.png' />")
     file:write("        <h1>"..title.."</h1>")
     file:write("        <div class='toplinks'>")
     file:write("            <a class=toplink href='index.html'>Overview</a>")
@@ -453,3 +454,5 @@ file:write(file_as_string("footer.html"))
 file:close()
 
 generate_imgs()
+
+include "../examples/logo.lua"

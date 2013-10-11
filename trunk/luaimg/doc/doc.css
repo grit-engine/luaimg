@@ -1,40 +1,16 @@
 body {
     background-color:#fffff7;
     font-family: sans-serif;
+    margin-top:32px;
+    margin-bottom:32px;
     margin-left: auto;
     margin-right: auto;
-    width: 1024px;
+    width: 784px;
 }
 
-.prose {
-    margin-left: 2em;
-    margin-right: 2em;
-}
-
-.code {
-    font-family: monospace;
-    padding: 0.5em;
-    padding-left: 1em;
-    padding-right: 1em;
-    margin-left: 2em;
-    margin-right: auto;
-    margin-bottom:2.2em;
-    width:85%;
-    -moz-border-radius: 6px;
-    border-radius: 6px;
-    background-color: #e0e0f0;
-}
-
-.codekeyword {
-    color: #0000ff;
-}
-
-.codestring {
-    color: #800000;
-}
-
-.codeliteral {
-    color: #0000a0;
+.logo {
+    position: absolute;
+    margin: 14px;
 }
 
 .titleblock {
@@ -53,11 +29,11 @@ h1 {
     margin-bottom: 1.6em;
 */
     text-align: center;
-    font-size: 50pt;
+    font-size: 46pt;
 }
 
 .toplinks {
-    padding: 16px;
+    padding: 10px;
     text-align: center;
 }
 
@@ -79,6 +55,37 @@ h2 {
     color: #ffffff;
 }
 
+
+.prose {
+    margin-left: 2em;
+    margin-right: 2em;
+}
+
+.code {
+    font-family: monospace;
+    padding: 0.5em;
+    padding-left: 1em;
+    padding-right: 1em;
+    margin-left: 2em;
+    margin-right: auto;
+    margin-bottom:2.2em;
+    width:80%;
+    -moz-border-radius: 6px;
+    border-radius: 6px;
+    background-color: #e0e0f0;
+}
+
+.codekeyword {
+    color: #0000ff;
+}
+
+.codestring {
+    color: #800000;
+}
+
+.codeliteral {
+    color: #0000a0;
+}
 
 .signature {
 }

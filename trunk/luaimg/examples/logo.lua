@@ -7,7 +7,7 @@ logo = make(sz, 4, true, function(pos)
     local p = pos-sz/2
     local angle = deg(atan2(p.x, p.y))/360
     if #p > 240 then return bg_colour end
-    if #p > 232 and angle * 40 % 1 < 0.5 then return luaimg_colour end
+    if #p > 235 and angle * 40 % 1 < 0.5 then return luaimg_colour end
     if #p > 185 then return bg_colour end
     return luaimg_colour
 end)
@@ -20,5 +20,5 @@ end)
 logo:drawImageAt(shadow_colour*moon, sz*0.635)
 logo:drawImageAt(luaimg_colour*moon, sz*0.86)
 
-logo:scale(logo.size/4, "LANCZOS3"):save("logo.png")
+logo:scale(logo.size/5, "LANCZOS3"):save("logo.png")
 
