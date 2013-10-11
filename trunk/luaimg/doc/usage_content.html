@@ -1,0 +1,40 @@
+    <h2>Usage</h2>
+
+    <div class="prose">
+
+        <p>LuaImg is an interpreter that can be run in a variety of ways.  It
+can execute small snippets of lua code, e.g. from bash one can type:</p>
+
+        <div class='code'>$ luaimg -e 'make(vec(100,100),3,vec(1,0,0)):save("red_square.png")'</div>
+
+        <p>It can also execute a script file with the -f parameter:</p>
+
+        <div class='code'>$ luaimg -f myfile.lua</div>
+
+        <p>In fact it can execute multiple snippets and files in the order they
+appear.  Any remaining commandline parameters are available in the script as
+Lua varags.  The -- parameter causes all subsequent commandline arguments to be
+treated as script arguments, in the standard way.</p>
+
+        <div class='code'>$ luaimg -e 'print("foo")' -e 'print(...)' hello world<br />
+        foo<br />
+        hello&nbsp;&nbsp;&nbsp;&nbsp;world</div>
+
+
+        <p>The -i parameter enters an interactive shell where LuaImg script
+fragments can be typed.  This is extremely useful for debugging and rapid
+prototyping, and can be combined with the other parameters.</p>
+
+        <p>Finally, the -F parameter is a shorthand for -f --, and allows using
+a hashbang first line annotation for unix scripts.  These scripts can then have
+execute permissions and be run as regular programs (with their own commandline
+parameters.</p>
+
+        <div class='code'>#!/usr/bin/luaimg -F</div>
+
+        <p>See the examples directory in the repository for non-trivial
+programs.  In particular the logo (seen on this web site) is generated with the
+logo.lua script.</p>
+
+    </div>
+

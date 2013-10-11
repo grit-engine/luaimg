@@ -1,5 +1,12 @@
 include "docgen.lua"
 
+function file_as_string(name)
+    local file = io.open(name, "r")
+    local str = file:read("*all")
+    file:close()
+    return str
+end
+
 local examples = {
 
     {
@@ -52,8 +59,7 @@ my_mask:save("circle_a.png")]],
     {
         "Random RGB noise:",
         "random.png",
-[[
-function randvec() return vec(random(), random(), random()) end
+[[function randvec() return vec(random(), random(), random()) end
 my_noise = make(vec(64,64), 3, randvec)
 my_noise:save("random.png")]],
     },
@@ -61,8 +67,7 @@ my_noise:save("random.png")]],
     {
         "Random noise with gaussian blur.  The gaussian(n) function returns an nx1 image that represents a separated normalised gaussian blur kernel.  One can also use custom kernels by providing an image instead of using the result of gaussian() -- and these can be provided either in separated form, or as a general rectangular matrix.",
         "perlin.png",
-[[
-my_perlin = my_noise:convolveSep(gaussian(7), true, true)
+[[my_perlin = my_noise:convolveSep(gaussian(7), true, true)
 my_perlin:save("perlin.png")]],
     },
 
@@ -84,7 +89,7 @@ function generate_imgs()
 end
 
 function emit_examples(file)
-    file:write('    <h2>Examples</h2>\n')
+    file:write('    <h2>Script Language Examples</h2>\n')
     file:write('    <div class="prose">\n')
 
     for _,v in ipairs(examples) do
@@ -116,8 +121,6 @@ colours of size W*H, or a function that provides the colour at each pixel.]],
     { "return", "Image" },
 }
 
--- vec, vec2, vec3, vec4
-    
 doc { "function", "vec",
 
 [[Convert to a vector value, the number of arguments determine the size of the vector.]],
@@ -404,22 +407,16 @@ and the alpha channel is the old red channel.]],
 }
 
 
-function file_as_string(name)
-    local file = io.open(name, "r")
-    local str = file:read("*all")
-    file:close()
-    return str
-end
-
 function emit_title(file, title)
     file:write("    <div class='titleblock'>")
-    file:write("        <img class='logo' src='logo.png' />")
+    file:write("        <img class='logo' src='logo.png' alt='logo' />")
     file:write("        <h1>"..title.."</h1>")
     file:write("        <div class='toplinks'>")
-    file:write("            <a class=toplink href='index.html'>Overview</a>")
-    file:write("            <a class=toplink href='examples.html'>Examples</a>")
-    file:write("            <a class=toplink href='download.html'>Download</a>")
-    file:write("            <a class=toplink href='api.html'>API</a>")
+    file:write("            <a class='toplink' href='index.html'>Overview</a>")
+    file:write("            <a class='toplink' href='examples.html'>Examples</a>")
+    file:write("            <a class='toplink' href='download.html'>Download</a>")
+    file:write("            <a class='toplink' href='usage.html'>Usage</a>")
+    file:write("            <a class='toplink' href='api.html'>API</a>")
     file:write("        </div>")
     file:write("    </div>")
 end
@@ -445,6 +442,13 @@ file:write(file_as_string("download_content.html"))
 file:write(file_as_string("footer.html"))
 file:close()
 
+file = io.open("usage.html","w")
+file:write(file_as_string("header.html"))
+emit_title(file, "LuaImg")
+file:write(file_as_string("usage_content.html"))
+file:write(file_as_string("footer.html"))
+file:close()
+
 file = io.open("api.html","w")
 file:write(file_as_string("header.html"))
 emit_title(file, "LuaImg")
@@ -456,3 +460,8 @@ file:close()
 generate_imgs()
 
 include "../examples/logo.lua"
+
+-- Actually prepare zips
+-- gc problem
+-- drawImage that wraps
+-- draw line

@@ -7,8 +7,8 @@ for i=0,359 do
 end
 for i=1,10000 do
     local m = moneys[random(359)]
-    local pos = vec(random()*img.width,random()*img.height)
-    img:drawImage(m, pos-m.size/2)
+    local pos = vec(random(),random()) * img.size
+    img:drawImageAt(m, pos)
 end
 
 --sharpen
