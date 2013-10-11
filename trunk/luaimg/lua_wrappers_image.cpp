@@ -1677,6 +1677,30 @@ static int image_set (lua_State *L)
     return 0;
 }
 
+static int image_draw_image_at (lua_State *L)
+{
+    check_args(L,3);
+    ImageBase *dst = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    ImageBase *src = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+    float x_, y_;
+    lua_checkvector2(L, 3, &x_, &y_);
+    simglen_t x = x_ - src->width/2;
+    simglen_t y = y_ - src->height/2;
+    
+
+
+    if (!src->hasAlpha()) {
+        my_lua_error(L, "Can only draw images with alpha channels.");
+    }
+
+    if (src->channelsNonAlpha() != dst->channelsNonAlpha()) {
+        my_lua_error(L, "Can only draw onto image with same number of channels.");
+    }
+
+    dst->drawImage(src, x, y);
+    return 0;
+}
+
 static int image_draw_image (lua_State *L)
 {
     check_args(L,3);
@@ -1888,6 +1912,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_normalise);
     } else if (!::strcmp(key, "drawImage")) {
         lua_pushcfunction(L, image_draw_image);
+    } else if (!::strcmp(key, "drawImageAt")) {
+        lua_pushcfunction(L, image_draw_image_at);
     } else {
         chan_t nu_chans = strlen(key);
         if (nu_chans<=4) {
