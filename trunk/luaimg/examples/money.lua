@@ -1,4 +1,5 @@
-img = make(vec(1600,900),3,0)
+#!../luaimg -F
+img = make(vec(512,512),3,0)
 --vec4(vec(1,2,3),4)
 money = open("money.png"):map(4,true,function(c)return vec4(c.x,c.y,c.z,1)end)
 moneys = {}
@@ -8,10 +9,10 @@ end
 for i=1,10000 do
     local m = moneys[random(359)]
     local pos = vec(random(),random()) * img.size
-    img:drawImageAt(m, pos)
+    img:drawImage(m, pos, true, true)
 end
 
 --sharpen
-img = 2*img - img:convolveSep(gaussian(3))
+img = 2*img - img:convolveSep(gaussian(3), true, true)
 
-img:save("moneyimg.png")
+img:crop(vec(0,0),vec(2048,2048)):save("moneyimg.png")

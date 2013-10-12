@@ -43,10 +43,10 @@ circle:save("circle.png")]],
 
     {
         "Blend the circle image onto red.png:",
-        "circle_bg2.png",
+        "circle_bg_red.png",
 [[smaller = circle:scale(vec(32,32),"BICUBIC")
 blended = smaller .. open("red.png")
-blended:save("circle_bg2.png")]],
+blended:save("circle_bg_red.png")]],
     },
 
     {
@@ -400,9 +400,20 @@ and the alpha channel is the old red channel.]],
     {
         "method",
         "drawImage",
-        "Modify this image by drawing the other image onto it, in the given position.  If the other image has one more channel than this one, then alpha blend it using that alpha channel.  Otherwise the images must have the same number of channels, and the last channel is assumed to be an alpha channel in each case.",
+        "Draw another image on top of this image, in the position given.  Both images must have the same number of non-alpha channels.  The image being drawn on top must have an alpha channel but this image need not.  The two boolean parameters cause the other image to wrap around this image if it is drawn at the edges.  This is useful when creating wrappable textures.  The wrap parameters both default to false.",
         { "param", "other", "Image" },
         { "param", "bottom_left", "vector2" },
+        { "param", "wrap_x", "boolean", optional=true },
+        { "param", "wrap_y", "boolean", optional=true },
+    },
+    {
+        "method",
+        "drawImageAt",
+        "The same as drawImage but draws the image centered at the given location instead of with its bottom left corner at that location.  ",
+        { "param", "other", "Image" },
+        { "param", "pos", "vector2" },
+        { "param", "wrap_x", "boolean", optional=true },
+        { "param", "wrap_y", "boolean", optional=true },
     },
 }
 

@@ -1680,17 +1680,8 @@ static int image_set (lua_State *L)
     return 0;
 }
 
-static int image_draw_image_at (lua_State *L)
+static void draw_image_common (lua_State *L, ImageBase *dst, ImageBase *src, simglen_t x, simglen_t y, bool wrap_x, bool wrap_y)
 {
-    check_args(L,3);
-    ImageBase *dst = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    ImageBase *src = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
-    float x_, y_;
-    lua_checkvector2(L, 3, &x_, &y_);
-    simglen_t x = x_ - src->width/2;
-    simglen_t y = y_ - src->height/2;
-    
-
 
     if (!src->hasAlpha()) {
         my_lua_error(L, "Can only draw images with alpha channels.");
@@ -1700,28 +1691,60 @@ static int image_draw_image_at (lua_State *L)
         my_lua_error(L, "Can only draw onto image with same number of channels.");
     }
 
-    dst->drawImage(src, x, y);
+    dst->drawImage(src, x, y, wrap_x, wrap_y);
+}
+
+static int image_draw_image_at (lua_State *L)
+{
+    bool wrap_x = false;
+    bool wrap_y = false;
+    simglen_t x, y;
+    ImageBase *dst, *src;
+
+    if (lua_gettop(L) == 5) {
+        dst = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        src = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+        float x_, y_;
+        lua_checkvector2(L, 3, &x_, &y_);
+        x = x_ - src->width/2;
+        y = y_ - src->height/2;
+        wrap_x = check_bool(L, 4);
+        wrap_y = check_bool(L, 5);
+    } else {
+        check_args(L,3);
+        dst = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        src = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+        float x_, y_;
+        lua_checkvector2(L, 3, &x_, &y_);
+        x = x_ - src->width/2;
+        y = y_ - src->height/2;
+    }
+
+    draw_image_common(L, dst, src, x, y, wrap_x, wrap_y);
     return 0;
 }
 
 static int image_draw_image (lua_State *L)
 {
-    check_args(L,3);
-    ImageBase *dst = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    ImageBase *src = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
-    simglen_t x;
-    simglen_t y;
-    check_scoord(L, 3, x, y);
+    bool wrap_x = false;
+    bool wrap_y = false;
+    simglen_t x, y;
+    ImageBase *dst, *src;
 
-    if (!src->hasAlpha()) {
-        my_lua_error(L, "Can only draw images with alpha channels.");
+    if (lua_gettop(L) == 5) {
+        dst = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        src = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+        check_scoord(L, 3, x, y);
+        wrap_x = check_bool(L, 4);
+        wrap_y = check_bool(L, 5);
+    } else {
+        check_args(L,3);
+        dst = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        src = check_ptr<ImageBase>(L, 2, IMAGE_TAG);
+        check_scoord(L, 3, x, y);
     }
 
-    if (src->channelsNonAlpha() != dst->channelsNonAlpha()) {
-        my_lua_error(L, "Can only draw onto image with same number of channels.");
-    }
-
-    dst->drawImage(src, x, y);
+    draw_image_common(L, dst, src, x, y, wrap_x, wrap_y);
     return 0;
 }
 

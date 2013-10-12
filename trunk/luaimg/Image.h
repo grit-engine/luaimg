@@ -257,7 +257,7 @@ class ImageBase {
     virtual ImageBase *rotate (float angle, const ColourBase *bg_) const = 0;
     virtual ImageBase *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const ColourBase *bg) const = 0;
 
-    virtual void drawImage (const ImageBase *src_, simglen_t left, simglen_t bottom) = 0;
+    virtual void drawImage (const ImageBase *src_, simglen_t left, simglen_t bottom, bool wrap_x, bool wrap_y) = 0;
     virtual ImageBase *convolve (const Image<1,0> *kernel, bool wrap_x, bool wrap_y) const = 0;
 
 };
@@ -465,23 +465,27 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         return static_cast<Image<ch,ach>*>(ImageBase::scale(w,h, filter));
     }
 
-    void drawImage (const ImageBase *src_, simglen_t left, simglen_t bottom)
+    void drawImage (const ImageBase *src_, simglen_t left, simglen_t bottom, bool wrap_x, bool wrap_y)
     {
         const Image<ch,1> *src = static_cast<const Image<ch,1>*>(src_);
         uimglen_t w = src->width;
         uimglen_t h = src->height;
 
-        // ignore pixels that go off the left of the image
-        uimglen_t crop_left = left<0 ? -left : 0;
-        uimglen_t crop_bottom = bottom<0 ? -bottom : 0;
-
-        // ignore pixels that go off the top or right
-        if (left+w > width) w = width - left;
-        if (bottom+h > height) h = height - bottom;
-
-        for (uimglen_t y=crop_bottom ; y<h ; ++y) {
-            for (uimglen_t x=crop_left ; x<w ; ++x) {
-                this->pixel(x+left,y+bottom) = colour_blend(src->pixel(x,y), this->pixel(x+left,y+bottom));
+        for (uimglen_t y=0 ; y<h ; ++y) {
+            for (uimglen_t x=0 ; x<w ; ++x) {
+                simglen_t dst_x = x + left;
+                simglen_t dst_y = y + bottom;
+                if (wrap_x) {
+                    dst_x = mymod(dst_x, width);
+                } else {
+                    if (dst_x < 0 || uimglen_t(dst_x) >= width) break;
+                }
+                if (wrap_y) {
+                    dst_y = mymod(dst_y, height);
+                } else {
+                    if (dst_y < 0 || uimglen_t(dst_y) >= height) break;
+                }
+                this->pixel(dst_x,dst_y) = colour_blend(src->pixel(x,y), this->pixel(dst_x,dst_y));
             }
         }
     }
