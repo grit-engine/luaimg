@@ -79,6 +79,10 @@ h2 {
     color: #0000ff;
 }
 
+.codecomment {
+    color: #008000;
+}
+
 .codestring {
     color: #800000;
 }
