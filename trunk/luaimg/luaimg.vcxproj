@@ -108,7 +108,7 @@
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>copy "$(TargetPath)" "$(SolutionDir)grit_core\media\Tools\luaimg.exe"</Command>
+      <Command>copy "$(TargetPath)" "$(SolutionDir)luaimg\luaimg.exe"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
