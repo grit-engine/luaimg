@@ -162,7 +162,7 @@ Colour<ch2,ach2> colour_zip (const Colour<ch1,ach1> &a, const Colour<ch2, ach2> 
     return r;
 }
 
-// regular compose op -- simple alpha blend
+// regular compose op -- simple alpha blend (a on top of b)
 template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
 Colour<ch2,ach2> colour_blend (const Colour<ch1,ach1> &a, const Colour<ch2,ach2> &b)
 {
@@ -256,6 +256,8 @@ class ImageBase {
     virtual ImageBase *scale (uimglen_t width, uimglen_t height, ScaleFilter filter) const;
     virtual ImageBase *rotate (float angle, const ColourBase *bg_) const = 0;
     virtual ImageBase *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const ColourBase *bg) const = 0;
+
+    virtual void drawLine (uimglen_t x0, uimglen_t y0, uimglen_t x1, uimglen_t y1, uimglen_t w, const ColourBase *colour) = 0;
 
     virtual void drawImage (const ImageBase *src_, simglen_t left, simglen_t bottom, bool wrap_x, bool wrap_y) = 0;
     virtual ImageBase *convolve (const Image<1,0> *kernel, bool wrap_x, bool wrap_y) const = 0;
@@ -463,6 +465,82 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
     Image<ch,ach> *scale (uimglen_t w, uimglen_t h, ScaleFilter filter) const
     {
         return static_cast<Image<ch,ach>*>(ImageBase::scale(w,h, filter));
+    }
+
+    // Bresenham
+    void drawLine (uimglen_t x0, uimglen_t y0, uimglen_t x1, uimglen_t y1, uimglen_t w, const ColourBase *colour_)
+    {
+        const Colour<ch,ach> &colour = *static_cast<const Colour<ch,ach>*>(colour_);
+
+        simglen_t dx = ::abs(x1-x0);
+        simglen_t dy = ::abs(y1-y0);
+        simglen_t sx = x0 < x1 ? 1 : -1;
+        simglen_t sy = y0 < y1 ? 1 : -1;
+        simglen_t err = dx-dy;
+ 
+        while (true) {
+            this->pixel(x0,y0) = colour_blend(colour, this->pixel(x0,y0));
+            if (x0 == x1 && y0 == y1) break;
+            if (2*err > -dy) {
+                err -= dy;
+                x0 += sx;
+            }
+            if (x0 == x1 && y0 == y1) {
+                this->pixel(x0,y0) = colour_blend(colour, this->pixel(x0,y0));
+                break;
+            }
+            if (2*err < dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+
+/*
+        simglen_t dx = x1-x0;
+        simglen_t dy = y1-y0;
+
+        // assume abs(dy) > abs(dx)
+
+        int du = abs(dx);
+        int dv = abs(dy);
+        int u = x1;
+        int v = y1;
+        int uincr = 4;
+        int vincr = 640*4;
+        if (dx < 0) uincr = -uincr;
+        if (dy < 0) vincr = -vincr;
+
+        int uend = u + 2 * du;
+        int d = (2 * dv) - du;      // Initial value as in Bresenham's 
+        int incrS = 2 * dv; // Δd for straight increments 
+        int incrD = 2 * (dv - du);  // Δd for diagonal increments 
+        int twovdu = 0; // Numerator of distance; starts at 0 
+        double invD = 1.0 / (2.0*sqrt(du*du + dv*dv));   // Precomputed inverse denominator 
+        double invD2du = 2.0 * (du*invD);   // Precomputed constant 
+        do {
+            // TODO: 
+            float alpha = twovdu*invD;
+            DrawPixelD(addr, alpha);
+            DrawPixelD(addr + vincr, invD2du - twovdu*invD);
+            DrawPixelD(addr - vincr, invD2du + twovdu*invD);
+
+            if (d < 0) {
+                // choose straight (u direction)
+                twovdu = d + du;
+                d = d + incrS;
+            } else {
+                // choose diagonal (u+v direction)
+                twovdu = d - du;
+                d = d + incrD;
+                v = v+1;
+                addr = addr + vincr;
+            }
+            u = u+1;
+            addr = addr+uincr;
+
+        } while (u < uend);
+*/
+
     }
 
     void drawImage (const ImageBase *src_, simglen_t left, simglen_t bottom, bool wrap_x, bool wrap_y)

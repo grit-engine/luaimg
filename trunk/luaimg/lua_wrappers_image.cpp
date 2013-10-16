@@ -1529,6 +1529,20 @@ static int image_scale (lua_State *L)
     return 1;
 }
 
+static int image_scale_by (lua_State *L)
+{
+    check_args(L, 3);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    float x_, y_;
+    lua_checkvector2(L, 2, &x_, &y_);
+    uimglen_t width = x_ * self->width;
+    uimglen_t height = y_ * self->height;
+    std::string filter_type = luaL_checkstring(L, 3);
+    ImageBase *out = self->scale(width, height, scale_filter_from_string(L, filter_type));
+    push_image(L, out);
+    return 1;
+}
+
 static int image_rotate (lua_State *L)
 {
     if (lua_gettop(L) == 2) {
@@ -1724,6 +1738,21 @@ static int image_draw_image_at (lua_State *L)
     return 0;
 }
 
+static int image_draw_line (lua_State *L)
+{
+    check_args(L,5);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    uimglen_t x0, y0;
+    uimglen_t x1, y1;
+    check_coord(L, 2, x0, y0);
+    check_coord(L, 3, x1, y1);
+    uimglen_t w = check_t<uimglen_t>(L, 4);
+    ColourBase *colour = alloc_colour(L, self->channels(), self->hasAlpha(), 5);
+    self->drawLine(x0, y0, x1, y1, w, colour);
+    delete colour;
+    return 0;
+}
+
 static int image_draw_image (lua_State *L)
 {
     bool wrap_x = false;
@@ -1910,6 +1939,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_crop);
     } else if (!::strcmp(key, "scale")) {
         lua_pushcfunction(L, image_scale);
+    } else if (!::strcmp(key, "scaleBy")) {
+        lua_pushcfunction(L, image_scale_by);
     } else if (!::strcmp(key, "rotate")) {
         lua_pushcfunction(L, image_rotate);
     } else if (!::strcmp(key, "clone")) {
@@ -1936,6 +1967,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_convolve_sep);
     } else if (!::strcmp(key, "normalise")) {
         lua_pushcfunction(L, image_normalise);
+    } else if (!::strcmp(key, "drawLine")) {
+        lua_pushcfunction(L, image_draw_line);
     } else if (!::strcmp(key, "drawImage")) {
         lua_pushcfunction(L, image_draw_image);
     } else if (!::strcmp(key, "drawImageAt")) {
