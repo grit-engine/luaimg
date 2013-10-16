@@ -1,4 +1,5 @@
 #!../luaimg -F 
+
 local sz = vec(345, 18)
 
 make(sz, 3, function(pos) return HSVtoRGB(vec(pos.x/(sz.x-1),1,1)) end):save("bg_hue.png")

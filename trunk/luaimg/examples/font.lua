@@ -1,3 +1,5 @@
+#!../luaimg
+
 old_width = 0
 old_height = 0
 old_codepoints = nil
