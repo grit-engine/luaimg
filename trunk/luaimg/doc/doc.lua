@@ -420,7 +420,7 @@ and the alpha channel is the old red channel.]],
 
 function emit_title(file, title)
     file:write("    <div class='titleblock'>")
-    file:write("        <img class='logo' src='logo.png' alt='logo' />")
+    file:write("        <img class='logo' src='logo_large.png' alt='logo' />")
     file:write("        <h1>"..title.."</h1>")
     file:write("        <div class='toplinks'>")
     file:write("            <a class='toplink' href='index.html'>Overview</a>")

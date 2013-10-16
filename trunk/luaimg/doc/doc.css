@@ -10,7 +10,7 @@ body {
 
 .logo {
     position: absolute;
-    margin: 14px;
+    margin-left: 12px;
 }
 
 .titleblock {
@@ -23,6 +23,7 @@ body {
 
 h1 {
     margin: 0;
+    margin-left: 64px;
     padding-top: 16px;
 /*
     margin-top: 2em;
@@ -33,6 +34,7 @@ h1 {
 }
 
 .toplinks {
+    margin-left: 128px;
     padding: 10px;
     text-align: center;
 }

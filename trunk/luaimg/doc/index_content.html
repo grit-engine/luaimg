@@ -3,12 +3,12 @@
     <div class="prose">
 
         <p>LuaImg is an open source programming framework for scripted (i.e.
-non-interactive) image manipulation.  It has been used for detecting northern
-lights in photos of the sky, creating gui skins, fonts, and special textures
-for computer games, extracting alpha masks from photos, fractals, and more.  As
-with any programming framework, LuaImg is most appropriate for complex,
-precise, or repetitive tasks that are too difficult  or time-consuming to
-achieve without programming.</p>
+non-interactive) image manipulation.  It has been used for a variety of tasks,
+including detecting aurorae in photos, creating skins/fonts/textures for
+computer games, extracting alpha masks from blended images, experimenting with
+fractals, and more.  As an image programming framework, LuaImg is ideal for
+complex, precise, or repetitive tasks that are too difficult or time-consuming
+to do in photoshop/gimp.</p>
 
         <p>LuaImg supports full HDR, since all images are stored in single
 precision floating point.  Images are manipulated with a powerful yet
@@ -17,7 +17,7 @@ href="http://www.lua.org/">Lua</a> fork from the <a
 href="http://www.gritengine.com/">Grit</a> project).  Image operations are
 consistent with layer blending modes from Gimp/Photoshop (but extended for
 HDR), mathematical operators are available, as well as convolutions,
-transformations, and shader-like per-pixel mapping.</p>
+transformations, and per-pixel computations inspired by shader programming.</p>
 
         <p>LuaImg strives firstly to allow all forms of image manipulation,
 secondly to be easy to use, and finally to be fast (e.g. via the customised Lua
@@ -61,7 +61,7 @@ vector provides its length (Euclidian length, i.e. Pythagoras).  </p>
     <div class="prose">
 
         <p>All of the math functions have been moved out of the math package
-into global scope.Some of the standard Lua math functions (pow, ceil, floor,
+into global scope.  Some of the standard Lua math functions (pow, ceil, floor,
 abs, clamp) have been adapted to also support vector values, but the rest still
 operate on number only.  The unpack function will convert vectors to their
 components. Additional functions like dot product, etc, are described in the
