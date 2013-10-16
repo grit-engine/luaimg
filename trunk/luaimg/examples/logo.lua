@@ -1,18 +1,25 @@
-local sz = vec(512,512)
+#!../luaimg
+
+local sz = vec(128,128)
+local function inside_rect(p, b)
+    return abs(p.x) <= b.x and abs(p.y) <= b.y
+end
+local d0,d1,d2 = vec(40,30),12,15
 logo = make(sz, 4, true, function(pos)
     local p = pos-sz/2
-    if #p > 242 then return 0 end
-    if #p > 235 and deg(atan2(p.x, p.y)) * 40/360 % 1 < 0.5 then return 1 end
-    if #p > 185 then return 0 end
-    return 1
+    if inside_rect(p, d0) then return 1 end
+    if inside_rect(p, vec(d1,d1)+d0) then return 0 end
+    if inside_rect(p, vec(d2,d2)+d0) and ((p.x/10+0.25) % 1 >= .5) ~= ((p.y/10+0.25) % 1 >= .5) then return 1 end
+    return 0
 end)
 
-local moon_sz = vec(1,1)*120
-local moon = make(moon_sz, 4, true, function(pos)
-    local p = (pos/moon_sz-vec(0.5,0.5))*2
-    return #p <= 1 and 1 or 0
-end)
-logo:drawImageAt(0*moon, sz*0.635)
-logo:drawImageAt(moon, sz*0.86)
+local moon = make(vec(16,16), 4, true, 1)
+logo:drawImageAt(0*moon, vec(88,78))
+logo:drawImageAt(moon, vec(117,107))
 
-logo:scale(logo.size/5, "LANCZOS3"):save("logo.png")
+logo = logo .. vec(48,80,112)/255
+
+logo:scale(logo.size/2, "BOX"):save("logo_med.png")
+logo:scale(logo.size/2, "BOX"):crop(vec(32,32),vec(32,32)):save("logo_small.png")
+logo:scale(logo.size/2, "BOX"):crop(vec(32,32),vec(32,32)):scale(vec(16,16),"BOX"):save("logo_tiny.png")
+logo:save("logo_large.png")
