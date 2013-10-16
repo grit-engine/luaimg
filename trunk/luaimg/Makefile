@@ -19,6 +19,45 @@ depend:
 	makedepend -Y -f Makefile $(SOURCE) -I depend_stubs
 	sed -i 's/^[a-zA-Z_]*[.]o:/luaimg:/g' Makefile
 
+PACKAGED = \
+    luaimg \
+    doc/logo_large.png \
+    doc/logo_med.png \
+    doc/logo_small.png \
+    doc/logo_tiny.png \
+    doc/noise_hifreq.png \
+    doc/perlin.png \
+    doc/random.png \
+    doc/red.png \
+    doc/circle_bg_red.png \
+    doc/circle.png \
+    doc/circle_bg.png \
+    doc/circle_a.png \
+    doc/index.html \
+    doc/examples.html \
+    doc/download.html \
+    doc/usage.html \
+    doc/api.html \
+    doc/doc.css \
+    examples/colour_map.lua \
+    examples/colour_map_scurve.lua \
+    examples/compass_ticks.lua \
+    examples/convolve.lua \
+    examples/drawimage.lua \
+    examples/font.lua \
+    examples/gui_colourpicker.lua \
+    examples/gui_slider_tex.lua \
+    examples/logo.lua \
+    examples/mandelbrot.lua \
+    examples/money.lua \
+    examples/northern_lights.lua \
+    examples/unblend.lua \
+
+%.tar.bz2: $(PACKAGED)
+	tar -cjvf $@ $(PACKAGED)
+
+%.zip: $(PACKAGED)
+	zip $@ $(PACKAGED)
 
 clean:
 	rm -fv luaimg
