@@ -472,8 +472,8 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
     {
         const Colour<ch,ach> &colour = *static_cast<const Colour<ch,ach>*>(colour_);
 
-        simglen_t dx = ::abs(x1-x0);
-        simglen_t dy = ::abs(y1-y0);
+        simglen_t dx = ::abs(int(x1-x0));
+        simglen_t dy = ::abs(int(y1-y0));
         simglen_t sx = x0 < x1 ? 1 : -1;
         simglen_t sy = y0 < y1 ? 1 : -1;
         simglen_t err = dx-dy;
