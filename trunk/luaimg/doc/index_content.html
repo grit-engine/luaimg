@@ -6,9 +6,11 @@
 non-interactive) image manipulation.  It has been used for a variety of tasks,
 including detecting aurorae in photos, creating skins/fonts/textures for
 computer games, extracting alpha masks from blended images, experimenting with
-fractals, and more.  As an image programming framework, LuaImg is ideal for
-complex, precise, or repetitive tasks that are too difficult or time-consuming
-to do in photoshop/gimp.</p>
+fractals, and more.</p>
+
+        <p>As an image programming framework, LuaImg is ideal for complex,
+precise, or repetitive tasks that are too difficult or time-consuming to do in
+photoshop/gimp.</p>
 
         <p>LuaImg supports full HDR, since all images are stored in single
 precision floating point.  Images are manipulated with a powerful yet
@@ -23,49 +25,41 @@ transformations, and per-pixel computations inspired by shader programming.</p>
 secondly to be easy to use, and finally to be fast (e.g. via the customised Lua
 VM).  Complex image processing algorithms can be expressed in a natural way
 through combinations of simple operations.  Performance does not match cleverly
-optimised C++ code but is good enough.  A 5760x3840 image can be processed
-pixel-by-pixel with custom Lua code in a few seconds.</p>
-
-        <p>LuaImg is similar to ImageMagick and netpbm.  However, those tools
-encourage the use of shell programming to glue everything together.  They are
-also more limited in their programmability.  LuaImg is more like sed or awk, in
-that a single LuaImg process allows an arbitrary amount of manipulation on any
-number of images using a general-purpose scripting language.</p>
+optimised C++ code but is still good.  A 5760x3840 image can be processed
+with per-pixel scripting in a few seconds.</p>
 
     </div>
 
-    <h2>Types</h2>
+    <h2>Gallery</h2>
+
+    <img src="money.png" /> <img src="lena_blueprint.png" /> <img src="bresenham_pattern.png" />
+
+    <h2>Language</h2>
 
     <div class="prose">
 
-        <p>LuaImg has all the types from regular Lua (number, boolean, string, function, table, and the nil type).</p>
+        <p>LuaImg is an extension of the Lua language.  The additional features
+provide good performance for computaiton involving compound floating point types
+(colours, coordinates, etc).  The VM supports such types as primitives, instead
+of heap allocated and garbage collected objects.</p>
 
-        <p>In addition, it has a number of compound value types.  This is
-important because they  do not incur any memory allocation or garbage
-collection overhead.  These types are vector2, vector3, and vector4, which are
-useful for representing coordinates and colours.  (There is also a quaternion
-type which is arguably less useful in this context.)  These values appear in
-code e.g., as vec(10,20) or vec(1,2,3,4).  Individual fields can be accessed
-using .x, .y, .z, or .w field accesses (the fields can be read but not
-written).  It is also possible to swizzle, e.g., .xyz will produce a vector3,
-.xz will produce a vector2, etc.</p>
+        <p>These types are vector2, vector3, and vector4, the number
+representing the dimensionality.  Literal values of these types look like
+vec(10,20) or vec(1,2,3,4).  Individual fields can be accessed using .x, .y,
+.z, or .w field accesses (the fields can be read but not written).  It is also
+possible to swizzle, e.g., .xyz will produce a vector3, .xz will produce a
+vector2, etc.</p>
 
         <p>Arithmetic operations on the vector types operate in a point-wise
 manner, e.g.  vec(1,2,3) * vec(-1,2,1) = vec(-1,4,3).  The # operator on a
-vector provides its length (Euclidian length, i.e. Pythagoras).  </p>
+vector provides its Euclidian length (Pythagoras).  </p>
 
-    </div>
-
-    <h2>Other differences from Stock Lua</h2>
-
-    <div class="prose">
-
-        <p>All of the math functions have been moved out of the math package
-into global scope.  Some of the standard Lua math functions (pow, ceil, floor,
-abs, clamp) have been adapted to also support vector values, but the rest still
-operate on number only.  The unpack function will convert vectors to their
-components. Additional functions like dot product, etc, are described in the
-LuaImg API documentation.  </p>
+        <p>Additionally, since most image manipulation involves math, all of
+the math functions have been made available in global scope and some of them
+have been lifted to operate on vector values (pow, ceil, floor, abs, clamp).
+The unpack function will convert vectors to their components.  Additional
+functions like dot product, etc, are described in the LuaImg <a
+href='api.html'>API</a> documentation.  </p>
 
     </div>
 
