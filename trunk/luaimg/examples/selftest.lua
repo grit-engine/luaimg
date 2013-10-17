@@ -1,3 +1,7 @@
+#!../luaimg -F
+
+-- Conduct a number of automatic tests that attempt to validate the LuaImg implementation.
+
 errors = {}
 num_success = 0
 function append_error(str)
