@@ -21,6 +21,7 @@ depend:
 
 PACKAGED = \
     luaimg \
+    luaimg.exe \
     doc/logo_large.png \
     doc/logo_med.png \
     doc/logo_small.png \
@@ -39,22 +40,26 @@ PACKAGED = \
     doc/usage.html \
     doc/api.html \
     doc/doc.css \
+    examples/lena.jpg \
     examples/colour_map.lua \
     examples/colour_map_scurve.lua \
     examples/compass_ticks.lua \
-    examples/convolve.lua \
-    examples/drawimage.lua \
+    examples/lena_blueprint.lua \
     examples/font.lua \
     examples/gui_colourpicker.lua \
     examples/gui_slider_tex.lua \
     examples/logo.lua \
     examples/mandelbrot.lua \
+    examples/money_input.png \
     examples/money.lua \
     examples/northern_lights.lua \
     examples/unblend.lua \
 
+LI_PACKAGED = 
+
 %.tar.bz2: $(PACKAGED)
-	tar -cjvf $@ $(PACKAGED)
+	ln -sf . $(shell basename $@ .tar.bz2)
+	tar  -cjvf $@ $(patsubst %,$(shell basename $@ .tar.bz2)/%,$(PACKAGED))
 
 %.zip: $(PACKAGED)
 	zip $@ $(PACKAGED)
@@ -84,3 +89,5 @@ luaimg: depend_stubs/lua.h depend_stubs/lauxlib.h
 luaimg: depend_stubs/lualib.h lua_wrappers_image.h Image.h
 luaimg: depend_stubs/cinttypes depend_stubs/cmath
 luaimg: depend_stubs/ostream
+
+# vim: noet:ts=8:sw=8
