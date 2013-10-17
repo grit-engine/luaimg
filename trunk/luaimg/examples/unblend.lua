@@ -1,5 +1,10 @@
 #!../luaimg -F
 
+-- Given an image and a colour, produce a new image that when blended on top of
+-- the colour, produces the original image.  Minimise the alpha channel of the
+-- generated image.  This allows the extraction of an alpha mask from a blended
+-- image in some circumstances.
+
 args = {...}
 
 if #args ~= 5 then

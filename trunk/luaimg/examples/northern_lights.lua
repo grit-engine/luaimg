@@ -1,5 +1,8 @@
 #!../luaimg -F
 
+-- Score pixels based on how much their colour is like the colour of northern lights.
+-- Score images based on their summed pixel score.
+
 northern_lights_threshold = 25000
 
 function is_northern_lights(pix)

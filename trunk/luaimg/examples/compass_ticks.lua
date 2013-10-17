@@ -1,5 +1,9 @@
 #!../luaimg -F 
 
+
+-- Create a texture basis for a compass widget
+
+
 -- drawn at this size
 local sz = vec(2048, 2048)
 

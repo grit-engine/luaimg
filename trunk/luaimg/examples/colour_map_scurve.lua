@@ -1,5 +1,8 @@
 #!../luaimg -F
 
+-- Create a colour grade LUT that brings out more contrast in the midtones.
+-- This grading used to be hardcoded into the Grit shaders before I added arbitrary LUT support.
+
 local sz = 32
 
 local neutral = make(vec(sz*sz, sz), 3, function(pos) return vec(pos.x % sz, sz - pos.y - 1, floor(pos.x / sz)) / (sz-1) end)

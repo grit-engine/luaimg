@@ -1,8 +1,8 @@
 #!../luaimg -F
 
--- Create a seamless texture that resembles a floor buried in 20 dollar bills
+-- Create a seamless texture that resembles a floor buried in 20 dollar bills.
 
-money = open("money.png")
+money = open("money_input.png")
 
 -- precompute an image for every degree of rotation, choosing a random source bill from the money texture
 moneys = {}
@@ -15,14 +15,14 @@ for i=0,359 do
 end
 
 -- allocate the resulting image
-img = make(vec(1024,1024),3,0)
-for i=1,10000 do
+img = make(vec(512,512),3,0)
+for i=1,1000 do
     local m = moneys[random(359)]
     local pos = vec(random(),random()) * img.size
     img:drawImage(m, pos, true, true)
 end
 
 --sharpen using unsharp mask technique
-img = img + 0.5*(img - img:convolveSep(gaussian(7), true, true))
+img = img + 0.5*(img - img:convolveSep(gaussian(5), true, true))
 
-img:save("moneyimg.png")
+img:scale(vec(256,256),"BOX"):save("moneyimg.png")

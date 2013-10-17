@@ -1,5 +1,7 @@
 #!../luaimg
 
+-- Experiment with the misc.fixed font used by Grit.
+
 old_width = 0
 old_height = 0
 old_codepoints = nil

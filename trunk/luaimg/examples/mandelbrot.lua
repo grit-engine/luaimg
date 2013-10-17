@@ -1,5 +1,7 @@
 #!../luaimg -F
 
+-- A script for generating mandelbrot images.
+
 mb = nil
 
 function mb_generate (w, iters)

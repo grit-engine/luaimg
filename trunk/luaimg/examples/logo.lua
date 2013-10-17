@@ -1,4 +1,6 @@
-#!../luaimg
+#!../luaimg -F
+
+-- Generate the LuaImg logo.
 
 local sz = vec(128,128)
 local function inside_rect(p, b)
