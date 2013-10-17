@@ -25,4 +25,4 @@ end
 --sharpen using unsharp mask technique
 img = img + 0.5*(img - img:convolveSep(gaussian(5), true, true))
 
-img:scale(vec(256,256),"BOX"):save("moneyimg.png")
+img:scale(vec(256,256),"BOX"):save("money.png")
