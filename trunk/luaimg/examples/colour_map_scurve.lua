@@ -11,7 +11,7 @@ local scurve = neutral:map(3, function(c)
     -- decode gamma
     c = c ^ 2.2
 
-    c = c *  c * (vec(3,3,3) - vec(2,2,2)*c)
+    c = c *  c * (3 - 2*c)
 
     -- encode gamma
     c = c ^ (1/2.2)

@@ -240,81 +240,42 @@ template<> bool check_colour<3,1> (lua_State *L, Colour<3,1> &p, int index)
     return true;
 }
 
+template<chan_t ch, chan_t ach>
+ColourBase *alloc_colour_template (lua_State *L, int index)
+{
+    Colour<ch,ach> *r = new Colour<ch,ach>();
+    if (!check_colour(L, *r, index)) {
+        delete r;
+        my_lua_error(L, "Expected a colour with "+str(ch+ach)
+                        +" elements, got "+type_name(L,index));
+        return NULL;
+    }
+    return r;
+}
+
 ColourBase *alloc_colour (lua_State *L, int ch, bool alpha, int index)
 {
     switch (ch) {
-        case 1: {
-			Colour<1,0> *r = new Colour<1,0>();
-			if (!check_colour(L, *r, index)) {
-				delete r;
-				my_lua_error(L, "Expected a colour with "+str(ch)
-								+" elements, got "+type_name(L,index));
-				return NULL;
-			}
-			return r;
-		}
-
+        case 1: return alloc_colour_template<1,0>(L,index);
         case 2:
         if (alpha) {
-            Colour<1,1> *r = new Colour<1,1>();
-            if (!check_colour(L, *r, index)) {
-                delete r;
-                my_lua_error(L, "Expected a colour with "+str(ch)
-                               +" elements, got "+type_name(L,index));
-                return NULL;
-            }
-            return r;
+            return alloc_colour_template<2,0>(L,index);
         } else {
-            Colour<2,0> *r = new Colour<2,0>();
-            if (!check_colour(L, *r, index)) {
-                delete r;
-                my_lua_error(L, "Expected a colour with "+str(ch)
-                               +" elements, got "+type_name(L,index));
-                return NULL;
-            }
-            return r;
+            return alloc_colour_template<1,1>(L,index);
         }
 
         case 3:
         if (alpha) {
-            Colour<2,1> *r = new Colour<2,1>();
-            if (!check_colour(L, *r, index)) {
-                delete r;
-                my_lua_error(L, "Expected a colour with "+str(ch)
-                               +" elements, got "+type_name(L,index));
-                return NULL;
-            }
-            return r;
+            return alloc_colour_template<3,0>(L,index);
         } else {
-            Colour<3,0> *r = new Colour<3,0>();
-            if (!check_colour(L, *r, index)) {
-                delete r;
-                my_lua_error(L, "Expected a colour with "+str(ch)
-                               +" elements, got "+type_name(L,index));
-                return NULL;
-            }
-            return r;
+            return alloc_colour_template<2,1>(L,index);
         }
 
         case 4:
         if (alpha) {
-            Colour<3,1> *r = new Colour<3,1>();
-            if (!check_colour(L, *r, index)) {
-                delete r;
-                my_lua_error(L, "Expected a colour with "+str(ch)
-                               +" elements, got "+type_name(L,index));
-                return NULL;
-            }
-            return r;
+            return alloc_colour_template<4,0>(L,index);
         } else {
-            Colour<4,0> *r = new Colour<4,0>();
-            if (!check_colour(L, *r, index)) {
-                delete r;
-                my_lua_error(L, "Expected a colour with "+str(ch)
-                               +" elements, got "+type_name(L,index));
-                return NULL;
-            }
-            return r;
+            return alloc_colour_template<3,1>(L,index);
         }
 
         default:
@@ -1533,8 +1494,17 @@ static int image_scale_by (lua_State *L)
 {
     check_args(L, 3);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    float x_, y_;
-    lua_checkvector2(L, 2, &x_, &y_);
+    float x_=0, y_=0;
+    switch (lua_type(L,2)) {
+        case LUA_TNUMBER:
+        x_ = y_ = lua_tonumber(L,2);
+        break;
+        case LUA_TVECTOR2:
+        lua_checkvector2(L, 2, &x_, &y_);
+        break;
+        default:
+        my_lua_error(L, "Scale must be a number or vector2 (got "+type_name(L,2)+")");
+    }
     uimglen_t width = x_ * self->width;
     uimglen_t height = y_ * self->height;
     std::string filter_type = luaL_checkstring(L, 3);
@@ -1623,7 +1593,7 @@ static int image_abs (lua_State *L)
     return 1;
 }
 
-static int image_set (lua_State *L)
+static int image_draw (lua_State *L)
 {
     check_args(L,3);
     uimglen_t x;
@@ -1747,7 +1717,13 @@ static int image_draw_line (lua_State *L)
     check_coord(L, 2, x0, y0);
     check_coord(L, 3, x1, y1);
     uimglen_t w = check_t<uimglen_t>(L, 4);
-    ColourBase *colour = alloc_colour(L, self->channels(), self->hasAlpha(), 5);
+    if (w == 0) my_lua_error(L, "Cannot draw a line with width of 0");
+    ColourBase *colour = NULL;
+    if (self->hasAlpha()) {
+        colour = alloc_colour(L, self->channels(), true, 5);
+    } else {
+        colour = alloc_colour(L, self->channels()+1, true, 5);
+    }
     self->drawLine(x0, y0, x1, y1, w, colour);
     delete colour;
     return 0;
@@ -1955,8 +1931,6 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_mean_diff);
     } else if (!::strcmp(key, "abs")) {
         lua_pushcfunction(L, image_abs);
-    } else if (!::strcmp(key, "set")) {
-        lua_pushcfunction(L, image_set);
     } else if (!::strcmp(key, "max")) {
         lua_pushcfunction(L, image_max);
     } else if (!::strcmp(key, "min")) {
@@ -1967,6 +1941,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_convolve_sep);
     } else if (!::strcmp(key, "normalise")) {
         lua_pushcfunction(L, image_normalise);
+    } else if (!::strcmp(key, "draw")) {
+        lua_pushcfunction(L, image_draw);
     } else if (!::strcmp(key, "drawLine")) {
         lua_pushcfunction(L, image_draw_line);
     } else if (!::strcmp(key, "drawImage")) {

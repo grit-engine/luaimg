@@ -20,7 +20,7 @@ function print_errors()
 end
 
 function require_close(name, a,b, thresh)
-    if abs(a/b - 1) > thresh then
+    if #(a/b - 1) > thresh then
         append_error(name..": Expected these to be approximately equal: "..tostring(a).." and "..tostring(b).." with tolerance "..thresh)
     else
         num_success = num_success + 1
@@ -38,9 +38,8 @@ end
 function require_mean(name, a, b, thresh)
     local v = a:meanDiff(b)
     thresh = thresh or 0
-    local len = type(v) == "number" and v or #v
-    if len > thresh then
-        append_error(name..": Failed RMS test with #"..v.." = "..len.." (threshold was "..thresh..")")
+    if #v > thresh then
+        append_error(name..": Failed RMS test with #"..v.." = "..#v.." (threshold was "..thresh..")")
     else
         num_success = num_success + 1
     end
@@ -49,9 +48,8 @@ end
 function require_rms(name, a, b, thresh)
     local v = a:rmsDiff(b)
     thresh = thresh or 0
-    local len = type(v) == "number" and v or #v
-    if len > thresh then
-        append_error(name..": Failed RMS test with #"..v.." = "..len.." (threshold was "..thresh..")")
+    if #v > thresh then
+        append_error(name..": Failed RMS test with #"..v.." = "..#v.." (threshold was "..thresh..")")
     else
         num_success = num_success + 1
     end
@@ -88,6 +86,31 @@ function require_img_eq_func(name, img, func)
         num_success = num_success + 1
     end
 end
+
+
+-- VECTOR ARITHMETIC TESTS
+
+function vec_arith(name, op)
+    for dim= 1,4 do
+        local table1, table2 = {}, {}
+        for i=1,dim do
+            table1[i] = i*3
+            table2[i] = op(table1[i])
+        end
+        require_close("vec_arith_"..name.."_"..dim, op(vec(unpack(table1))), vec(unpack(table2)), 1E-7)
+    end
+end
+
+vec_arith("add_a", function(v) return 10+v end)
+vec_arith("add_b", function(v) return v+10 end)
+vec_arith("sub_a", function(v) return 10-v end)
+vec_arith("sub_b", function(v) return v-10 end)
+vec_arith("mul_a", function(v) return 10*v end)
+vec_arith("mul_b", function(v) return v*10 end)
+vec_arith("div_a", function(v) return 10/v end)
+vec_arith("div_b", function(v) return v/10 end)
+vec_arith("pow_a", function(v) return 3^v end)
+vec_arith("pow_b", function(v) return v^3 end)
 
 
 -- MAKE TESTS
@@ -178,7 +201,7 @@ require_rms("min-rms", imgbase:min(imgbase*2), imgbase)
 
 require_rms("map-add-rms", 3.5+imgbase, imgbase:map(3, function(col) return colour(3,3.5)+col end))
 require_rms("map-mul-rms", 3.5*imgbase, imgbase:map(3, function(col) return 3.5*col end))
-require_rms("map-div-rms", 1/(imgbase+1), imgbase:map(3, function(col) return vec(1,1,1)/(col+vec(1,1,1)) end))
+require_rms("map-div-rms", 1/(imgbase+1), imgbase:map(3, function(col) return 1/(col+1) end))
 
 require_rms("grey-rms", (imgbase.x + imgbase.y + imgbase.z)/3, imgbase:map(3, function(col) return (col.x + col.y + col.z)/3 end), 1e-7)
 
@@ -199,11 +222,11 @@ require_eq("foreach", lena_max, lena_max3)
 -- SET
 img1 = make(vec(2,2), 3, 1)
 img2 = make(vec(2,2), 3, 2)
-img1:set(vec(0,0), 2)
-img1:set(vec(0,1), 2)
-img1:set(vec(1,0), 2)
-img1:set(vec(1,1), vec(2,2,2))
-require_rms("set", img1, img2)
+img1:draw(vec(0,0), 2)
+img1:draw(vec(0,1), 2)
+img1:draw(vec(1,0), 2)
+img1:draw(vec(1,1), vec(2,2,2))
+require_rms("draw", img1, img2)
 
 imgn = make(vec(2,2), 3, 0.25)
 require_rms("norm1", imgn, img1:normalise())
@@ -239,14 +262,14 @@ end))
 
 kernel = make(vec(5,5), 1, { 0,1,5,3,2, 0,1,6,2,3, 4,7,1,0,0, 2,5,4,4,1, 1,1,2,1,1, }):normalise()
 img = make(vec(5,5), 1, 0)
-img:set(vec(2,2), 2);
+img:draw(vec(2,2), 2);
 kernel_match = img:convolve(kernel):flip():mirror()/2
 require_rms("convolve", kernel_match, kernel)
 
 kernel3 = make(vec(5,1), 1, { 0,1,1,1,0 }):normalise()
 kernel2 = make(vec(5,5), 1, { 0,0,0,0,0, 0,1,1,1,0, 0,1,1,1,0, 0,1,1,1,0, 0,0,0,0,0, }):normalise()
 img2 = make(vec(5,5), 1, 0)
-img2:set(vec(2,2), 2);
+img2:draw(vec(2,2), 2);
 convolved = img2:convolveSep(kernel3):flip():mirror()/2
 require_rms("convolvesep", convolved, kernel2, 1e-8)
 

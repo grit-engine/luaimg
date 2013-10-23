@@ -36,7 +36,7 @@ function visualise_blue2 ()
     mb:map(3, function(m) m=m/(20+m); return vec(m^10,m^2.5,m) end):save("mandelbrot_blue2.png")
 end
 
-print("Run this in the interpreter, then use:")
+print("Run this in the interpreter (luaimg -i -f mandelbrot.lua), then use:")
 print("    mb_generate(sz, iters) --params are optional, defaults to 8192,500")
 print("    mb_load()")
 print("    mb_save()")

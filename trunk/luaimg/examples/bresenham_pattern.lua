@@ -3,7 +3,7 @@
 -- Creates the familiar pattern of artifacts due to the Bresenham line drawing algorithm.
 
 local company_colour = vec(48,80,112)/255
-local line_colour = vec(1,1,1)
+local line_colour = vec(1,1,1,1)
 
 step = 4
 img = make(vec(257,257),3,company_colour)

@@ -309,6 +309,27 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         return pixel(x, y);
     }
 
+    void drawPixel (uimglen_t x, uimglen_t y, const Colour<ch,1> &c_, float a=1)
+    {
+        // mix in additional alpha value
+        Colour<ch, 1> c = c_;
+        c[ch] *= a;
+        this->pixel(x,y) = colour_blend(c, this->pixel(x,y));
+    }
+
+    void drawPixelSafe (uimglen_t x, uimglen_t y, const Colour<ch,1> &c_, float a=1)
+    {
+        if (x >= width || y >= height) return;
+        drawPixel(x, y, c_, a);
+    }
+
+    void drawPixelSafe (simglen_t x, simglen_t y, const Colour<ch,1> &c_, float a=1)
+    {
+        // the following check can be subsumed into the unsigned > after the cast
+        //if (x < 0 || y < 0) return;
+        drawPixelSafe(uimglen_t(x), uimglen_t(y), c_, a);
+    }
+
     Image<ch,ach> *unm (void) const
     {
         Image<ch,ach> *ret = new Image<ch,ach>(width, height);
@@ -467,80 +488,91 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         return static_cast<Image<ch,ach>*>(ImageBase::scale(w,h, filter));
     }
 
-    // Bresenham
+    // Bresenham modified for arbitrary width
     void drawLine (uimglen_t x0, uimglen_t y0, uimglen_t x1, uimglen_t y1, uimglen_t w, const ColourBase *colour_)
     {
-        const Colour<ch,ach> &colour = *static_cast<const Colour<ch,ach>*>(colour_);
+        const Colour<ch,1> &colour = *static_cast<const Colour<ch,1>*>(colour_);
 
         simglen_t dx = ::abs(int(x1-x0)); // 3
         simglen_t dy = ::abs(int(y1-y0)); // 1
         simglen_t sx = x0 < x1 ? 1 : -1; // -1
         simglen_t sy = y0 < y1 ? 1 : -1; // -1
         simglen_t err = dx-dy; // 2
- 
-        while (true) {
-            this->pixel(x0,y0) = colour_blend(colour, this->pixel(x0,y0));
-            if (x0 == x1 && y0 == y1) break;
-            simglen_t err2 = 2*err;
-            if (err2 > -dy) {
-                err -= dy;
-                x0 += sx;
+        bool steep = dy > dx;
+
+        simglen_t dm = (1-simglen_t(w))/2;
+        simglen_t dM = w/2;
+        assert(dM - dm + 1 == simglen_t(w)); // true only for integer divide
+
+        // line begin:
+        if (steep) {
+            // XOX
+            // XXX
+            for (simglen_t i=dm ; i<=dM ; i+=1) {
+                for (simglen_t j=dm ; j<=0 ; j+=1) {
+                    drawPixelSafe(x0+i, y0+sy*j, colour, 1);
+                }
             }
-            if (x0 == x1 && y0 == y1) {
-                this->pixel(x0,y0) = colour_blend(colour, this->pixel(x0,y0));
-                break;
-            }
-            if (err2 < dx) {
-                err += dx;
-                y0 += sy;
+        } else {
+            // XX
+            // XO
+            // XX
+            for (simglen_t i=dm ; i<=0 ; i+=1) {
+                for (simglen_t j=dm ; j<=dM ; j+=1) {
+                    drawPixelSafe(x0+sx*i, y0+j, colour, 1);
+                }
             }
         }
 
-/*
-        simglen_t dx = x1-x0;
-        simglen_t dy = y1-y0;
+        // important not to overdraw since alpha is a possibility
+        // only draw the 'new pixels' each iteration
+        uimglen_t x=x0, y=y0;
 
-        // assume abs(dy) > abs(dx)
-
-        int du = abs(dx);
-        int dv = abs(dy);
-        int u = x1;
-        int v = y1;
-        int uincr = 4;
-        int vincr = 640*4;
-        if (dx < 0) uincr = -uincr;
-        if (dy < 0) vincr = -vincr;
-
-        int uend = u + 2 * du;
-        int d = (2 * dv) - du;      // Initial value as in Bresenham's 
-        int incrS = 2 * dv; // Δd for straight increments 
-        int incrD = 2 * (dv - du);  // Δd for diagonal increments 
-        int twovdu = 0; // Numerator of distance; starts at 0 
-        double invD = 1.0 / (2.0*sqrt(du*du + dv*dv));   // Precomputed inverse denominator 
-        double invD2du = 2.0 * (du*invD);   // Precomputed constant 
-        do {
-            // TODO: 
-            float alpha = twovdu*invD;
-            DrawPixelD(addr, alpha);
-            DrawPixelD(addr + vincr, invD2du - twovdu*invD);
-            DrawPixelD(addr - vincr, invD2du + twovdu*invD);
-
-            if (d < 0) {
-                // choose straight (u direction)
-                twovdu = d + du;
-                d = d + incrS;
-            } else {
-                // choose diagonal (u+v direction)
-                twovdu = d - du;
-                d = d + incrD;
-                v = v+1;
-                addr = addr + vincr;
+        while (x != x1 || y != y1) {
+            simglen_t err2 = 2*err;
+            int num = 0;
+            if (err2 > -dy) {
+                err -= dy;
+                x += sx;
+                num++;
             }
-            u = u+1;
-            addr = addr+uincr;
+            if (!(x == x1 && y == y1) && err2 < dx) {
+                err += dx;
+                y += sy;
+                num++;
+            }
+            if (steep) {
+                for (simglen_t i=dm ; i<=dM ; ++i) {
+                    drawPixelSafe(x+i, y, colour, 1);
+                }
+                if (num==2) drawPixelSafe(x+(sx==1?dM:dm), y-sy, colour, 1);
+            } else {
+                for (simglen_t i=dm ; i<=dM ; ++i) {
+                    drawPixelSafe(x, y+i, colour, 1);
+                }
+                if (num==2) drawPixelSafe(x-sx, y+(sy==1?dM:dm), colour, 1);
+            }
+        }
 
-        } while (u < uend);
-*/
+        // line end: the 'inverse' of the line start
+        if (steep) {
+            // XXX
+            //  O 
+            for (simglen_t i=dm ; i<=dM ; ++i) {
+                for (simglen_t j=1 ; j<=dM ; ++j) {
+                    drawPixelSafe(x1+i, y1+sy*j, colour, 1);
+                }
+            }
+        } else {
+            //  X
+            // OX
+            //  X
+            for (simglen_t i=1 ; i<=dM ; ++i) {
+                for (simglen_t j=dm ; j<=dM ; ++j) {
+                    drawPixelSafe(x1+sx*i, y1+j, colour, 1);
+                }
+            }
+        }
 
     }
 

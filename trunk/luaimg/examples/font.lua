@@ -1,4 +1,4 @@
-#!../luaimg
+#!../luaimg -F
 
 -- Experiment with the misc.fixed font used by Grit.
 

@@ -11,7 +11,7 @@ for i=0,359 do
     -- randomly choose the offset of one of the 8 bills in the source image
     local off = vec(random(2)-1, random(4)-1) * bill_size
     -- crop it out, rotate, and scale
-    moneys[i] = money:crop(off, bill_size):rotate(i):scaleBy(vec(1,1)/3, "LANCZOS3")
+    moneys[i] = money:crop(off, bill_size):rotate(i):scaleBy(1/3, "LANCZOS3")
 end
 
 -- allocate the resulting image
