@@ -49,9 +49,10 @@ circle:save("circle.png")]],
     },
 
     {
-        "Blend the circle image onto a solid yellow background:",
+        "From the circle image, rotate the colour channels (preserving the alpha), and blend onto a solid yellow background, then enlarge it to get a black border:",
         "circle_bg.png",
-[[(circle .. vec(1,1,0)):save("circle_bg.png")]],
+[[img = (circle.zxyW .. vec(1,1,0)):crop(vec(-1,-1),vec(66,66),0)
+img:save("circle_bg.png")]],
     },
 
     {

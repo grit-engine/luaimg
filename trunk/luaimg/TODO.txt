@@ -6,3 +6,4 @@ Custom stencil algorithms (e.g. game of life , expand borders, etc in a single s
 Different blending modes for draw ops: alpha blend, +, *, max, min, 
 image mix method (custom blend) -- like map but takes an extra (compatible) image and passes both pixels into supplied function
 reduce method more flexible with types
+support colourgrade luts
