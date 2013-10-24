@@ -22,6 +22,9 @@ depend:
 PACKAGED = \
     luaimg \
     luaimg.exe \
+    doc/money.png \
+    doc/lena_blueprint.png \
+    doc/bresenham_pattern.png \
     doc/logo_large.png \
     doc/logo_med.png \
     doc/logo_small.png \
@@ -30,6 +33,7 @@ PACKAGED = \
     doc/perlin.png \
     doc/random.png \
     doc/red.png \
+    doc/redb.png \
     doc/circle_bg_red.png \
     doc/circle.png \
     doc/circle_bg.png \
@@ -41,18 +45,20 @@ PACKAGED = \
     doc/api.html \
     doc/doc.css \
     examples/lena.jpg \
+    examples/bresenham_pattern.lua \
     examples/colour_map.lua \
     examples/colour_map_scurve.lua \
     examples/compass_ticks.lua \
-    examples/lena_blueprint.lua \
     examples/font.lua \
     examples/gui_colourpicker.lua \
     examples/gui_slider_tex.lua \
+    examples/lena_blueprint.lua \
     examples/logo.lua \
     examples/mandelbrot.lua \
     examples/money_input.png \
     examples/money.lua \
     examples/northern_lights.lua \
+    examples/selftest.lua \
     examples/unblend.lua \
 
 LI_PACKAGED = 
