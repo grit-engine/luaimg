@@ -28,6 +28,7 @@ typedef signed char int8_t;
 #include <cinttypes>
 #endif
 
+
 typedef uint32_t uimglen_t;
 typedef int32_t simglen_t;
 typedef uint8_t chan_t; 
@@ -49,6 +50,7 @@ void HSVtoRGB (float H, float S, float L, float &R, float &G, float &B);
 #define PI 3.1415926535897932385
 
 #include <cmath>
+#include <cassert>
 
 #include <ostream>
 #include <string>
