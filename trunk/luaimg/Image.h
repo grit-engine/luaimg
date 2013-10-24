@@ -257,6 +257,10 @@ class ImageBase {
     virtual ImageBase *rotate (float angle, const ColourBase *bg_) const = 0;
     virtual ImageBase *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const ColourBase *bg) const = 0;
 
+    virtual void drawPixel (uimglen_t x, uimglen_t y, const ColourBase *c, float a=1) = 0;
+    virtual void drawPixelSafe (uimglen_t x, uimglen_t y, const ColourBase *c, float a=1) = 0;
+    virtual void drawPixelSafe (simglen_t x, simglen_t y, const ColourBase *c, float a=1) = 0;
+
     virtual void drawLine (uimglen_t x0, uimglen_t y0, uimglen_t x1, uimglen_t y1, uimglen_t w, const ColourBase *colour) = 0;
 
     virtual void drawImage (const ImageBase *src_, simglen_t left, simglen_t bottom, bool wrap_x, bool wrap_y) = 0;
@@ -309,25 +313,25 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         return pixel(x, y);
     }
 
-    void drawPixel (uimglen_t x, uimglen_t y, const Colour<ch,1> &c_, float a=1)
+    void drawPixel (uimglen_t x, uimglen_t y, const ColourBase *c_, float a=1)
     {
         // mix in additional alpha value
-        Colour<ch, 1> c = c_;
+        Colour<ch, 1> c = *static_cast<const Colour<ch,1>*>(c_);
         c[ch] *= a;
         this->pixel(x,y) = colour_blend(c, this->pixel(x,y));
     }
 
-    void drawPixelSafe (uimglen_t x, uimglen_t y, const Colour<ch,1> &c_, float a=1)
+    void drawPixelSafe (uimglen_t x, uimglen_t y, const ColourBase *c_, float a=1)
     {
         if (x >= width || y >= height) return;
-        drawPixel(x, y, c_, a);
+        Image<ch,ach>::drawPixel(x, y, c_, a);
     }
 
-    void drawPixelSafe (simglen_t x, simglen_t y, const Colour<ch,1> &c_, float a=1)
+    void drawPixelSafe (simglen_t x, simglen_t y, const ColourBase *c_, float a=1)
     {
         // the following check can be subsumed into the unsigned > after the cast
         //if (x < 0 || y < 0) return;
-        drawPixelSafe(uimglen_t(x), uimglen_t(y), c_, a);
+        Image<ch,ach>::drawPixelSafe(uimglen_t(x), uimglen_t(y), c_, a);
     }
 
     Image<ch,ach> *unm (void) const
@@ -489,10 +493,8 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
     }
 
     // Bresenham modified for arbitrary width
-    void drawLine (uimglen_t x0, uimglen_t y0, uimglen_t x1, uimglen_t y1, uimglen_t w, const ColourBase *colour_)
+    void drawLine (uimglen_t x0, uimglen_t y0, uimglen_t x1, uimglen_t y1, uimglen_t w, const ColourBase *colour)
     {
-        const Colour<ch,1> &colour = *static_cast<const Colour<ch,1>*>(colour_);
-
         simglen_t dx = ::abs(int(x1-x0)); // 3
         simglen_t dy = ::abs(int(y1-y0)); // 1
         simglen_t sx = x0 < x1 ? 1 : -1; // -1
@@ -510,7 +512,7 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
             // XXX
             for (simglen_t i=dm ; i<=dM ; i+=1) {
                 for (simglen_t j=dm ; j<=0 ; j+=1) {
-                    drawPixelSafe(x0+i, y0+sy*j, colour, 1);
+                    Image<ch,ach>::drawPixelSafe(x0+i, y0+sy*j, colour, 1);
                 }
             }
         } else {
@@ -519,7 +521,7 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
             // XX
             for (simglen_t i=dm ; i<=0 ; i+=1) {
                 for (simglen_t j=dm ; j<=dM ; j+=1) {
-                    drawPixelSafe(x0+sx*i, y0+j, colour, 1);
+                    Image<ch,ach>::drawPixelSafe(x0+sx*i, y0+j, colour, 1);
                 }
             }
         }
@@ -543,14 +545,14 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
             }
             if (steep) {
                 for (simglen_t i=dm ; i<=dM ; ++i) {
-                    drawPixelSafe(x+i, y, colour, 1);
+                    Image<ch,ach>::drawPixelSafe(x+i, y, colour, 1);
                 }
-                if (num==2) drawPixelSafe(x+(sx==1?dM:dm), y-sy, colour, 1);
+                if (num==2) Image<ch,ach>::drawPixelSafe(x+(sx==1?dM:dm), y-sy, colour, 1);
             } else {
                 for (simglen_t i=dm ; i<=dM ; ++i) {
-                    drawPixelSafe(x, y+i, colour, 1);
+                    Image<ch,ach>::drawPixelSafe(x, y+i, colour, 1);
                 }
-                if (num==2) drawPixelSafe(x-sx, y+(sy==1?dM:dm), colour, 1);
+                if (num==2) Image<ch,ach>::drawPixelSafe(x-sx, y+(sy==1?dM:dm), colour, 1);
             }
         }
 
@@ -560,7 +562,7 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
             //  O 
             for (simglen_t i=dm ; i<=dM ; ++i) {
                 for (simglen_t j=1 ; j<=dM ; ++j) {
-                    drawPixelSafe(x1+i, y1+sy*j, colour, 1);
+                    Image<ch,ach>::drawPixelSafe(x1+i, y1+sy*j, colour, 1);
                 }
             }
         } else {
@@ -569,7 +571,7 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
             //  X
             for (simglen_t i=1 ; i<=dM ; ++i) {
                 for (simglen_t j=dm ; j<=dM ; ++j) {
-                    drawPixelSafe(x1+sx*i, y1+j, colour, 1);
+                    Image<ch,ach>::drawPixelSafe(x1+sx*i, y1+j, colour, 1);
                 }
             }
         }

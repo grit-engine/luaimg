@@ -23,7 +23,20 @@ my_img:save("red.png")]],
     },
 
     {
-        "Initialising a 3 channel image with alpha, initialised with a function (computes an antialiased blue circle with alpha):",
+        "Draw a black border around that image and a few white pixels in it.",
+        "redb.png",
+[[my_img:drawLine(vec(0,0),vec(0,31),1,vec(0,0,0))
+my_img:drawLine(vec(0,0),vec(31,0),1,vec(0,0,0))
+my_img:drawLine(vec(31,31),vec(0,31),1,vec(0,0,0))
+my_img:drawLine(vec(31,31),vec(31,0),1,vec(0,0,0))
+my_img:draw(vec(10,15),vec(1,1,1))
+my_img:draw(vec(15,15),vec(1,1,1))
+my_img:draw(vec(15,10),vec(1,1,1))
+my_img:save("redb.png")]],
+    },
+
+    {
+        "Initialising a 3 channel + alpha image using a function (computes an antialiased blue circle with alpha):",
         "circle.png",
 [[local sz = vec(64,64)
 function init(pos)

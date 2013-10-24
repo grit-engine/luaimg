@@ -68,7 +68,7 @@ void check_args (lua_State *L, int expected)
 
 static std::string type_name (lua_State *L, int index)
 {
-    return std::string(lua_typename(L, index));
+    return std::string(lua_typename(L, lua_type(L,index)));
 }
 
 static void check_is_function (lua_State *L, int index)
@@ -243,11 +243,23 @@ template<> bool check_colour<3,1> (lua_State *L, Colour<3,1> &p, int index)
 template<chan_t ch, chan_t ach>
 ColourBase *alloc_colour_template (lua_State *L, int index)
 {
+    // if ach==0 then accepts correct number of channels, or promotes by using number in all dimensions
+    // else ach==1 and accepts correct number of channels, or promotes single channel with alpha of 1
     Colour<ch,ach> *r = new Colour<ch,ach>();
+    if (ach==1) {
+        // try adding alpha value of 1 onto what was given
+        Colour<ch,0> r2;
+        if (check_colour(L, r2, index)) {
+            for (chan_t i=0 ; i<ch ; ++i) (*r)[i] = r2[i];
+            (*r)[ch] = 1;
+            return r;
+        }
+    }
+    // try an exact match
     if (!check_colour(L, *r, index)) {
         delete r;
-        my_lua_error(L, "Expected a colour with "+str(ch+ach)
-                        +" elements, got "+type_name(L,index));
+        my_lua_error(L, "Expected a "+str(int(ch))+" channel"+(ach==1?" alpha":"")
+                        +" colour, got "+type_name(L,index));
         return NULL;
     }
     return r;
@@ -259,23 +271,23 @@ ColourBase *alloc_colour (lua_State *L, int ch, bool alpha, int index)
         case 1: return alloc_colour_template<1,0>(L,index);
         case 2:
         if (alpha) {
-            return alloc_colour_template<2,0>(L,index);
-        } else {
             return alloc_colour_template<1,1>(L,index);
+        } else {
+            return alloc_colour_template<2,0>(L,index);
         }
 
         case 3:
         if (alpha) {
-            return alloc_colour_template<3,0>(L,index);
-        } else {
             return alloc_colour_template<2,1>(L,index);
+        } else {
+            return alloc_colour_template<3,0>(L,index);
         }
 
         case 4:
         if (alpha) {
-            return alloc_colour_template<4,0>(L,index);
-        } else {
             return alloc_colour_template<3,1>(L,index);
+        } else {
+            return alloc_colour_template<4,0>(L,index);
         }
 
         default:
@@ -1607,60 +1619,18 @@ static int image_draw (lua_State *L)
         ss << "Colour coordinates out of range: (" << x << "," << y << ")";
         my_lua_error(L, ss.str());
     }
-    switch (self->channels()) {
-        case 1: {
-            const int ch=1, ach=0;
-            Colour<ch,ach> p;
-            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
-            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
-        }
-        break;
 
-        case 2:
-        if (self->hasAlpha()) {
-            const int ch=1, ach=1;
-            Colour<ch,ach> p;
-            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
-            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
-        } else {
-            const int ch=2, ach=0;
-            Colour<ch,ach> p;
-            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
-            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
-        }
-        break;
-
-        case 3:
-        if (self->hasAlpha()) {
-            const int ch=2, ach=1;
-            Colour<ch,ach> p;
-            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
-            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
-        } else {
-            const int ch=3, ach=0;
-            Colour<ch,ach> p;
-            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
-            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
-        }
-        break;
-
-        case 4:
-        if (self->hasAlpha()) {
-            const int ch=3, ach=1;
-            Colour<ch,ach> p;
-            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
-            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
-        } else {
-            const int ch=4, ach=0;
-            Colour<ch,ach> p;
-            if (!check_colour(L, p, pi)) my_lua_error(L, "Cannot set this value to a 1 channel image.");
-            else static_cast<Image<ch,ach>*>(self)->pixel(x,y) = p;
-        }
-        break;
-
-        default:
-        my_lua_error(L, "Internal error: image seems to have an unusual number of channels.");
+    ColourBase *colour = NULL;
+    if (self->hasAlpha()) {
+        colour = alloc_colour(L, self->channels(), true, pi);
+    } else {
+        colour = alloc_colour(L, self->channels()+1, true, pi);
     }
+
+    self->drawPixelSafe(x, y, colour);
+
+    delete colour;
+
     return 0;
 }
 
