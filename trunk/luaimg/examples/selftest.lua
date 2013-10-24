@@ -174,7 +174,7 @@ function simpletrans(name,img)
     require_rms(name.."-map-identity2-rms", img, img:map(img.channels, img.hasAlpha, function(col, pos) return img(pos) end))
     require_rms(name.."-map-mirror-rms", img:mirror(), img:map(img.channels, img.hasAlpha, function(col, pos) return img(pos*vec(-1,1)+vec(img.width-1,0)) end))
     require_rms(name.."-map-flip-rms", img:flip(), img:map(img.channels, img.hasAlpha, function(col, pos) return img(pos*vec(1,-1)+vec(0,img.height-1)) end))
-    require_rms(name.."-flip-mirror-rotate180-rms", img:flip():mirror(), img:rotate(180), 1e-6)
+    require_rms(name.."-flip-mirror-rotate180-rms", img:flip():mirror(), img:rotate(180), 1.2e-5)
     local scaled = make(img.size*2, img.channels, img.hasAlpha, function(p) return img(p/2) end)
     require_rms(name.."-map-scale-rms", img:scale(img.size*2,"LANCZOS3"), scaled,0.05)
 end
