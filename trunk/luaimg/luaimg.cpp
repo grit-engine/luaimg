@@ -39,26 +39,26 @@ extern "C" {
 #include "Image.h"
 
 
-#define VERSION "0.1"
+#define VERSION "0.6"
 
 const char *prompt = "luaimg> ";
 
 const char *info =
     "luaimg (c) Dave Cunningham 2013  (version: " VERSION ")\n"
-    "A simple Lua-based script interpreter for command-line image manipulation.\n"
+    "Command-line image processing tool based on the Lua language.\n"
 ;
 
 const char *usage =
     "Usage: luaimg { <opt> | <arg> }\n\n"
     "where <opt> ::= -h | --help                     This message\n"
+    "              | -e <snippet> | --exec <snippet> Execute the given Lua snippet\n"
+    "              | -f <file> | --file <file>       Execute the given file containing Lua code\n"
     "              | --                              End of commandline options\n"
+    "              | -F <file> | --File <file>       Short-hand for -f <file> --\n"
     "              | -i | --interactive              Enter interactive mode after processing -e and -f\n"
     "              | -p <str> | --prompt <str>       Override the interactive prompt (default \"luaimg> \")\n"
-    "              | -f <file> | --file <file>       Execute the given file containing Lua code\n"
-    "              | -F <file> | --File <file>       Short-hand for -f <file> --\n"
-    "              | -e <snippet> | --exec <snippet> Execute the given Lua snippet\n"
     "Scripts and snippets are executed in sequence.\n"
-    "The list of <arg> is passed to the code via the Lua ... construct.\n"
+    "The non-option <arg> list is passed to the code via the Lua ... construct.\n"
 ;
 
 
@@ -118,8 +118,10 @@ int main (int argc, char **argv)
     }
 
     if (work.size()==0 && !interactive) {
-        std::cerr<<"You did not specify anything to do, so entering interactive mode."<<std::endl;
-        std::cerr<<"(Use -i to suppress this message or --help for more options)"<<std::endl;
+        std::cerr<<info;
+        std::cerr<<"Use commandline option -i to suppress this message in future.  Check other options with --help."<<std::endl;
+        std::cerr<<"Want to quit?  Use ctrl+d or ctrl+c."<<std::endl;
+        std::cerr<<"At the following prompt, give the LuaImg statements you want to execute.  \"Make good art.\" -- Neil Gaiman"<<std::endl;
         interactive = true;
     }
 

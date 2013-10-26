@@ -502,8 +502,6 @@ file:close()
 generate_imgs()
 
 include "../examples/logo.lua"
-
--- Actually prepare zips
--- gc problem
--- drawImage that wraps
--- draw line
+include "../examples/lena_blueprint.lua"
+include "../examples/money.lua"
+include "../examples/bresenham_pattern.lua"

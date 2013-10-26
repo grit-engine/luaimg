@@ -7,7 +7,7 @@ lena = open("lena.jpg")
 lena = ((lena.x + lena.y + lena.z) / 3):convolveSep(gaussian(9))
 
 -- simple edge detection with a laplace kernel
-laplace = lena:convolve(make(vec(3,3),1,{0,-1,0, -1,4,-1, 0,-1,0}):normalise())
+laplace = lena:scale(vec(256,256),"LANCZOS3"):convolve(make(vec(3,3),1,{0,-1,0, -1,4,-1, 0,-1,0}):normalise())
 -- renormalise by calculating range
 M = laplace:reduce(0, function(a,b) return max(a,b) end)
 m = -(-laplace):reduce(0, function(a,b) return max(a,b) end)
@@ -26,7 +26,7 @@ img = laplace:map(3, function (n)
         n = (n - 0.55) / 0.45
         return lerp(company_colour, vec(1,1,1), n)
     end
-end):scale(vec(256,256),"LANCZOS3")
+end)
 
 -- now, round off the corners so nobody can accidently cut themselves
 local corner_rad = 8
