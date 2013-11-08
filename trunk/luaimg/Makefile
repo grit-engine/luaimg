@@ -6,13 +6,13 @@ include ../common.mk
 
 LUA_A =  ../dependencies/lua-5.1.4/liblua.a
 
-SOURCE = luaimg.cpp interpreter.cpp Image.cpp lua_wrappers_image.cpp
+SOURCE = luaimg.cpp interpreter.cpp Image.cpp lua_wrappers_image.cpp text.cpp ../dependencies/util/lua_utf8.cpp  ../dependencies/util/lua_util.cpp  ../dependencies/util/unicode_util.cpp ../dependencies/util/console.cpp
  
-LUAIMG_CXXFLAGS = $(GRIT_CXX_CONFORMANCE) $(GRIT_CXX_CODEGEN) $(FREEIMAGE_CXXFLAGS) $(LUA_CXXFLAGS) -DLUA_USE_READLINE -Wno-type-limits
-LUAIMG_LDFLAGS  = $(FREEIMAGE_LDFLAGS) $(LUA_LDFLAGS)
-LUAIMG_LDLIBS   = $(FREEIMAGE_LDLIBS) $(LUA_LDLIBS) -lm -lreadline
+LUAIMG_CXXFLAGS = $(ICU_CXXFLAGS) $(GRIT_CXX_CONFORMANCE) $(GRIT_CXX_CODEGEN) $(FREEIMAGE_CXXFLAGS) $(LUA_CXXFLAGS) -DLUA_USE_READLINE -Wno-type-limits $(shell pkg-config freetype2 --cflags) -I ../dependencies/util
+LUAIMG_LDFLAGS  = $(ICU_LDFLAGS) $(FREEIMAGE_LDFLAGS) $(LUA_LDFLAGS) $(shell pkg-config freetype2 --libs-only-L)
+LUAIMG_LDLIBS   = $(ICU_LDLIBS) $(FREEIMAGE_LDLIBS) $(LUA_LDLIBS) -lm -lreadline $(shell pkg-config freetype2 --libs-only-l)
 
-luaimg: $(SOURCE) $(LUA_A)
+luaimg: $(SOURCE) $(LUA_A) $(ICU_ARCHIVES)
 	$(CXX) $(LUAIMG_CXXFLAGS) $(SOURCE) $(LUAIMG_LDFLAGS) $(LUAIMG_LDLIBS) -o $@
 
 depend:

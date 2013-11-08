@@ -76,7 +76,7 @@ struct ColourBase {
 /*
     virtual chan_t channels() const = 0;
     virtual bool hasAlpha() const = 0;
-    virtual chan_t channelsNonAlpha() const = 0;
+    virtual chan_t colourChannels() const = 0;
     virtual float *raw (void) = 0;
     virtual const float *raw (void) const = 0;
     virtual ~ColourBase (void) { }
@@ -88,19 +88,13 @@ template<chan_t ch, chan_t ach> struct Colour : ColourBase {
 
     chan_t channels() const { return ch+ach; }
     bool hasAlpha() const { return ach==1; }
-    chan_t channelsNonAlpha() const { return ch; }
+    chan_t colourChannels() const { return ch; }
 
     Colour () { }
 
     Colour (float d)
     {
         for (chan_t c=0 ; c<ch+ach ; ++c)
-            v[c] = d;
-    }
-
-    Colour (float d, float a)
-    {
-        for (chan_t c=0 ; c<ch ; ++c)
             v[c] = d;
     }
 
@@ -223,7 +217,7 @@ class ImageBase {
 
     virtual chan_t channels (void) const = 0;
     virtual bool hasAlpha (void) const = 0;
-    virtual chan_t channelsNonAlpha() const = 0;
+    virtual chan_t colourChannels() const = 0;
 
     const uimglen_t width, height;
 
@@ -270,9 +264,15 @@ class ImageBase {
 
 };
 
-static inline std::ostream &operator<<(std::ostream &o, ImageBase &img)
+static inline std::ostream &operator<<(std::ostream &o, const ImageBase &img)
 {
     o << "Image ("<<img.width<<","<<img.height<<")x"<<int(img.channels())<<(img.hasAlpha()?"A":"")<<" [0x"<<&img<<"]";
+    return o;
+}
+
+static inline std::ostream &operator<<(std::ostream &o, const ImageBase *img)
+{
+    o << *img;
     return o;
 }
 
@@ -286,7 +286,7 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
 
     chan_t channels() const { return ch+ach; }
     bool hasAlpha() const { return ach==1; }
-    chan_t channelsNonAlpha() const { return ch; }
+    chan_t colourChannels() const { return ch; }
 
     Image (uimglen_t width, uimglen_t height)
       : ImageBase(width, height)
@@ -593,12 +593,12 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
                 if (wrap_x) {
                     dst_x = mymod(dst_x, width);
                 } else {
-                    if (dst_x < 0 || uimglen_t(dst_x) >= width) break;
+                    if (dst_x < 0 || uimglen_t(dst_x) >= width) continue;
                 }
                 if (wrap_y) {
                     dst_y = mymod(dst_y, height);
                 } else {
-                    if (dst_y < 0 || uimglen_t(dst_y) >= height) break;
+                    if (dst_y < 0 || uimglen_t(dst_y) >= height) continue;
                 }
                 this->pixel(dst_x,dst_y) = colour_blend(src->pixel(x,y), this->pixel(dst_x,dst_y));
             }
@@ -883,7 +883,7 @@ ImageBase *image_load (const std::string &filename);
 
 bool image_save (ImageBase *image, const std::string &filename);
 
-template<chan_t ch, chan_t ach> ImageBase *image_make (uimglen_t width, uimglen_t height, const ColourBase &init_)
+template<chan_t ch, chan_t ach> Image<ch,ach> *image_make (uimglen_t width, uimglen_t height, const ColourBase &init_)
 {
     Image<ch,ach> *my_image = new Image<ch,ach>(width, height);
     const Colour<ch,ach> &init = static_cast<const Colour<ch,ach>&>(init_);
@@ -895,6 +895,12 @@ template<chan_t ch, chan_t ach> ImageBase *image_make (uimglen_t width, uimglen_
     }
 
     return my_image;
+}
+
+// useful to use in conditionals e.g. b ? image_make_base<1,0>() : image_make_base<2,0>()
+template<chan_t ch, chan_t ach> ImageBase *image_make_base (uimglen_t width, uimglen_t height, const ColourBase &init_)
+{
+    return image_make<ch,ach>(width, height, init_);
 }
 
 #endif

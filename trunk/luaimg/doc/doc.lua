@@ -1,4 +1,13 @@
+#!../luaimg -F
+
 include "docgen.lua"
+
+if select("#",...) ~= 2 then
+    print "Usage: ./doc.lua <validator> <analytics>"
+    os.exit(1)
+end
+should_emit_validator = "true" == (select(1,...))
+should_emit_analytics = "true" == (select(2,...))
 
 function file_as_string(name)
     local file = io.open(name, "r")
@@ -44,14 +53,14 @@ function init(pos)
     local alpha = clamp(30-rad, 0, 1)
     return vec(0, 0, 1, alpha)
 end
-circle = make(sz, 4, true, init)
+circle = make(sz, 3, true, init)
 circle:save("circle.png")]],
     },
 
     {
         "From the circle image, rotate the colour channels (preserving the alpha), and blend onto a solid yellow background, then enlarge it to get a black border:",
         "circle_bg.png",
-[[img = (circle.zxyW .. vec(1,1,0)):crop(vec(-1,-1),vec(66,66),0)
+[[img = (circle.zxyW .. vec(1,1,0)):crop(vec(-1,-1), vec(66,66), 0)
 img:save("circle_bg.png")]],
     },
 
@@ -123,15 +132,35 @@ end
 doc { "function", "make",
 
 [[Create a new image of the specificed size, with the specified number of
-channels.  If there is more than 1 channel, the last channel may be an alpha
-channel.  Alpha channels behave differently than regular channels.  The init
-parameter can be either a single colour (for a solid image), an array of
-colours of size W*H, or a function that provides the colour at each pixel.]],
+colour channels.  If channels&lt;4, one can also add an alpha channel.  Alpha
+channels behave differently than regular channels.  The init parameter can be
+either a single colour (for a solid image), an array of colours of size W*H, or
+a function that provides the colour at each pixel.]],
 
     { "param", "size", "vector2" },
     { "param", "channels", {1,2,3,4} },
     { "param", "alpha", "boolean", optional=true },
     { "param", "init", {"colour", "array[colour]",  "(vector2)->(colour)"} },
+    { "return", "Image" },
+}
+
+doc { "function", "text",
+
+[[Create a new image containing the rendered line of text.  The image is
+automatically sized to fit the text.  Bitmap or scalable fonts can be used, and
+are specified as a path e.g. to the ttf or the pcf.gz file.  The font size can
+be chosen (width and height).  Optionally, a 2x2 matrix can be supplied, which
+defines an affine transformation on the rendered text (rotation, scale, skew).
+If given, this is applied after the scaling due to the font size.  The returned
+grey scale image has the text rendered, antialiased, in white, on a black
+background.  Combine this call with other features of luaimg to achieve drop
+shadows, colour, etc.]],
+
+    { "param", "font", "string" },
+    { "param", "size", "vector2" },
+    { "param", "text", "string" },
+    { "param", "matrix_row1", "vector2", optional=true },
+    { "param", "matrix_row2", "vector2", optional=true },
     { "return", "Image" },
 }
 
@@ -255,21 +284,25 @@ doc {
     "Image",
 
     [[A 2d rectangular grid of pixels.  Pixels are represented in single
-precision floating point.  The image can have 1,2,3, or 4 channels.  The last
-channel can be an alpha channel (alpha channels have special behaviours when
-composing images).  Images can be combined by arithmetic (+,-,*,/,^).  The ..
-operator combines images according to alpha blending (i.e. regular blend mode
-in Photoshop/Gimp).  Other blend modes are available via the mathematical
-operators.  You can therefore mask images using the multiplication operator,
-add using the add operator, etc (see examples above).  Individual pixel values
-of an image can be accessed using the function call syntax, e.g. img(10,20).
-Other functionality is exposed via specific methods on images.  Images can be
+precision floating point.  The image can have 1,2,3, or 4 colour channels.  If
+an image has less than 4 channels, it is allowed to additionally have an alpha
+channel (alpha channels have special behaviours when composing images).</p> <p>
+Images can be combined by arithmetic (+,-,*,/,^).  The ..  operator combines
+images according to alpha blending (i.e. regular blend mode in Photoshop/Gimp).
+Other blend modes are available via the mathematical operators.  You can
+therefore mask images using the multiplication operator, add using the add
+operator, etc (see examples above).</p>  <p>Individual pixel values of an image
+can be accessed using the function call syntax, e.g. img(10,20).  Other
+functionality is exposed via specific methods on images.  Images can be
 swizzled to extract specific channels.  If a swizzle's last character is a
 capital letter, this creates an alpha channel.  E.g. img.yX will yield a
 greyscale image with alpha channel.  The value channel is the old green channel
-and the alpha channel is the old red channel.]],
+and the alpha channel is the old red channel.  The two special swizzle
+characters f (full) and e (empty) create a channel containing 1 or 0,
+respectively.]],
 
-    { "field", "channels", "number", "The number of channels in the image (including alpha).", },
+    { "field", "allChannels", "number", "The number of channels in the image (including alpha).", },
+    { "field", "colourChannels", "number", "The number of channels in the image (not including alpha).", },
     { "field", "hasAlpha", "boolean", "Whether or not the last channel is an alpha channel.", },
     { "field", "width", "number", "The number of pixels in a row of the image.", },
     { "field", "height", "number", "The number of pixels in a column of the image.", },
@@ -290,7 +323,7 @@ and the alpha channel is the old red channel.]],
     {
         "method",
         "map",
-        "Create a new image with the given number of channels, the same size as this image, initialised by executing the function provided to map each pixel from this image into the new image.  The function is called with both the colour from the existing image, and the coordinate being set (like make).",
+        "Create a new image with the given number of channels, the same size as this image, initialised by executing the function provided to map each pixel from this image into the new image.  The function is called with two params: the pixel from the existing image, and the coordinate being set (like make).",
         { "param", "channels", "number" },
         { "param", "alpha", "boolean", optional=true },
         { "param", "func", "(colour, vector2)->(colour)" },
@@ -307,7 +340,7 @@ and the alpha channel is the old red channel.]],
     {
         "method",
         "crop",
-        "Create a new image of the given size that is initialised to a copied version of this image, or the background colour if the pixel is not within the bounds of this image.  The background colour defaults to black.",
+        "Create a new image of the given size that is initialised to a copied version of this image, or the background colour if the pixel is not within the bounds of this image.  If no background colour is given, the image is wrapped (repeated).",
         { "param", "bottom_left", "vector2" },
         { "param", "size", "vector2" },
         { "param", "background", "colour", optional=true },
@@ -448,11 +481,15 @@ and the alpha channel is the old red channel.]],
     },
 }
 
+function emit_html_file(name, content_func)
 
-function emit_title(file, title)
+    file = io.open(name,"w")
+
+    file:write(file_as_string("header.html"))
+
     file:write("    <div class='titleblock'>")
-    file:write("        <a href='/luaimg/'><img class='logo' src='logo_large.png' alt='logo' /></a>")
-    file:write("        <h1>"..title.."</h1>")
+    file:write("        <a href='http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/logo.lua'><img class='logo' src='logo_large.png' alt='logo' /></a>")
+    file:write("        <h1>LuaImg</h1>")
     file:write("        <div class='toplinks'>")
     file:write("            <a class='toplink' href='./'>Overview</a>")
     file:write("            <a class='toplink' href='examples.html'>Examples</a>")
@@ -461,43 +498,34 @@ function emit_title(file, title)
     file:write("            <a class='toplink' href='api.html'>API</a>")
     file:write("        </div>")
     file:write("    </div>")
+
+    content_func(file)
+
+    if should_emit_validator then
+        file:write('    <p style="float:right;"><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a></p>')
+    end
+
+    if should_emit_analytics then
+        file:write('<script type="text/javascript">')
+        file:write('    (function(i,s,o,g,r,a,m){i["GoogleAnalyticsObject"]=r;i[r]=i[r]||function(){')
+        file:write('    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),')
+        file:write('    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)')
+        file:write('    })(window,document,"script","//www.google-analytics.com/analytics.js","ga");')
+        file:write('    ga("create", "UA-45157876-1", "gritengine.com");')
+        file:write('    ga("send", "pageview");')
+        file:write('</script>')
+    end
+
+    file:write(file_as_string("footer.html"))
+
+    file:close()
 end
-    
-file = io.open("index.html","w")
-file:write(file_as_string("header.html"))
-emit_title(file, "LuaImg")
-file:write(file_as_string("index_content.html"))
-file:write(file_as_string("footer.html"))
-file:close()
 
-file = io.open("examples.html","w")
-file:write(file_as_string("header.html"))
-emit_title(file, "LuaImg")
-emit_examples(file)
-file:write(file_as_string("footer.html"))
-file:close()
-
-file = io.open("download.html","w")
-file:write(file_as_string("header.html"))
-emit_title(file, "LuaImg")
-file:write(file_as_string("download_content.html"))
-file:write(file_as_string("footer.html"))
-file:close()
-
-file = io.open("usage.html","w")
-file:write(file_as_string("header.html"))
-emit_title(file, "LuaImg")
-file:write(file_as_string("usage_content.html"))
-file:write(file_as_string("footer.html"))
-file:close()
-
-file = io.open("api.html","w")
-file:write(file_as_string("header.html"))
-emit_title(file, "LuaImg")
-file:write(file_as_string("api_content.html"))
-emit_api(file)
-file:write(file_as_string("footer.html"))
-file:close()
+emit_html_file("index.html", function (file) file:write(file_as_string("index_content.html")) end)
+emit_html_file("examples.html", emit_examples)
+emit_html_file("download.html", function (file) file:write(file_as_string("download_content.html")) end)
+emit_html_file("usage.html", function (file) file:write(file_as_string("usage_content.html")) end)
+emit_html_file("api.html", emit_api)
 
 generate_imgs()
 

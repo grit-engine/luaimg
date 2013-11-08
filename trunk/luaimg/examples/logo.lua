@@ -7,7 +7,7 @@ local function inside_rect(p, b)
     return abs(p.x) <= b.x and abs(p.y) <= b.y
 end
 local d0,d1,d2 = vec(40,30),12,15
-logo = make(sz, 4, true, function(pos)
+logo = make(sz, 3, true, function(pos)
     local p = pos-sz/2
     if inside_rect(p, d0) then return 1 end
     if inside_rect(p, vec(d1,d1)+d0) then return 0 end
@@ -15,7 +15,7 @@ logo = make(sz, 4, true, function(pos)
     return 0
 end)
 
-local moon = make(vec(16,16), 4, true, 1)
+local moon = make(vec(16,16), 3, true, 1)
 logo:drawImageAt(0*moon, vec(88,78))
 logo:drawImageAt(moon, vec(117,107))
 

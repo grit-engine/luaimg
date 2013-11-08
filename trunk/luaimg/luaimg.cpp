@@ -37,9 +37,10 @@ extern "C" {
 
 #include "interpreter.h"
 #include "Image.h"
+#include "text.h"
 
 
-#define VERSION "0.6"
+#define VERSION "0.7"
 
 const char *prompt = "luaimg> ";
 
@@ -128,6 +129,8 @@ int main (int argc, char **argv)
 
     FreeImage_Initialise();
     FreeImage_SetOutputMessage(my_freeimage_error);
+
+    text_init();
 
     interpreter_init();
 

@@ -19,8 +19,13 @@
  * THE SOFTWARE.
  */
 
-#ifndef LUAWRAPPERS_IMAGE_H
-#define LUAWRAPPERS_IMAGE_H
+#ifndef TEXT_H
+#define TEXT_H
+
+#include <cmath>
+
+#include <ostream>
+#include <string>
 
 extern "C" {
     #include "lua.h"
@@ -28,14 +33,17 @@ extern "C" {
     #include "lualib.h"
 }
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #include "Image.h"
 
-#define IMAGE_TAG "Image"
-#define VIMAGE_TAG "VoxelImage"
+extern FT_Library ft2;
 
-void check_args (lua_State *L, int expected);
+void text_init (void);
 
-void lua_wrappers_image_init (lua_State *L);
-void lua_wrappers_image_shutdown (lua_State *L);
+Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, uimglen_t font_h, const std::string &text,
+                       float xx, float xy, float yx, float yy);
+
 
 #endif

@@ -42,7 +42,7 @@ desired_codepoint_ranges = {
 -- convert dds to png
 -- list of codepoints we want
 
-new_tex = make(vec(512, 512), 2, true, 0)
+new_tex = make(vec(512, 512), 1, true, 0)
 new_codepoints = { }
 
 curr_x, curr_y = 0,0

@@ -33,38 +33,14 @@ extern "C" {
     #include "lualib.h"
 }
 
+#include <lua_util.h>
+#include <lua_utf8.h>
+#include <console.h>
+
 #include "interpreter.h"
 #include "lua_wrappers_image.h"
 
 static lua_State *L;
-
-// call debug.traceback with given error message and param of 2 
-static int my_lua_error_handler (lua_State *L)
-{
-    // STACK: [errmsg]
-    lua_getfield(L, LUA_GLOBALSINDEX, "debug");
-    // STACK: [errmsg, debug]
-    if (!lua_istable(L, -1)) {
-        lua_pop(L, 1);
-        // STACK: [errmsg]
-        return 1;
-    }
-    lua_getfield(L, -1, "traceback");
-    // STACK: [errmsg, traceback]
-    if (!lua_isfunction(L, -1)) {
-        lua_pop(L, 2);
-        // STACK: [errmsg]
-        return 1;
-    }
-    lua_pushvalue(L, 1);
-    // STACK: [errmsg, traceback, errmsg]
-    lua_pushinteger(L, 2);
-    // STACK: [errmsg, traceback, errmsg, 2]
-    lua_call(L, 2, 1);
-    // STACK: [r]
-    return 1;
-}
-
 
 static bool interrupted = false;
 void interpreter_interrupt_probe (void)
@@ -301,9 +277,6 @@ void interpreter_exec_interactively (const std::string &prompt)
             } else {
 
                 // STACK: [err]
-                const char *msg = lua_tostring(L, -1);
-                std::cerr << msg << std::endl;
-
                 lua_pop(L, 1);
 
                 // STACK: []
@@ -311,7 +284,7 @@ void interpreter_exec_interactively (const std::string &prompt)
         } else if (status == LUA_ERRSYNTAX) {
             // STACK: [err]
             const char *msg = lua_tostring(L, -1);
-            std::cerr << "Syntax error: " << msg << std::endl;
+            std::cerr << BOLD YELLOW << "Syntax error: " << msg << RESET << std::endl;
             lua_pop(L, 1);
             // STACK: []
         } else if (status == LUA_ERRMEM) {
@@ -370,6 +343,9 @@ void interpreter_init (void)
     lua_pushcfunction(L, luaopen_string); lua_pushstring(L, "string"); lua_call(L, 1, 0);
     lua_pushcfunction(L, luaopen_math);   lua_pushstring(L, "math"); lua_call(L, 1, 0);
     lua_pushcfunction(L, luaopen_debug);  lua_pushstring(L, "debug"); lua_call(L, 1, 0);
+
+    // replace string functions with ICU versions
+    utf8_lua_init(L);
 
     // Move all members of math to the top level (i.e. become global funtions, vars, etc)
     lua_getfield(L, LUA_GLOBALSINDEX, "math");

@@ -1,9 +1,8 @@
-Drawing of text (bitmap & ttf)
+reduce method more flexible with types
 DDS export
 Antialiased geometry drawing (lines, polygons) with pixel shader like functionality
 Texture lookups (filtering, mipmaps, etc)
 Custom stencil algorithms (e.g. game of life , expand borders, etc in a single step)
 Different blending modes for draw ops: alpha blend, +, *, max, min, 
 image mix method (custom blend) -- like map but takes an extra (compatible) image and passes both pixels into supplied function
-reduce method more flexible with types
 support colourgrade luts

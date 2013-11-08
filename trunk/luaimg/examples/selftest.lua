@@ -97,7 +97,7 @@ function vec_arith(name, op)
             table1[i] = i*3
             table2[i] = op(table1[i])
         end
-        require_close("vec_arith_"..name.."_"..dim, op(vec(unpack(table1))), vec(unpack(table2)), 1E-7)
+        require_close("vec_arith_"..name.."_"..dim, op(vec(unpack(table1))), vec(unpack(table2)), 1E-6)
     end
 end
 
@@ -130,8 +130,8 @@ for _,val in ipairs{0.5, vec(1,2), vec(1,2,3),vec(1,2,3,4)} do
     require_rms("make-both-"..d.."-rms", img1, img1b)
 
     if d > 1 then
-        local img2 = make(vec(40,30),d,true,val)
-        local img2b = make(vec(40,30),d,true,function()return val end)
+        local img2 = make(vec(40,30),d-1,true,val)
+        local img2b = make(vec(40,30),d-1,true,function()return val end)
         require_img_eq_val("make-val-alpha-"..d, img2, val)
         require_img_eq_val("make-map-alpha-"..d, img2b, val)
         require_rms("make-val-alpha"..d.."-rms", img2, val)
@@ -146,7 +146,7 @@ require_img_eq_func("make-closure", imgbase, imgbase_init)
 require_rms("make-closure-self-rms", imgbase, imgbase)
 
 imgbase_a_init = function(p)return vec4(p/39,0,0.5) end
-imgbase_a = make(vec(40,30),4,true,imgbase_a_init)
+imgbase_a = make(vec(40,30),3,true,imgbase_a_init)
 require_img_eq_func("make-closure-alpha", imgbase_a, imgbase_a_init)
 require_rms("make-closure-alpha-self-rms", imgbase_a, imgbase_a)
 
@@ -161,21 +161,21 @@ end
 try_io(imgbase, ".png", 1/255)
 try_io(imgbase, ".jpg", 1/40)
 
---local imgbase_a_pma = imgbase_a:map(4,true,function(c)return vec4(c.xyz * c.w, c.w)end)
+--local imgbase_a_pma = imgbase_a:map(3,true,function(c)return vec4(c.xyz * c.w, c.w)end)
 try_io(imgbase_a, ".png", 1/255)
 
 
 lena = open("lena.jpg")
-lena_a = lena:map(4,true,function(c)return vec4(c,0.5)end)
+lena_a = lena:map(lena.colourChannels,true,function(c)return vec4(c,0.5)end)
 
 -- SIMPLE TRANSFORMATIONS AND MAP
 function simpletrans(name,img)
-    require_rms(name.."-map-identity-rms", img, img:map(img.channels, img.hasAlpha, function(col, pos) return col end))
-    require_rms(name.."-map-identity2-rms", img, img:map(img.channels, img.hasAlpha, function(col, pos) return img(pos) end))
-    require_rms(name.."-map-mirror-rms", img:mirror(), img:map(img.channels, img.hasAlpha, function(col, pos) return img(pos*vec(-1,1)+vec(img.width-1,0)) end))
-    require_rms(name.."-map-flip-rms", img:flip(), img:map(img.channels, img.hasAlpha, function(col, pos) return img(pos*vec(1,-1)+vec(0,img.height-1)) end))
+    require_rms(name.."-map-identity-rms", img, img:map(img.colourChannels, img.hasAlpha, function(col, pos) return col end))
+    require_rms(name.."-map-identity2-rms", img, img:map(img.colourChannels, img.hasAlpha, function(col, pos) return img(pos) end))
+    require_rms(name.."-map-mirror-rms", img:mirror(), img:map(img.colourChannels, img.hasAlpha, function(col, pos) return img(pos*vec(-1,1)+vec(img.width-1,0)) end))
+    require_rms(name.."-map-flip-rms", img:flip(), img:map(img.colourChannels, img.hasAlpha, function(col, pos) return img(pos*vec(1,-1)+vec(0,img.height-1)) end))
     require_rms(name.."-flip-mirror-rotate180-rms", img:flip():mirror(), img:rotate(180), 1.2e-5)
-    local scaled = make(img.size*2, img.channels, img.hasAlpha, function(p) return img(p/2) end)
+    local scaled = make(img.size*2, img.colourChannels, img.hasAlpha, function(p) return img(p/2) end)
     require_rms(name.."-map-scale-rms", img:scale(img.size*2,"LANCZOS3"), scaled,0.05)
 end
 
@@ -234,7 +234,7 @@ require_rms("norm2", imgn, img2:normalise())
 
 require_rms("swizzle-yz", lena.yz, lena:map(2,function(c)return c.yz end))
 require_rms("swizzle-zx", lena.zx, lena:map(2,function(c)return vec(c.z,c.x) end))
-require_rms("swizzle-xZ", lena.xZ, lena:map(2,true,function(c)return vec(c.x,c.z) end))
+require_rms("swizzle-xZ", lena.xZ, lena:map(1,true,function(c)return vec(c.x,c.z) end))
 
 require_rms("gaussian", gaussian(10), make(vec(10,1), 1, {1,9,36,84,126,126,84,36,9,1}):normalise())
 
@@ -244,7 +244,7 @@ require_rms("add-alpha", lena_a + lena:mirror(), make(lena.size, 3, init), 1e-7)
 init = function(p) return lena_a(p).w * lena_a(p).xyz + (1-lena_a(p).w) * lena(p*vec(-1,1)+vec(lena.width-1,0)) end
 require_rms("blend-alpha", lena_a .. lena:mirror(), make(lena.size, 3, init), 1e-7)
 
-require_rms("blend-alpha2", make(vec(1,1),2,true,vec(0.3,0.4))..make(vec(1,1),1,vec(0.7)), lerp(0.7,0.3,0.4), 1e-10)
+require_rms("blend-alpha2", make(vec(1,1),1,true,vec(0.3,0.4))..make(vec(1,1),1,vec(0.7)), lerp(0.7,0.3,0.4), 1e-10)
 require_rms("blend-alpha3", vec(1,1,1,0.25)..make(vec(1,1),3,0.2), make(vec(1,1),3,0.4))
 require_rms("blend-alpha3", vec(1,1,1)..make(vec(1,1),3,0.2), make(vec(1,1),3,1))
 require_close("lerp", lerp(10,20,0.4), 14, 1e-7)

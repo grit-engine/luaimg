@@ -32,97 +32,14 @@ extern "C" {
     #include "lualib.h"
 }
 
+#include <lua_util.h>
+
 #include "lua_wrappers_image.h"
 
 #include "Image.h"
+#include "text.h"
 //#include "VoxelImage.h"
 
-// to_string
-template<class T>
-static std::string str (const T &v)
-{
-    std::stringstream ss;
-    ss << v;
-    return ss.str();
-}
-
-static void push_string (lua_State *L, const std::string &str) { lua_pushstring(L, str.c_str()); }
-
-void my_lua_error (lua_State *L, const std::string &msg, unsigned long level)
-{
-    luaL_where(L,level);
-    std::string str = lua_tostring(L,-1);
-    lua_pop(L,1);
-    str += msg;
-    push_string(L,str);
-    lua_error(L);
-}
-
-
-void check_args (lua_State *L, int expected)
-{
-    int got = lua_gettop(L);
-    if (got == expected) return;
-    my_lua_error(L, "Wrong number of arguments: "+str(got)+" should be "+str(expected));
-}
-
-static std::string type_name (lua_State *L, int index)
-{
-    return std::string(lua_typename(L, lua_type(L,index)));
-}
-
-static void check_is_function (lua_State *L, int index)
-{
-    if (lua_type(L, index) == LUA_TFUNCTION) return;
-    my_lua_error(L, "Expected a function at argument: "+str(index)+" but got "+type_name(L,index));
-}
-
-template<class T> T* check_ptr (lua_State *L, int index, const char *tag)
-{
-    return *static_cast<T**>(luaL_checkudata(L, index, tag));
-}
-
-bool is_ptr (lua_State *L, int index, const char *tag)
-{
-    if (!lua_isuserdata(L, index)) return false;
-    void *p = lua_touserdata(L, index);
-    if (p == NULL) return false;
-    if (!lua_getmetatable(L, index)) return false;
-    lua_getfield(L, LUA_REGISTRYINDEX, tag);
-    if (lua_rawequal(L, -1, -2)) {
-        lua_pop(L, 2);  /* remove both metatables */
-        return true;
-    }
-    lua_pop(L, 2);  /* remove both metatables */
-    return false;
-}
-
-
-lua_Number check_int (lua_State *l, int stack_index, lua_Number min, lua_Number max)
-{
-    lua_Number n = luaL_checknumber(l, stack_index);
-    if (n>=min && n<=max && n==floor(n)) return n;
-    my_lua_error(l, "Not an integer in ["+str(min)+","+str(max)+"]: "+str(n));
-    return 0; // unreachable
-}
-
-template <typename T>
-T check_t (lua_State *l, int stack_index,
-           T min = std::numeric_limits<T>::min(),
-           T max = std::numeric_limits<T>::max())
-{
-    return (T) check_int(l, stack_index, min, max);
-}
-
-bool check_bool(lua_State *L, int i)
-{
-    if (!lua_isboolean(L,i)) {
-        std::stringstream ss;
-        ss << "Expected a boolean in argument " << i;
-        my_lua_error(L, ss.str());
-    }
-    return 0!=lua_toboolean(L,i);
-}
 
 static void check_scoord (lua_State *L, int index, simglen_t &x, simglen_t &y)
 {
@@ -1155,7 +1072,7 @@ static int image_tostring (lua_State *L)
     check_args(L,1);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     std::stringstream ss;
-    ss << *self;
+    ss << self;
     push_string(L, ss.str());
     return 1;
 }
@@ -1264,7 +1181,7 @@ static int image_map (lua_State *L)
         dst_ch = check_int(L, 2, 1, 4);
         dst_ach = check_bool(L, 3);
         check_is_function(L, 4);
-		if (dst_ach && dst_ch==1) my_lua_error(L, "Image with alpha channel must have at least one other channel.");
+		if (dst_ach && dst_ch==4) my_lua_error(L, "Image with alpha channel can have at most 3 colour channels.");
         fi = 4;
     } else {
         check_args(L,3);
@@ -1273,6 +1190,8 @@ static int image_map (lua_State *L)
         check_is_function(L, 3);
         fi = 3;
     }
+
+    if (dst_ach) dst_ch++;
 
     chan_t src_ch = src->channels();
     ImageBase *out = NULL;
@@ -1641,8 +1560,8 @@ static void draw_image_common (lua_State *L, ImageBase *dst, ImageBase *src, sim
         my_lua_error(L, "Can only draw images with alpha channels.");
     }
 
-    if (src->channelsNonAlpha() != dst->channelsNonAlpha()) {
-        my_lua_error(L, "Can only draw onto image with same number of channels.");
+    if (src->colourChannels() != dst->colourChannels()) {
+        my_lua_error(L, "Can only draw onto image with same number of colour channels.");
     }
 
     dst->drawImage(src, x, y, wrap_x, wrap_y);
@@ -1816,13 +1735,22 @@ static int image_normalise (lua_State *L)
 }
 
 template<chan_t sch, chan_t scha, chan_t dch, chan_t dcha>
-ImageBase *image_swizzle3 (const Image<sch,scha> *src, chan_t *mapping)
+ImageBase *image_swizzle3 (const Image<sch,scha> *src, int *mapping)
 {
     Image<dch,dcha> *dst = new Image<dch,dcha>(src->width, src->height);
     for (uimglen_t y=0 ; y<src->height ; ++y) {
         for (uimglen_t x=0 ; x<src->width ; ++x) {
             for (chan_t c=0 ; c<dch+dcha ; ++c) {
-                dst->pixel(x,y)[c] = src->pixel(x,y)[mapping[c]];
+                switch (mapping[c]) {
+                    case -1:
+                    dst->pixel(x,y)[c] = 0;
+                    break;
+                    case -2:
+                    dst->pixel(x,y)[c] = 1;
+                    break;
+                    default:
+                    dst->pixel(x,y)[c] = src->pixel(x,y)[mapping[c]];
+                }
             }
         }
     }
@@ -1830,7 +1758,7 @@ ImageBase *image_swizzle3 (const Image<sch,scha> *src, chan_t *mapping)
 }
         
 template<chan_t sch, chan_t scha>
-static ImageBase *image_swizzle2 (const ImageBase *img_, chan_t ch2, bool a2, chan_t *m)
+static ImageBase *image_swizzle2 (const ImageBase *img_, chan_t ch2, bool a2, int *m)
 {
     const Image<sch,scha> *img = static_cast<const Image<sch,scha>*>(img_);
     switch (ch2) {
@@ -1844,7 +1772,7 @@ static ImageBase *image_swizzle2 (const ImageBase *img_, chan_t ch2, bool a2, ch
 }
 
 // key guaranteed to be at most 4 letters long and only contain wxyz
-static ImageBase *image_swizzle (const ImageBase *img, chan_t ch2, bool a2, chan_t *m)
+static ImageBase *image_swizzle (const ImageBase *img, chan_t ch2, bool a2, int *m)
 {
     switch (img->channels()) {
         case 1: return image_swizzle2<1,0>(img, ch2, a2, m);
@@ -1861,8 +1789,10 @@ static int image_index (lua_State *L)
     check_args(L,2);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     const char *key = luaL_checkstring(L, 2);
-    if (!::strcmp(key, "channels")) {
+    if (!::strcmp(key, "allChannels")) {
         lua_pushnumber(L, self->channels());
+    } else if (!::strcmp(key, "colourChannels")) {
+        lua_pushnumber(L, self->colourChannels());
     } else if (!::strcmp(key, "hasAlpha")) {
         lua_pushboolean(L, self->hasAlpha());
     } else if (!::strcmp(key, "width")) {
@@ -1924,20 +1854,22 @@ static int image_index (lua_State *L)
         if (nu_chans<=4) {
             bool swizzle = true;
             bool has_alpha = false;
-            chan_t mapping[4];
+            int mapping[4];
             for (chan_t c=0 ; c<nu_chans ; ++c) {
-                chan_t src_chan = 0;
+                int src_chan = 0;
                 switch (key[c]) {
                     case 'x': case 'X': src_chan = 0; break;
                     case 'y': case 'Y': src_chan = 1; break;
                     case 'z': case 'Z': src_chan = 2; break;
                     case 'w': case 'W': src_chan = 3; break;
+                    case 'e': case 'E': src_chan = -1; break;
+                    case 'f': case 'F': src_chan = -2; break;
                     default: swizzle = false;
                 }
                 mapping[c] = src_chan;
                 switch (key[c]) {
-                    case 'x': case 'y': case 'z': case 'w': break;
-                    case 'X': case 'Y': case 'Z': case 'W':
+                    case 'x': case 'y': case 'z': case 'w': case 'e': case 'f': break;
+                    case 'X': case 'Y': case 'Z': case 'W': case 'E': case 'F':
                     if (c != nu_chans-1) {
                         my_lua_error(L, "On image swizzle, only last channel can have alpha: \""+std::string(key)+"\"");
                     }
@@ -2234,7 +2166,7 @@ static int global_make (lua_State *L)
         check_coord(L, 1, w, h);
         channels = check_int(L, 2, 1, 4);
         alpha = check_bool(L, 3);
-		if (channels==1 && alpha) my_lua_error(L, "Image cannot be just a single alpha channel.  Did you mean 2,true?");
+		if (channels==4 && alpha) my_lua_error(L, "Image with alpha channel can have at most 3 colour channels.");
         ii = 4;
     } else {
         check_args(L,3);
@@ -2242,6 +2174,7 @@ static int global_make (lua_State *L)
         channels = check_int(L, 2, 1, 4);
         ii = 3;
     }
+    if (alpha) channels++;
 
     ImageBase *image = NULL;
 
@@ -2271,10 +2204,10 @@ static int global_make (lua_State *L)
             my_lua_error(L, "Expected a number, vector, table, or function to initialise image");
         ColourBase *init = alloc_colour(L, channels, alpha, ii);
         switch (channels) {
-            case 1: image = image_make<1,0>(w,h,*init); break;
-            case 2: image = alpha ? image_make<1,1>(w,h,*init) : image_make<2,0>(w,h,*init); break;
-            case 3: image = alpha ? image_make<2,1>(w,h,*init) : image_make<3,0>(w,h,*init); break;
-            case 4: image = alpha ? image_make<3,1>(w,h,*init) : image_make<4,0>(w,h,*init); break;
+            case 1: image = image_make_base<1,0>(w,h,*init); break;
+            case 2: image = alpha ? image_make_base<1,1>(w,h,*init) : image_make<2,0>(w,h,*init); break;
+            case 3: image = alpha ? image_make_base<2,1>(w,h,*init) : image_make<3,0>(w,h,*init); break;
+            case 4: image = alpha ? image_make_base<3,1>(w,h,*init) : image_make<4,0>(w,h,*init); break;
             default: my_lua_error(L, "Internal error");
         }
         delete init;
@@ -2292,6 +2225,30 @@ static int global_open (lua_State *L)
     if (image == NULL) {
         lua_pushnil(L);
     } else {
+        push_image(L, image);
+    }
+    return 1;
+}
+
+static int global_text (lua_State *L)
+{
+    if (lua_gettop(L) == 5) {
+        std::string font = luaL_checkstring(L,1);
+            uimglen_t width, height;
+        check_coord(L, 2, width, height);
+        std::string text = luaL_checkstring(L,3);
+        float xx, xy, yx, yy;
+        lua_checkvector2(L, 4, &xx, &xy);
+        lua_checkvector2(L, 5, &yx, &yy);
+        ImageBase *image = make_text(L, font, width, height, text, xx, xy, yx, yy);
+        push_image(L, image);
+    } else {
+        check_args(L,3);
+        std::string font = luaL_checkstring(L,1);
+            uimglen_t width, height;
+        check_coord(L, 2, width, height);
+        std::string text = luaL_checkstring(L,3);
+        ImageBase *image = make_text(L, font, width, height, text, 1, 0, 0, 1);
         push_image(L, image);
     }
     return 1;
@@ -2401,6 +2358,7 @@ static int global_make_voxel (lua_State *L)
 static const luaL_reg global[] = {
     {"make", global_make},
     {"open", global_open},
+    {"text", global_text},
     {"RGBtoHSL", global_rgb_to_hsl},
     {"HSLtoRGB", global_hsl_to_rgb},
     {"HSVtoHSL", global_hsv_to_hsl},

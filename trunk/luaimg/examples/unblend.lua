@@ -19,7 +19,7 @@ local output_name = args[5]
 -- avoid divide by zero errors
 C = clamp(C, 0.00001*vec(1,1,1), 0.99999*vec(1,1,1))
 
-open(input_name):map(4, function(I)
+open(input_name):map(3, true, function(I)
     if I == vec(0,0,0) then
         return vec4(I,1)
     end

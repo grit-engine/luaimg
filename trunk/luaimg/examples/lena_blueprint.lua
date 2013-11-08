@@ -3,7 +3,7 @@
 -- Create a lena "blueprint" image (just a bit of fun)
 
 -- greyscale Lena with a little gaussian blur to fix noise, etc
-lena = open("lena.jpg")
+lena = open("../examples/lena.jpg")
 lena = ((lena.x + lena.y + lena.z) / 3):convolveSep(gaussian(9))
 
 -- simple edge detection with a laplace kernel
@@ -30,7 +30,7 @@ end)
 
 -- now, round off the corners so nobody can accidently cut themselves
 local corner_rad = 8
-img = img:map(4,true,function(c,p)
+img = img:map(3,true,function(c,p)
     -- map to bottom left quadrant
     local x, y = p.x, p.y
     if x > img.width/2 then x = img.width - x - 1 end
