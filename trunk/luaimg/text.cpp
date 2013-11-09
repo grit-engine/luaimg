@@ -93,7 +93,6 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
         }
 
         if (face->glyph->bitmap.num_grays == 1) {
-            // bitmap_left and bitmap_top seem not to do anything
             for (simglen_t p=0 ; p<face->glyph->bitmap.width ; p++) {
                 for (simglen_t q=0 ; q<face->glyph->bitmap.rows ; q++) {
                     simglen_t x = simglen_t(face->glyph->bitmap_left) + p;

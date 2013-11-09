@@ -1,12 +1,12 @@
 #!../luaimg -F
 
--- Experiment with the misc.fixed font used by Grit.
+-- because the old font calls it
+function gfx_font_define() end
 
+-- record font metrics
 old_width = 0
 old_height = 0
 old_codepoints = nil
-old_tex = open("old_font.png").w
-
 function add_font(name,texture,tw,th,codepoints)
     old_width = tw
     old_height = th
@@ -28,7 +28,7 @@ desired_codepoint_ranges = {
     {0x02580, 0x0259f}, -- block elements
     {0x02500, 0x0257f}, -- box drawing
     {0x020d0, 0x020f0}, -- combining diacritical marks for symbols
---  {0x1d400, 0x1d7ff}, -- mathematical alphanumeric symbols
+--  {0x1d400, 0x1d7ff}, -- mathematical alphanumeric symbols NOT IN ORIGINAL FONT FOR SOME REASON
     {0x02200, 0x022ff}, -- mathematical operators
     {0x027c0, 0x027ef}, -- misc mathematical symbols A
     {0x02980, 0x029ff}, -- misc mathematical symbols B
@@ -42,23 +42,19 @@ desired_codepoint_ranges = {
 -- convert dds to png
 -- list of codepoints we want
 
-new_tex = make(vec(512, 512), 1, true, 0)
+new_tex = make(vec(512, 512), 1, false, 0)
 new_codepoints = { }
 
 curr_x, curr_y = 0,0
 
-kernel = gaussian(3)*1.5
-
 for _,range in ipairs(desired_codepoint_ranges) do
     for cp=range[1],range[2] do
         local old_x, old_y, w, h = unpack(old_codepoints[cp])
-        local letter = old_tex:crop(vec(old_x, old_tex.height-old_y-h), vec(w,h))
-        local shadow = letter:convolveSep(kernel);
+        local letter = text("/usr/share/fonts/X11/misc/6x13.pcf.gz", vec(6,13), string.char(cp))
         if curr_x + w >= new_tex.width then
             curr_y = curr_y + h
             curr_x = 0
         end
-        new_tex:drawImage(0*shadow.xX, vec(curr_x, curr_y))
         new_tex:drawImage(letter.xX, vec(curr_x, curr_y))
         new_codepoints[cp] = { curr_x, curr_y, w, h }
         curr_x = curr_x + w
@@ -76,4 +72,17 @@ for k=0,2^16 do
 end
 print ("}");
 
-new_tex.xxxY:save("new_font.png")
+new_tex:save("new_font.png")
+
+last_zero = nil
+last_wide = nil
+for i=0,0xffff do
+        if zero[i] ~= last_zero then
+                print("zero changes to "..tostring(zero[i]).." at "..string.format("%x",i))
+                last_zero = zero[i]
+        end
+        if wide[i] ~= last_wide then
+                print("wide changes to "..tostring(wide[i]).." at "..string.format("%x",i))
+                last_wide = wide[i]
+        end
+end

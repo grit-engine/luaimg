@@ -52,7 +52,7 @@
     <BuildLog />
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories> $(SolutionDir)\dependencies\lua-5.1.4; $(SolutionDir)\dependencies\icu\include; $(SolutionDir)\dependencies\grit_ogre_dependencies\include; %(AdditionalIncludeDirectories) </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\lua-5.1.4;$(SolutionDir)\dependencies\icu\include;$(SolutionDir)\dependencies\grit_ogre_dependencies\include;$(SolutionDir)\dependencies\util;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;NOMINMAX;FREEIMAGE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -65,7 +65,7 @@
       <DisableSpecificWarnings>4355;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>FreeImaged.lib;zlibd.lib;icudt.lib;icuin.lib;icuuc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>FreeImaged.lib;freetype2311_D.lib;zlibd.lib;icudt.lib;icuin.lib;icuuc.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\grit_ogre_dependencies\lib\Debug;$(SolutionDir)\dependencies\icu\lib;$(OutDir)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
@@ -83,7 +83,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories> $(SolutionDir)\dependencies\lua-5.1.4; $(SolutionDir)\dependencies\icu\include; $(SolutionDir)\dependencies\grit_ogre_dependencies\include; %(AdditionalIncludeDirectories) </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\lua-5.1.4;$(SolutionDir)\dependencies\icu\include;$(SolutionDir)\dependencies\grit_ogre_dependencies\include;$(SolutionDir)\dependencies\util;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;NOMINMAX;FREEIMAGE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -96,7 +96,7 @@
       <AdditionalOptions>/MP %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>FreeImage.lib;zlib.lib;icudt.lib;icuin.lib;icuuc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>FreeImage.lib;freetype2311.lib;zlib.lib;icudt.lib;icuin.lib;icuuc.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\grit_ogre_dependencies\lib\Release;$(SolutionDir)\dependencies\icu\lib;$(OutDir)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(TargetDir)$(TargetName).pdb</ProgramDatabaseFile>
@@ -118,10 +118,15 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\dependencies\util\console.cpp" />
+    <ClCompile Include="..\dependencies\util\lua_utf8.cpp" />
+    <ClCompile Include="..\dependencies\util\lua_util.cpp" />
+    <ClCompile Include="..\dependencies\util\unicode_util.cpp" />
     <ClCompile Include="Image.cpp" />
     <ClCompile Include="interpreter.cpp" />
     <ClCompile Include="luaimg.cpp" />
     <ClCompile Include="lua_wrappers_image.cpp" />
+    <ClCompile Include="text.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
