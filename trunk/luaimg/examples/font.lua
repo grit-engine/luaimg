@@ -50,7 +50,12 @@ curr_x, curr_y = 0,0
 for _,range in ipairs(desired_codepoint_ranges) do
     for cp=range[1],range[2] do
         local old_x, old_y, w, h = unpack(old_codepoints[cp])
-        local letter = text("/usr/share/fonts/X11/misc/6x13.pcf.gz", vec(6,13), string.char(cp))
+        local letter
+        if w == 12 then
+                letter = text("/usr/share/fonts/X11/misc/12x13ja.pcf.gz", vec(w,h), string.char(cp))
+        else
+                letter = text("/usr/share/fonts/X11/misc/6x13.pcf.gz", vec(w,h), string.char(cp))
+        end
         if curr_x + w >= new_tex.width then
             curr_y = curr_y + h
             curr_x = 0
@@ -73,16 +78,3 @@ end
 print ("}");
 
 new_tex:save("new_font.png")
-
-last_zero = nil
-last_wide = nil
-for i=0,0xffff do
-        if zero[i] ~= last_zero then
-                print("zero changes to "..tostring(zero[i]).." at "..string.format("%x",i))
-                last_zero = zero[i]
-        end
-        if wide[i] ~= last_wide then
-                print("wide changes to "..tostring(wide[i]).." at "..string.format("%x",i))
-                last_wide = wide[i]
-        end
-end
