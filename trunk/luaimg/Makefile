@@ -22,6 +22,9 @@ depend:
 PACKAGED = \
     luaimg \
     luaimg.exe \
+    icudt42.dll \
+    icuin42.dll \
+    icuuc42.dll \
     doc/money.png \
     doc/lena_blueprint.png \
     doc/bresenham_pattern.png \
