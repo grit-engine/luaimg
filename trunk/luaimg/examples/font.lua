@@ -1,21 +1,7 @@
 #!../luaimg -F
 
--- because the old font calls it
-function gfx_font_define() end
 
--- record font metrics
-old_width = 0
-old_height = 0
-old_codepoints = nil
-function add_font(name,texture,tw,th,codepoints)
-    old_width = tw
-    old_height = th
-    old_codepoints = codepoints
-end
-
-include "../../grit_core/media/system/misc.fixed.lua"
-
-desired_codepoint_ranges = {
+all_codepoint_ranges = {
     {0x00020, 0x0007e}, -- basic latin
     {0x000a1, 0x000ff}, -- latin 1 supplement
     {0x00100, 0x0017f}, -- latin extended a
@@ -38,43 +24,48 @@ desired_codepoint_ranges = {
     {0x02900, 0x0297f}, -- supplementary arrows b
     {0x02a00, 0x02aff}, -- supplementary math ops
 }
+
+limited_codepoint_ranges = {
+    {0x00020, 0x0007e}, -- basic latin
+}
  
--- convert dds to png
--- list of codepoints we want
+function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoints)
+        if wide_font == true then wide_font = font end
 
-new_tex = make(vec(512, 512), 1, false, 0)
-new_codepoints = { }
+        new_tex = make(tex_sz, 1, false, 0)
 
-curr_x, curr_y = 0,0
+        curr_x, curr_y = 0,0
 
-for _,range in ipairs(desired_codepoint_ranges) do
-    for cp=range[1],range[2] do
-        local old_x, old_y, w, h = unpack(old_codepoints[cp])
-        local letter
-        if w == 12 then
-                letter = text("/usr/share/fonts/X11/misc/12x13ja.pcf.gz", vec(w,h), string.char(cp))
-        else
-                letter = text("/usr/share/fonts/X11/misc/6x13.pcf.gz", vec(w,h), string.char(cp))
+        file = io.open(lua_name,"w")
+
+        file:write("codepoints = {")
+
+        for _,range in ipairs(codepoints) do
+            for cp=range[1],range[2] do
+                local char = string.char(cp)
+                local letter
+                if char:getProperty("EAST_ASIAN_WIDTH") == "F" then
+                        letter = text(wide_font, font_sz, char)
+                else
+                        letter = text(font, font_sz, char)
+                end
+                if curr_x + letter.width >= new_tex.width then
+                    curr_y = curr_y + font_sz.y
+                    curr_x = 0
+                end
+                new_tex:drawImage(letter.xX, vec(curr_x, curr_y))
+                file:write(("    [0x%04x] = { %4d, %4d, %4d, %4d },"):format(cp, curr_x, new_tex.height - curr_y - letter.height, letter.width, letter.height));
+                curr_x = curr_x + letter.width
+            end
         end
-        if curr_x + w >= new_tex.width then
-            curr_y = curr_y + h
-            curr_x = 0
-        end
-        new_tex:drawImage(letter.xX, vec(curr_x, curr_y))
-        new_codepoints[cp] = { curr_x, curr_y, w, h }
-        curr_x = curr_x + w
-    end
+
+
+        file:write("}");
+        file:close()
+
+        new_tex:save(tex_name)
 end
 
-print ("codepoints = {")
-for k=0,2^16 do
-    local tab = new_codepoints[k]
-    if tab ~= nil then
-        local x, y, w, h = tab[1], tab[2], tab[3], tab[4]
-        y = new_tex.height - y - h
-        print(("    [0x%04x] = { %3d, %3d, %3d, %3d },"):format(k, x, y, w, h));
-    end
-end
-print ("}");
+make_font(vec(512,512), vec(6,13), "/usr/share/fonts/X11/misc/6x13.pcf.gz", "/usr/share/fonts/X11/misc/12x13ja.pcf.gz", "font_misc_fixed.png", "font_misc_fixed.lua", all_codepoint_ranges)
 
-new_tex:save("new_font.png")
+make_font(vec(512,256), vec(50,50),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact.png", "font_impact.lua", limited_codepoint_ranges)
