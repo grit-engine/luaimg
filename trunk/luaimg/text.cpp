@@ -85,7 +85,7 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
     for (size_t i=0 ; i<text.length() ; ++i) {
         unsigned long cp = decode_utf8(text, i);
 
-        FT_Set_Transform( face, &matrix, &pen );
+        FT_Set_Transform(face, &matrix, &pen);
 
         error = FT_Load_Char(face, cp, FT_LOAD_RENDER);
         if (0 != error) {
@@ -106,6 +106,7 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
                 }
             }
         } else if (face->glyph->bitmap.num_grays == 256) {
+            // face must contain more information about where the baseline is, spacing, etc.
             for (simglen_t p=0 ; p<face->glyph->bitmap.width ; p++) {
                 for (simglen_t q=0 ; q<face->glyph->bitmap.rows ; q++) {
                     simglen_t x = simglen_t(face->glyph->bitmap_left) + p;
@@ -136,7 +137,7 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
     // draw
     for (size_t i=0 ; i<text.length() ; ++i) {
 
-        FT_Set_Transform( face, &matrix, &pen );
+        FT_Set_Transform(face, &matrix, &pen);
 
         unsigned long cp = decode_utf8(text, i);
 
