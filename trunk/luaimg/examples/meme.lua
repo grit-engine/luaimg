@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- Create a popular meme (image with white text and black shadow at the bottom)
 

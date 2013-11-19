@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- Create a lena "blueprint" image (just a bit of fun)
 

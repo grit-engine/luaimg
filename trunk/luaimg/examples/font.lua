@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 
 all_codepoint_ranges = {
@@ -38,7 +38,7 @@ function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoi
 
         file = io.open(lua_name,"w")
 
-        file:write("codepoints = {")
+        file:write("codepoints = {\n")
 
         for _,range in ipairs(codepoints) do
             for cp=range[1],range[2] do
@@ -54,13 +54,13 @@ function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoi
                     curr_x = 0
                 end
                 new_tex:drawImage(letter.xX, vec(curr_x, curr_y))
-                file:write(("    [0x%04x] = { %4d, %4d, %4d, %4d },"):format(cp, curr_x, new_tex.height - curr_y - letter.height, letter.width, letter.height));
+                file:write(("    [0x%04x] = { %4d, %4d, %4d, %4d },\n"):format(cp, curr_x, new_tex.height - curr_y - letter.height, letter.width, letter.height));
                 curr_x = curr_x + letter.width
             end
         end
 
 
-        file:write("}");
+        file:write("}\n");
         file:close()
 
         new_tex:save(tex_name)

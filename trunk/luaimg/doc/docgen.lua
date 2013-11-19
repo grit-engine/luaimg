@@ -1,3 +1,5 @@
+#!../luaimg.linux.x86_64 -F
+
 local docs = {
     functions = {},
     classes = {}

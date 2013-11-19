@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- Conduct a number of automatic tests that attempt to validate the LuaImg implementation.
 

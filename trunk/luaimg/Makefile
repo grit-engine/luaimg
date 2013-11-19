@@ -12,15 +12,15 @@ LUAIMG_CXXFLAGS = $(ICU_CXXFLAGS) $(GRIT_CXX_CONFORMANCE) $(GRIT_CXX_CODEGEN) $(
 LUAIMG_LDFLAGS  = $(ICU_LDFLAGS) $(FREEIMAGE_LDFLAGS) $(LUA_LDFLAGS) $(shell pkg-config freetype2 --libs-only-L)
 LUAIMG_LDLIBS   = $(ICU_LDLIBS) $(FREEIMAGE_LDLIBS) $(LUA_LDLIBS) -lm -lreadline $(shell pkg-config freetype2 --libs-only-l)
 
-luaimg: $(SOURCE) $(LUA_A) $(ICU_ARCHIVES)
+luaimg.$(GRIT_EXEC_SUFFIX): $(SOURCE) $(LUA_A) $(ICU_ARCHIVES)
 	$(CXX) $(LUAIMG_CXXFLAGS) $(SOURCE) $(LUAIMG_LDFLAGS) $(LUAIMG_LDLIBS) -o $@
 
 depend:
 	makedepend -Y -f Makefile $(SOURCE) -I depend_stubs
-	sed -i 's/^[a-zA-Z_]*[.]o:/luaimg:/g' Makefile
+	sed -i "s/^[a-zA-Z_]*[.]o:/luaimg.$(GRIT_EXEC_SUFFIX):/g" Makefile
 
 PACKAGED = \
-    luaimg \
+    luaimg.linux.x86_64 \
     luaimg.exe \
     icudt42.dll \
     icuin42.dll \

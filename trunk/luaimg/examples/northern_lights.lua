@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- Score pixels based on how much their colour is like the colour of northern lights.
 -- Score images based on their summed pixel score.

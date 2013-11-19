@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- Create a colour grading LUT that represents the identity function.
 

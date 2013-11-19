@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- Create a colour grade LUT that brings out more contrast in the midtones.
 -- This grading used to be hardcoded into the Grit shaders before I added arbitrary LUT support.

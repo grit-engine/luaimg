@@ -1,4 +1,4 @@
-#!../luaimg -F 
+#!../luaimg.linux.x86_64 -F 
 
 -- Another GUI texture for Grit.  These are a variety of sliders for picking colours for sky config.
 

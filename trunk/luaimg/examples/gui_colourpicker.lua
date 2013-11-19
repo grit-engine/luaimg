@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- A GUI texture used by Grit.  Basically a scale for picking saturation and luminance.
 

@@ -1,4 +1,4 @@
-#!../luaimg -F 
+#!../luaimg.linux.x86_64 -F 
 
 
 -- Create a texture basis for a compass widget

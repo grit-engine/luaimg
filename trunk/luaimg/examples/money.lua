@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- Create a seamless texture that resembles a floor buried in 20 dollar bills.
 

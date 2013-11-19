@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- Creates the familiar pattern of artifacts due to the Bresenham line drawing algorithm.
 

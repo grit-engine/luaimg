@@ -1,4 +1,4 @@
-#!../luaimg -F
+#!../luaimg.linux.x86_64 -F
 
 -- Given an image and a colour, produce a new image that when blended on top of
 -- the colour, produces the original image.  Minimise the alpha channel of the
