@@ -63,7 +63,7 @@ function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoi
         file:write("}\n");
         file:close()
 
-        new_tex:save(tex_name)
+        new_tex.xX:save(tex_name)
 end
 
 make_font(vec(512,512), vec(6,13), "/usr/share/fonts/X11/misc/6x13.pcf.gz", "/usr/share/fonts/X11/misc/12x13ja.pcf.gz", "font_misc_fixed.png", "font_misc_fixed.lua", all_codepoint_ranges)
