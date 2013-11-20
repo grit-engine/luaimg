@@ -39,14 +39,13 @@ extern "C" {
 #include "Image.h"
 #include "text.h"
 
-
-#define VERSION "0.7"
+#define LUAIMG_VERSION "0.8"
 
 const char *prompt = "luaimg> ";
 
 const char *info =
-    "luaimg (c) Dave Cunningham 2013  (version: " VERSION ")\n"
-    "Command-line image processing tool based on the Lua language.\n"
+    "luaimg (c) Dave Cunningham 2013  (version: "LUAIMG_VERSION")\n"
+    "A command-line image processing tool based on the Lua language.\n"
 ;
 
 const char *usage =
@@ -120,9 +119,13 @@ int main (int argc, char **argv)
 
     if (work.size()==0 && !interactive) {
         std::cerr<<info;
-        std::cerr<<"Use commandline option -i to suppress this message in future.  Check other options with --help."<<std::endl;
-        std::cerr<<"Want to quit?  Use ctrl+d or ctrl+c."<<std::endl;
-        std::cerr<<"At the following prompt, give the LuaImg statements you want to execute.  \"Make good art.\" -- Neil Gaiman"<<std::endl;
+
+        std::cerr<<
+                "Entering the LuaImg shell.  Use commandline option -i to suppress this message\n"
+                "in future.  Check other options with --help. Want to quit?  Use ctrl+d or\n"
+                "ctrl+c.  At the following prompt, give the LuaImg statements you want to\n"
+                "execute.  \"Make good art.\" -- Neil Gaiman" << std::endl;
+
         interactive = true;
     }
 
