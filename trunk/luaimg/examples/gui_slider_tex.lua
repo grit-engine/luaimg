@@ -6,7 +6,7 @@ local sz = vec(345, 18)
 
 make(sz, 3, function(pos) return HSVtoRGB(vec(pos.x/(sz.x-1),1,1)) end):save("bg_hue.png")
 
-make(sz, 3, function(pos) return pos.x/(sz.x-1) * vec(1,1,1) end):save("bg_sat.png")
+make(sz, 1, true, function(pos) return vec(0.5, 1 - pos.x/(sz.x-1)) end):save("bg_sat.png")
 
 local tick_colour = vec(1,0,0)
 local bg_colour = vec(0,0,0)
