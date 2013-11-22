@@ -2,12 +2,13 @@
 
 include "docgen.lua"
 
-if select("#",...) ~= 2 then
-    print "Usage: ./doc.lua <validator> <analytics>"
+if select("#",...) ~= 3 then
+    print "Usage: ./doc.lua <validator> <analytics> <images>"
     os.exit(1)
 end
 should_emit_validator = "true" == (select(1,...))
 should_emit_analytics = "true" == (select(2,...))
+should_emit_images = "true" == (select(3,...))
 
 function file_as_string(name)
     local file = io.open(name, "r")
@@ -527,9 +528,11 @@ emit_html_file("download.html", function (file) file:write(file_as_string("downl
 emit_html_file("usage.html", function (file) file:write(file_as_string("usage_content.html")) end)
 emit_html_file("api.html", emit_api)
 
-generate_imgs()
 
-include "../examples/logo.lua"
-include "../examples/lena_blueprint.lua"
-include "../examples/money.lua"
-include "../examples/bresenham_pattern.lua"
+if should_gen_images then
+        generate_imgs()
+        include "../examples/logo.lua"
+        include "../examples/lena_blueprint.lua"
+        include "../examples/money.lua"
+        include "../examples/bresenham_pattern.lua"
+end
