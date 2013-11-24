@@ -39,8 +39,6 @@ simple_rose = simple_rose:scale(out_sz, "BOX")
 rotated_rose = rotated_rose:scaleBy(out_sz/sz, "BOX")
 
 -- make the actual rose by using the simple rose, with a smaller rotated version behind it
-img = make(out_sz, 3, true, vec(0,0,0,0))
-img:drawImageAt(rotated_rose, out_sz/2)
-img = simple_rose .. img
+img = simple_rose .. rotated_rose:cropCentre(out_sz, vec(0,0,0,0)) .. make(out_sz, 3, true, vec(0,0,0,0))
 
 img:save("compass_rose.png")

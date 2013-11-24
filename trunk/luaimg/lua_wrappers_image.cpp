@@ -1397,6 +1397,29 @@ static int image_crop (lua_State *L)
     return 1;
 }
 
+static int image_crop_centre (lua_State *L)
+{
+    if (lua_gettop(L) == 2) {
+        ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        uimglen_t width, height;
+        check_coord(L, 2, width, height);
+        simglen_t left = (width - self->width)/2;
+        simglen_t bottom = (height - self->height)/2;
+        push_image(L, self->crop(left,bottom,width,height,NULL));
+    } else {
+        check_args(L,3);
+        ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        uimglen_t width, height;
+        check_coord(L, 2, width, height);
+        simglen_t left = (width - self->width)/2;
+        simglen_t bottom = (height - self->height)/2;
+        ColourBase *colour = alloc_colour(L, self->channels(), self->hasAlpha(), 3);
+        push_image(L, self->crop(left,bottom,width,height,colour));
+        delete colour;
+    }
+    return 1;
+}
+
 ScaleFilter scale_filter_from_string (lua_State *L, const std::string &s)
 {
     if (s == "BOX") return SF_BOX;
@@ -1813,6 +1836,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_reduce);
     } else if (!::strcmp(key, "crop")) {
         lua_pushcfunction(L, image_crop);
+    } else if (!::strcmp(key, "cropCentre")) {
+        lua_pushcfunction(L, image_crop_centre);
     } else if (!::strcmp(key, "scale")) {
         lua_pushcfunction(L, image_scale);
     } else if (!::strcmp(key, "scaleBy")) {
