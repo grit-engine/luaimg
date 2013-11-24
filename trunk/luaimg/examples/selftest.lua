@@ -273,4 +273,6 @@ img2:draw(vec(2,2), 2);
 convolved = img2:convolveSep(kernel3):flip():mirror()/2
 require_rms("convolvesep", convolved, kernel2, 1e-8)
 
+require_eq("blend-zero-alpha", (make(vec(1,1), 1, true, vec(1,0)) .. make(vec(1,1), 1, true, vec(0,0)))(0,0), vec(1,0))
+
 print_errors()
