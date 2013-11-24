@@ -34,7 +34,10 @@ extern "C" {
 }
 
 #include <ft2build.h>
+// wrap in #ifdef to keep makedepend happy
+#ifdef FT_FREETYPE_H
 #include FT_FREETYPE_H
+#endif
 
 #include "Image.h"
 

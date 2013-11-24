@@ -16,7 +16,7 @@ luaimg.$(GRIT_EXEC_SUFFIX): $(SOURCE) $(LUA_A) $(ICU_ARCHIVES)
 	$(CXX) $(LUAIMG_CXXFLAGS) $(SOURCE) $(LUAIMG_LDFLAGS) $(LUAIMG_LDLIBS) -o $@
 
 depend:
-	makedepend -Y -f Makefile $(SOURCE) -I depend_stubs
+	makedepend -Y -f Makefile $(SOURCE) -I../dependencies/util -I depend_stubs
 	sed -i "s/^[a-zA-Z_]*[.]o:/luaimg.$(GRIT_EXEC_SUFFIX):/g" Makefile
 
 PACKAGED = \
@@ -78,25 +78,71 @@ clean:
 
 # DO NOT DELETE
 
-luaimg: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
-luaimg: depend_stubs/sstream depend_stubs/iostream depend_stubs/FreeImage.h
-luaimg: depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
-luaimg: interpreter.h Image.h depend_stubs/cinttypes depend_stubs/cmath
-luaimg: depend_stubs/ostream
-luaimg: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
-luaimg: depend_stubs/iostream depend_stubs/signal.h depend_stubs/lua.h
-luaimg: depend_stubs/lauxlib.h depend_stubs/lualib.h interpreter.h
-luaimg: lua_wrappers_image.h Image.h depend_stubs/cinttypes
-luaimg: depend_stubs/cmath depend_stubs/ostream
-luaimg: depend_stubs/cmath depend_stubs/string depend_stubs/iostream
-luaimg: depend_stubs/FreeImage.h Image.h depend_stubs/cinttypes
-luaimg: depend_stubs/ostream
-luaimg: depend_stubs/iostream depend_stubs/string
-luaimg: depend_stubs/sstream depend_stubs/vector
-luaimg: depend_stubs/limits depend_stubs/algorithm
-luaimg: depend_stubs/lua.h depend_stubs/lauxlib.h
-luaimg: depend_stubs/lualib.h lua_wrappers_image.h Image.h
-luaimg: depend_stubs/cinttypes depend_stubs/cmath
-luaimg: depend_stubs/ostream
-
-# vim: noet:ts=8:sw=8
+luaimg.linux.x86_64: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
+luaimg.linux.x86_64: depend_stubs/sstream depend_stubs/iostream depend_stubs/FreeImage.h
+luaimg.linux.x86_64: depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
+luaimg.linux.x86_64: interpreter.h Image.h depend_stubs/cinttypes depend_stubs/cmath
+luaimg.linux.x86_64: depend_stubs/cassert depend_stubs/ostream text.h
+luaimg.linux.x86_64: depend_stubs/ft2build.h
+luaimg.linux.x86_64: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
+luaimg.linux.x86_64: depend_stubs/iostream depend_stubs/signal.h depend_stubs/lua.h
+luaimg.linux.x86_64: depend_stubs/lauxlib.h depend_stubs/lualib.h
+luaimg.linux.x86_64: ../dependencies/util/lua_util.h depend_stubs/sstream
+luaimg.linux.x86_64: depend_stubs/limits ../dependencies/util/math_util.h
+luaimg.linux.x86_64: depend_stubs/cmath depend_stubs/cfloat
+luaimg.linux.x86_64: ../dependencies/util/lua_utf8.h ../dependencies/util/console.h
+luaimg.linux.x86_64: interpreter.h lua_wrappers_image.h Image.h
+luaimg.linux.x86_64: depend_stubs/cinttypes depend_stubs/cassert
+luaimg.linux.x86_64: depend_stubs/ostream
+luaimg.linux.x86_64: depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
+luaimg.linux.x86_64: depend_stubs/cstring depend_stubs/string depend_stubs/iostream
+luaimg.linux.x86_64: depend_stubs/fstream depend_stubs/FreeImage.h Image.h
+luaimg.linux.x86_64: depend_stubs/cinttypes depend_stubs/cassert depend_stubs/ostream
+luaimg.linux.x86_64: depend_stubs/iostream depend_stubs/string
+luaimg.linux.x86_64: depend_stubs/sstream depend_stubs/vector
+luaimg.linux.x86_64: depend_stubs/limits depend_stubs/algorithm
+luaimg.linux.x86_64: depend_stubs/lua.h depend_stubs/lauxlib.h
+luaimg.linux.x86_64: depend_stubs/lualib.h ../dependencies/util/lua_util.h
+luaimg.linux.x86_64: ../dependencies/util/math_util.h depend_stubs/cmath
+luaimg.linux.x86_64: depend_stubs/cfloat lua_wrappers_image.h Image.h
+luaimg.linux.x86_64: depend_stubs/cinttypes depend_stubs/cassert
+luaimg.linux.x86_64: depend_stubs/ostream text.h depend_stubs/ft2build.h
+luaimg.linux.x86_64: depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
+luaimg.linux.x86_64: depend_stubs/cstring depend_stubs/string depend_stubs/iostream
+luaimg.linux.x86_64: depend_stubs/fstream ../dependencies/util/lua_util.h
+luaimg.linux.x86_64: depend_stubs/sstream depend_stubs/limits depend_stubs/vector
+luaimg.linux.x86_64: depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
+luaimg.linux.x86_64: ../dependencies/util/math_util.h depend_stubs/cfloat
+luaimg.linux.x86_64: ../dependencies/util/unicode_util.h text.h depend_stubs/ostream
+luaimg.linux.x86_64: depend_stubs/ft2build.h Image.h depend_stubs/cinttypes
+luaimg.linux.x86_64: depend_stubs/cassert
+../dependencies/util/lua_utf8.o: depend_stubs/cstdlib depend_stubs/cstdio
+../dependencies/util/lua_utf8.o: depend_stubs/cassert depend_stubs/iostream
+../dependencies/util/lua_utf8.o: depend_stubs/string depend_stubs/sstream
+../dependencies/util/lua_utf8.o: depend_stubs/lua.h
+../dependencies/util/lua_utf8.o: depend_stubs/unicode/unistr.h
+../dependencies/util/lua_utf8.o: depend_stubs/unicode/uchar.h
+../dependencies/util/lua_utf8.o: depend_stubs/unicode/regex.h
+../dependencies/util/lua_utf8.o: ../dependencies/util/console.h
+../dependencies/util/lua_utf8.o: ../dependencies/util/lua_util.h
+../dependencies/util/lua_utf8.o: depend_stubs/limits depend_stubs/vector
+../dependencies/util/lua_utf8.o: depend_stubs/lauxlib.h depend_stubs/lualib.h
+../dependencies/util/lua_utf8.o: ../dependencies/util/math_util.h
+../dependencies/util/lua_utf8.o: depend_stubs/cmath depend_stubs/cfloat
+../dependencies/util/lua_utf8.o: ../dependencies/util/lua_wrappers_common.h
+../dependencies/util/lua_utf8.o: ../dependencies/util/lua_utf8.h
+../dependencies/util/lua_util.o: depend_stubs/cstdlib depend_stubs/cmath
+../dependencies/util/lua_util.o: depend_stubs/string depend_stubs/map
+../dependencies/util/lua_util.o: depend_stubs/sstream depend_stubs/iostream
+../dependencies/util/lua_util.o: ../dependencies/util/console.h
+../dependencies/util/lua_util.o: ../dependencies/util/lua_util.h
+../dependencies/util/lua_util.o: depend_stubs/limits depend_stubs/vector
+../dependencies/util/lua_util.o: depend_stubs/lua.h depend_stubs/lauxlib.h
+../dependencies/util/lua_util.o: depend_stubs/lualib.h
+../dependencies/util/lua_util.o: ../dependencies/util/math_util.h
+../dependencies/util/lua_util.o: depend_stubs/cfloat
+../dependencies/util/unicode_util.o: depend_stubs/cstdlib
+../dependencies/util/unicode_util.o: depend_stubs/cstring depend_stubs/cstdio
+../dependencies/util/unicode_util.o: ../dependencies/util/unicode_util.h
+../dependencies/util/unicode_util.o: depend_stubs/string
+../dependencies/util/console.o: ../dependencies/util/console.h
