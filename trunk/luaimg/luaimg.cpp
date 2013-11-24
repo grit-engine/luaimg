@@ -91,7 +91,7 @@ int main (int argc, char **argv)
     bool no_more_switches = false;
     std::vector<std::string> args;
     std::string prompt = "luaimg> ";
-    while (so_far<argc) {
+    while (so_far < argc) {
         std::string arg = next_arg(so_far, argc, argv);
         if (no_more_switches) {
             args.push_back(arg);

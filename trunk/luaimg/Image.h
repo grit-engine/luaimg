@@ -170,8 +170,14 @@ Colour<ch2,ach2> colour_blend (const Colour<ch1,ach1> &a, const Colour<ch2,ach2>
             float old_alpha = std::max(0.0f, std::min(1.0f, b[ch2]));
             float new_alpha = 1 - (1-alpha)*(1-old_alpha);
             if (alpha == 0) {
-                for (chan_t c=0 ; c<ch2 ; ++c) {
-                    r[c] = b[c];
+                if (old_alpha == 0) {
+                    for (chan_t c=0 ; c<ch2 ; ++c) {
+                        r[c] = a[c];
+                    }
+                } else {
+                    for (chan_t c=0 ; c<ch2 ; ++c) {
+                        r[c] = b[c];
+                    }
                 }
             } else {
                 for (chan_t c=0 ; c<ch2 ; ++c) {
