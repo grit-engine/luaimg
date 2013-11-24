@@ -51,6 +51,7 @@ PACKAGED = \
     examples/bresenham_pattern.lua \
     examples/colour_map.lua \
     examples/colour_map_scurve.lua \
+    examples/compass_rose.lua \
     examples/compass_ticks.lua \
     examples/font.lua \
     examples/gui_colourpicker.lua \
