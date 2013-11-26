@@ -66,5 +66,17 @@ The unpack function will convert vectors to their components.  Additional
 functions like dot product, etc, are described in the LuaImg <a
 href='api.html'>API</a> documentation.  </p>
 
+        <p>Finally, to faciliate text rendering, the Lua string library has
+been replaced by one that supports unicode.  The new string library is based on
+ICU and is backwards compatible with the old string library except for the
+regular expression syntax, which is documented <a
+href="http://userguide.icu-project.org/strings/regexp">here</a>.</p>
+
+        <p>All the old string functions are still present, but have been
+prefixed with an underscore, except len, which has been renamed byte.  There
+are also two new functions, codepoint, which is similar to _char and returns
+the codepoints in the string, and getProperty("PROP") which fetches unicode
+properties by name.
+
     </div>
 
