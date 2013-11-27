@@ -1,8 +1,8 @@
 #!../luaimg.linux.x86_64 -F 
 
-
--- Create a texture basis for a compass widget
-
+-------------------------------------------------
+-- Create a texture basis for a compass widget --
+-------------------------------------------------
 
 -- scaled down to this size to avoid aliasing
 local out_sz = vec(94, 94)
@@ -22,7 +22,8 @@ simple_rose = make(sz, 3, true, function(pos)
     -- work out what octant we are in
     local oct = floor(angle * 8)
 
-    -- mirror everything to positive X, Y quadrant, then use 2 line equations to work out inside/outside
+    -- mirror everything to positive X, Y quadrant, then use 2 line equations
+    -- to work out inside/outside
     pos = abs(pos)
     local inside = 6*pos.x + pos.y < 1 or pos.x + 6*pos.y < 1
 
@@ -36,7 +37,7 @@ rotated_rose = simple_rose:rotate(45):scaleBy(0.7, "BOX")
 
 -- scale down to antialias
 simple_rose = simple_rose:scale(out_sz, "BOX")
-rotated_rose = rotated_rose:scaleBy(out_sz/sz, "BOX"):cropCentre(out_sz, vec(0,0,0,0))
+rotated_rose = rotated_rose:scaleBy(out_sz/sz, "BOX"):cropCentre(out_sz, 0)
 
 -- make the actual rose by using the simple rose, with a smaller rotated
 -- version behind it, on top of black
