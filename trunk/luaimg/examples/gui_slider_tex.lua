@@ -51,12 +51,11 @@ make(sz, 3, function(pos)
     end
 end):save("bg_val.png")
 
-make(sz, 3, function(pos)
+make(sz, 3, true, function(pos)
     local val = floor(pos / 6)
 	local ch = (val.x + val.y) % 2 == 1 and vec(1,1,1) or vec(0,0,0)
 	local alpha = pos.x / sz.x
-
-	return (1-alpha)*ch + alpha*vec(0.5, 0.5, 0.5)
+	return vec4(ch, 1-alpha)
 end):save("bg_alpha.png")
 
 make(vec(sz.y, sz.y), 3, function(pos)
