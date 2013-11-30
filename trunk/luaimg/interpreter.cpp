@@ -78,7 +78,7 @@ static int execute_code (const std::vector<std::string> &args=no_args)
     lua_checkstack(L, args.size()+10);
     for (unsigned i=0 ; i<args.size() ; ++i) lua_pushstring(L,args[i].c_str());
     // STACK: [func, args...]
-    lua_pushcfunction(L, my_lua_error_handler);
+    lua_pushcfunction(L, my_lua_error_handler_cerr);
     // STACK: [func, args..., err_handler]
     lua_insert(L, base);
 
@@ -304,7 +304,7 @@ static int global_include (lua_State *L)
     check_args(L,1);
     std::string filename = luaL_checkstring(L,1);
 
-    lua_pushcfunction(L, my_lua_error_handler);
+    lua_pushcfunction(L, my_lua_error_handler_cerr);
     int error_handler = lua_gettop(L);
 
     int status = luaL_loadfile(L, filename.c_str());
