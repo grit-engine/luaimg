@@ -8,11 +8,11 @@ make(sz, 3, function(pos) return HSVtoRGB(vec(pos.x/(sz.x-1),1,1)) end):save("bg
 
 make(sz, 1, true, function(pos) return vec(0.5, 1 - pos.x/(sz.x-1)) end):save("bg_sat.png")
 
+--[[
 local tick_colour = vec(1,0,0)
 local bg_colour = vec(0,0,0)
 local fg_colour = vec(1,1,1)
 
---[[
 make(sz, 3, function(pos)
     local val = pos.x / (sz.x)
     val = pow(val, 2.2)
@@ -63,3 +63,5 @@ make(vec(sz.y, sz.y), 3, function(pos)
 	local ch = (val.x + val.y) % 2 == 1 and vec(1,1,1) or vec(0,0,0)
 	return ch
 end):save("bg_alphabox.png")
+
+make(vec(8,8), 3, true, function(p) p = (p - 3.5)/3.5; return vec(1,0,0, 1 - #p) end):save("marker.png")

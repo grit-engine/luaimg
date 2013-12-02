@@ -17,10 +17,10 @@ luaimg.$(GRIT_EXEC_SUFFIX): $(SOURCE) $(LUA_A) $(ICU_ARCHIVES)
 
 depend:
 	makedepend -Y -f Makefile $(SOURCE) -I../dependencies/util -I depend_stubs
-	sed -i "s/^[a-zA-Z_]*[.]o:/luaimg.$(GRIT_EXEC_SUFFIX):/g" Makefile
+	sed -i 's/^[a-zA-Z_]*[.]o:/luaimg.$$(GRIT_EXEC_SUFFIX):/g' Makefile
 
 PACKAGED = \
-    luaimg.linux.x86_64 \
+    luaimg.$(GRIT_EXEC_SUFFIX) \
     luaimg.exe \
     icudt42.dll \
     icuin42.dll \
@@ -79,44 +79,44 @@ clean:
 
 # DO NOT DELETE
 
-luaimg.linux.x86_64: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
-luaimg.linux.x86_64: depend_stubs/sstream depend_stubs/iostream depend_stubs/FreeImage.h
-luaimg.linux.x86_64: depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
-luaimg.linux.x86_64: interpreter.h Image.h depend_stubs/cinttypes depend_stubs/cmath
-luaimg.linux.x86_64: depend_stubs/cassert depend_stubs/ostream text.h
-luaimg.linux.x86_64: depend_stubs/ft2build.h
-luaimg.linux.x86_64: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
-luaimg.linux.x86_64: depend_stubs/iostream depend_stubs/signal.h depend_stubs/lua.h
-luaimg.linux.x86_64: depend_stubs/lauxlib.h depend_stubs/lualib.h
-luaimg.linux.x86_64: ../dependencies/util/lua_util.h depend_stubs/sstream
-luaimg.linux.x86_64: depend_stubs/limits ../dependencies/util/math_util.h
-luaimg.linux.x86_64: depend_stubs/cmath depend_stubs/cfloat
-luaimg.linux.x86_64: ../dependencies/util/lua_utf8.h ../dependencies/util/console.h
-luaimg.linux.x86_64: interpreter.h lua_wrappers_image.h Image.h
-luaimg.linux.x86_64: depend_stubs/cinttypes depend_stubs/cassert
-luaimg.linux.x86_64: depend_stubs/ostream
-luaimg.linux.x86_64: depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
-luaimg.linux.x86_64: depend_stubs/cstring depend_stubs/string depend_stubs/iostream
-luaimg.linux.x86_64: depend_stubs/fstream depend_stubs/FreeImage.h Image.h
-luaimg.linux.x86_64: depend_stubs/cinttypes depend_stubs/cassert depend_stubs/ostream
-luaimg.linux.x86_64: depend_stubs/iostream depend_stubs/string
-luaimg.linux.x86_64: depend_stubs/sstream depend_stubs/vector
-luaimg.linux.x86_64: depend_stubs/limits depend_stubs/algorithm
-luaimg.linux.x86_64: depend_stubs/lua.h depend_stubs/lauxlib.h
-luaimg.linux.x86_64: depend_stubs/lualib.h ../dependencies/util/lua_util.h
-luaimg.linux.x86_64: ../dependencies/util/math_util.h depend_stubs/cmath
-luaimg.linux.x86_64: depend_stubs/cfloat lua_wrappers_image.h Image.h
-luaimg.linux.x86_64: depend_stubs/cinttypes depend_stubs/cassert
-luaimg.linux.x86_64: depend_stubs/ostream text.h depend_stubs/ft2build.h
-luaimg.linux.x86_64: depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
-luaimg.linux.x86_64: depend_stubs/cstring depend_stubs/string depend_stubs/iostream
-luaimg.linux.x86_64: depend_stubs/fstream ../dependencies/util/lua_util.h
-luaimg.linux.x86_64: depend_stubs/sstream depend_stubs/limits depend_stubs/vector
-luaimg.linux.x86_64: depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
-luaimg.linux.x86_64: ../dependencies/util/math_util.h depend_stubs/cfloat
-luaimg.linux.x86_64: ../dependencies/util/unicode_util.h text.h depend_stubs/ostream
-luaimg.linux.x86_64: depend_stubs/ft2build.h Image.h depend_stubs/cinttypes
-luaimg.linux.x86_64: depend_stubs/cassert
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/sstream depend_stubs/iostream depend_stubs/FreeImage.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
+luaimg.$(GRIT_EXEC_SUFFIX): interpreter.h Image.h depend_stubs/cinttypes depend_stubs/cmath
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cassert depend_stubs/ostream text.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/ft2build.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/iostream depend_stubs/signal.h depend_stubs/lua.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/lauxlib.h depend_stubs/lualib.h
+luaimg.$(GRIT_EXEC_SUFFIX): ../dependencies/util/lua_util.h depend_stubs/sstream
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/limits ../dependencies/util/math_util.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cmath depend_stubs/cfloat
+luaimg.$(GRIT_EXEC_SUFFIX): ../dependencies/util/lua_utf8.h ../dependencies/util/console.h
+luaimg.$(GRIT_EXEC_SUFFIX): interpreter.h lua_wrappers_image.h Image.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cinttypes depend_stubs/cassert
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/ostream
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cstring depend_stubs/string depend_stubs/iostream
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/fstream depend_stubs/FreeImage.h Image.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cinttypes depend_stubs/cassert depend_stubs/ostream
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/iostream depend_stubs/string
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/sstream depend_stubs/vector
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/limits depend_stubs/algorithm
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/lua.h depend_stubs/lauxlib.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/lualib.h ../dependencies/util/lua_util.h
+luaimg.$(GRIT_EXEC_SUFFIX): ../dependencies/util/math_util.h depend_stubs/cmath
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cfloat lua_wrappers_image.h Image.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cinttypes depend_stubs/cassert
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/ostream text.h depend_stubs/ft2build.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cstring depend_stubs/string depend_stubs/iostream
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/fstream ../dependencies/util/lua_util.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/sstream depend_stubs/limits depend_stubs/vector
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
+luaimg.$(GRIT_EXEC_SUFFIX): ../dependencies/util/math_util.h depend_stubs/cfloat
+luaimg.$(GRIT_EXEC_SUFFIX): ../dependencies/util/unicode_util.h text.h depend_stubs/ostream
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/ft2build.h Image.h depend_stubs/cinttypes
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cassert
 ../dependencies/util/lua_utf8.o: depend_stubs/cstdlib depend_stubs/cstdio
 ../dependencies/util/lua_utf8.o: depend_stubs/cassert depend_stubs/iostream
 ../dependencies/util/lua_utf8.o: depend_stubs/string depend_stubs/sstream
