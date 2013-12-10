@@ -33,6 +33,7 @@ extern "C" {
 }
 
 #include <lua_util.h>
+#include <sleep.h>
 
 #include "lua_wrappers_image.h"
 
@@ -2360,6 +2361,13 @@ static int global_colour (lua_State *L)
     return 1;
 }
 
+static int global_seconds (lua_State *L)
+{
+    check_args(L,0);
+    lua_pushnumber(L, micros() / 1E6);
+    return 1;
+}
+
 /*
 static int global_make_voxel (lua_State *L)
 {
@@ -2393,6 +2401,7 @@ static const luaL_reg global[] = {
     {"lerp", global_lerp},
     {"colour", global_colour},
     {"gaussian", global_gaussian},
+    {"seconds", global_seconds},
  //   {"make_voxel", global_make_voxel},
 
     {NULL, NULL}

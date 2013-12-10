@@ -6,7 +6,7 @@ include ../common.mk
 
 LUA_A =  ../dependencies/lua-5.1.4/liblua.a
 
-SOURCE = luaimg.cpp interpreter.cpp Image.cpp lua_wrappers_image.cpp text.cpp ../dependencies/util/lua_utf8.cpp  ../dependencies/util/lua_util.cpp  ../dependencies/util/unicode_util.cpp ../dependencies/util/console.cpp
+SOURCE = luaimg.cpp interpreter.cpp Image.cpp lua_wrappers_image.cpp text.cpp ../dependencies/util/lua_utf8.cpp  ../dependencies/util/lua_util.cpp  ../dependencies/util/unicode_util.cpp ../dependencies/util/console.cpp ../dependencies/util/posix_sleep.cpp
  
 LUAIMG_CXXFLAGS = $(ICU_CXXFLAGS) $(GRIT_CXX_CONFORMANCE) $(GRIT_CXX_CODEGEN) $(FREEIMAGE_CXXFLAGS) $(LUA_CXXFLAGS) -DLUA_USE_READLINE -Wno-type-limits $(shell pkg-config freetype2 --cflags) -I ../dependencies/util
 LUAIMG_LDFLAGS  = $(ICU_LDFLAGS) $(FREEIMAGE_LDFLAGS) $(LUA_LDFLAGS) $(shell pkg-config freetype2 --libs-only-L)
@@ -105,9 +105,10 @@ luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/limits depend_stubs/algorithm
 luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/lua.h depend_stubs/lauxlib.h
 luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/lualib.h ../dependencies/util/lua_util.h
 luaimg.$(GRIT_EXEC_SUFFIX): ../dependencies/util/math_util.h depend_stubs/cmath
-luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cfloat lua_wrappers_image.h Image.h
-luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cinttypes depend_stubs/cassert
-luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/ostream text.h depend_stubs/ft2build.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cfloat ../dependencies/util/sleep.h
+luaimg.$(GRIT_EXEC_SUFFIX): lua_wrappers_image.h Image.h depend_stubs/cinttypes
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cassert depend_stubs/ostream text.h
+luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/ft2build.h
 luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
 luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cstring depend_stubs/string depend_stubs/iostream
 luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/fstream ../dependencies/util/lua_util.h
@@ -147,3 +148,4 @@ luaimg.$(GRIT_EXEC_SUFFIX): depend_stubs/cassert
 ../dependencies/util/unicode_util.o: ../dependencies/util/unicode_util.h
 ../dependencies/util/unicode_util.o: depend_stubs/string
 ../dependencies/util/console.o: ../dependencies/util/console.h
+../dependencies/util/posix_sleep.o: depend_stubs/cassert depend_stubs/cstdio
