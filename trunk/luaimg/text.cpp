@@ -125,7 +125,7 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
         pen.x += face->glyph->advance.x;
         pen.y += face->glyph->advance.y;
     }
-    //std::cout << "(" << min_x << "," << min_y << ") (" << max_x << "," << max_y << ")" << std::endl;
+    std::cout << "(" << min_x << "," << min_y << ") (" << max_x << "," << max_y << ")" << std::endl;
 
     Colour<1,0> bg(0);
     Colour<1,1> fg(1);
