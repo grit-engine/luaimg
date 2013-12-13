@@ -46,9 +46,9 @@ function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoi
                 local char = string.char(cp)
                 local letter
                 if char:getProperty("EAST_ASIAN_WIDTH") == "F" then
-                        letter = text(wide_font, font_sz, char)
+                        letter = text_codepoint(wide_font, font_sz, char)
                 else
-                        letter = text(font, font_sz, char)
+                        letter = text_codepoint(font, font_sz, char)
                 end
                 if curr_x + letter.width >= new_tex.width then
                     curr_y = curr_y + font_sz.y
@@ -71,5 +71,5 @@ end
 
 make_font(vec(512,512), vec(6,13), "/usr/share/fonts/X11/misc/6x13.pcf.gz", "/usr/share/fonts/X11/misc/12x13ja.pcf.gz", "font_misc_fixed.png", "font_misc_fixed.lua", all_codepoint_ranges, "misc.fixed")
 
-make_font(vec(512,256), vec(24,24),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact50.png", "font_impact50.lua", limited_codepoint_ranges, "Impact50")
-make_font(vec(512,256), vec(24,24),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact24.png", "font_impact24.lua", limited_codepoint_ranges, "Impact24")
+make_font(vec(512,256), vec(50,50),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact50.png", "font_impact50.lua", limited_codepoint_ranges, "Impact50")
+make_font(vec(512,128), vec(24,24),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact24.png", "font_impact24.lua", limited_codepoint_ranges, "Impact24")
