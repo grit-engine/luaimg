@@ -45,6 +45,8 @@ extern FT_Library ft2;
 
 void text_init (void);
 
+Image<1,0> *make_text_codepoint (lua_State *L, const std::string &font, uimglen_t font_w, uimglen_t font_h, unsigned long cp);
+
 Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, uimglen_t font_h, const std::string &text,
                        float xx, float xy, float yx, float yy);
 

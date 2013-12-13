@@ -33,6 +33,7 @@ extern "C" {
 }
 
 #include <lua_util.h>
+#include <unicode_util.h>
 #include <sleep.h>
 
 #include "lua_wrappers_image.h"
@@ -2256,11 +2257,26 @@ static int global_open (lua_State *L)
     return 1;
 }
 
+static int global_text_codepoint (lua_State *L)
+{
+    check_args(L,3);
+    std::string font = luaL_checkstring(L,1);
+    uimglen_t width, height;
+    check_coord(L, 2, width, height);
+    std::string text = luaL_checkstring(L,3);
+    size_t i = 0;
+    unsigned long cp = decode_utf8(text, i);
+    if (i != text.size()-1) my_lua_error(L, "Only one character can be supplied to text_codepoint().");
+    ImageBase *image = make_text_codepoint(L, font, width, height, cp);
+    push_image(L, image);
+    return 1;
+}
+
 static int global_text (lua_State *L)
 {
     if (lua_gettop(L) == 5) {
         std::string font = luaL_checkstring(L,1);
-            uimglen_t width, height;
+        uimglen_t width, height;
         check_coord(L, 2, width, height);
         std::string text = luaL_checkstring(L,3);
         float xx, xy, yx, yy;
@@ -2271,7 +2287,7 @@ static int global_text (lua_State *L)
     } else {
         check_args(L,3);
         std::string font = luaL_checkstring(L,1);
-            uimglen_t width, height;
+        uimglen_t width, height;
         check_coord(L, 2, width, height);
         std::string text = luaL_checkstring(L,3);
         ImageBase *image = make_text(L, font, width, height, text, 1, 0, 0, 1);
@@ -2391,6 +2407,7 @@ static int global_make_voxel (lua_State *L)
 static const luaL_reg global[] = {
     {"make", global_make},
     {"open", global_open},
+    {"text_codepoint", global_text_codepoint},
     {"text", global_text},
     {"RGBtoHSL", global_rgb_to_hsl},
     {"HSLtoRGB", global_hsl_to_rgb},

@@ -45,6 +45,72 @@ void text_init (void)
     }
 }
 
+Image<1,0> *make_text_codepoint (lua_State *L, const std::string &font, uimglen_t font_w, uimglen_t font_h, unsigned long cp)
+{
+    FT_Face face;
+    int error = FT_New_Face(ft2, font.c_str(), 0, &face);
+    if (error == FT_Err_Unknown_File_Format) {
+        FT_Done_Face(face);
+        my_lua_error(L, "Unknown file format reading: "+font);
+    } else if (error != 0) {
+        FT_Done_Face(face);
+        my_lua_error(L, "I/O error "+str(error)+" reading: "+font);
+    }
+
+    error = FT_Set_Pixel_Sizes(face, font_w, font_h);
+    if (0 != error) {
+        FT_Done_Face(face);
+        my_lua_error(L, "Error "+str(error)+" setting pixel sizes: "+font);
+    }
+    
+    error = FT_Load_Char(face, cp, FT_LOAD_RENDER);
+    if (0 != error) {
+        my_lua_error(L, "Error "+str(error)+" loading glyph: "+font);
+    }
+
+    // record max in here
+    simglen_t max_x = (face->glyph->advance.x-1) / 64;
+    simglen_t max_y = face->size->metrics.ascender/64;
+    simglen_t min_x = 0; // always zero
+    simglen_t min_y = (face->size->metrics.descender+1) / 64;
+
+    //std::cout << "(" << min_x << "," << min_y << ") (" << max_x << "," << max_y << ")" << std::endl;
+    //std::cout << bool(FT_IS_SCALABLE(face)) << std::endl;
+
+    Colour<1,0> bg(0);
+    Colour<1,1> fg(1);
+    Image<1,0> *img = image_make<1,0>(max_x-min_x+1, max_y-min_y+1, bg);
+
+    if (face->glyph->bitmap.num_grays == 1) {
+        for (simglen_t p=0 ; p<face->glyph->bitmap.width ; p++) {
+            for (simglen_t q=0 ; q<face->glyph->bitmap.rows ; q++) {
+                unsigned char byte = (unsigned char)(face->glyph->bitmap.buffer[q * face->glyph->bitmap.pitch + p/8]);
+                unsigned char v = (byte >> (7-(p % 8))) & 1;
+                img->drawPixelSafe(simglen_t(face->glyph->bitmap_left) + p - min_x,
+                                   simglen_t(face->glyph->bitmap_top) - q - min_y,
+                                   &fg,
+                                   float(v));
+            }
+        }
+    } else if (face->glyph->bitmap.num_grays == 256) {
+        for (simglen_t p=0 ; p<face->glyph->bitmap.width ; p++) {
+            for (simglen_t q=0 ; q<face->glyph->bitmap.rows ; q++) {
+                img->drawPixelSafe(simglen_t(face->glyph->bitmap_left) + p - min_x,
+                                   simglen_t(face->glyph->bitmap_top) - q - min_y,
+                                   &fg,
+                                   (unsigned char)(face->glyph->bitmap.buffer[q * face->glyph->bitmap.pitch + p]) / 255.0f);
+            }
+        }
+    } else {
+        std::cerr << "Unknown value of face->glyph->bitmap.num_grays: " << face->glyph->bitmap.num_grays << std::endl;
+        abort();
+    }
+
+    FT_Done_Face(face);
+
+    return img;
+}
+
 Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, uimglen_t font_h, const std::string &text,
                        float xx, float xy, float yx, float yy)
 {
@@ -64,7 +130,6 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
         my_lua_error(L, "Error "+str(error)+" setting pixel sizes: "+font);
     }
     
-    //todo: allow rotation, etc
     FT_Matrix     matrix;
     matrix.xx = 0x10000L * xx;
     matrix.xy = 0x10000L * xy;
@@ -92,40 +157,24 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
             my_lua_error(L, "Error "+str(error)+" loading glyph: "+font);
         }
 
-        if (face->glyph->bitmap.num_grays == 1) {
-            for (simglen_t p=0 ; p<face->glyph->bitmap.width ; p++) {
-                for (simglen_t q=0 ; q<face->glyph->bitmap.rows ; q++) {
-                    simglen_t x = simglen_t(face->glyph->bitmap_left) + p;
-                    simglen_t y = simglen_t(face->glyph->bitmap_top) - q;
+        for (simglen_t p=0 ; p<face->glyph->bitmap.width ; p++) {
+            for (simglen_t q=0 ; q<face->glyph->bitmap.rows ; q++) {
+                simglen_t x = simglen_t(face->glyph->bitmap_left) + p;
+                simglen_t y = simglen_t(face->glyph->bitmap_top) - q;
+                if (!FT_IS_SCALABLE(face)) {
                     x += pen.x / 64;
                     y += pen.y / 64;
-                    if (x > max_x) max_x = x;
-                    if (y > max_y) max_y = y;
-                    if (x < min_x) min_x = x;
-                    if (y < min_y) min_y = y;
                 }
+                if (x > max_x) max_x = x;
+                if (y > max_y) max_y = y;
+                if (x < min_x) min_x = x;
+                if (y < min_y) min_y = y;
             }
-        } else if (face->glyph->bitmap.num_grays == 256) {
-            // face must contain more information about where the baseline is, spacing, etc.
-            for (simglen_t p=0 ; p<face->glyph->bitmap.width ; p++) {
-                for (simglen_t q=0 ; q<face->glyph->bitmap.rows ; q++) {
-                    simglen_t x = simglen_t(face->glyph->bitmap_left) + p;
-                    simglen_t y = simglen_t(face->glyph->bitmap_top) - q;
-                    if (x > max_x) max_x = x;
-                    if (y > max_y) max_y = y;
-                    if (x < min_x) min_x = x;
-                    if (y < min_y) min_y = y;
-                }
-            }
-        } else {
-            std::cerr << "Unknown value of face->glyph->bitmap.num_grays: " << face->glyph->bitmap.num_grays << std::endl;
-            abort();
         }
 
         pen.x += face->glyph->advance.x;
         pen.y += face->glyph->advance.y;
     }
-    std::cout << "(" << min_x << "," << min_y << ") (" << max_x << "," << max_y << ")" << std::endl;
 
     Colour<1,0> bg(0);
     Colour<1,1> fg(1);
