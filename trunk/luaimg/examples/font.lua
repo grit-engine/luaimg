@@ -41,6 +41,8 @@ function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoi
 
         file:write("local codepoints = {\n")
 
+        local vert_sz = font_sz.y
+
         for _,range in ipairs(codepoints) do
             for cp=range[1],range[2] do
                 local char = string.char(cp)
@@ -50,8 +52,9 @@ function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoi
                 else
                         letter = text_codepoint(font, font_sz, char)
                 end
+                vert_sz = letter.height
                 if curr_x + letter.width >= new_tex.width then
-                    curr_y = curr_y + font_sz.y
+                    curr_y = curr_y + vert_sz
                     curr_x = 0
                 end
                 new_tex:drawImage(letter.xX, vec(curr_x, curr_y))
@@ -62,7 +65,7 @@ function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoi
 
 
         file:write("}\n");
-        file:write('gfx_font_define("'..font_name..'", "'..tex_name..'", '..tonumber(font_sz.y)..', codepoints)\n')
+        file:write('gfx_font_define("'..font_name..'", "'..tex_name..'", '..vert_sz..', codepoints)\n')
 
         file:close()
 
@@ -71,5 +74,5 @@ end
 
 make_font(vec(512,512), vec(6,13), "/usr/share/fonts/X11/misc/6x13.pcf.gz", "/usr/share/fonts/X11/misc/12x13ja.pcf.gz", "font_misc_fixed.png", "font_misc_fixed.lua", all_codepoint_ranges, "misc.fixed")
 
-make_font(vec(512,256), vec(50,50),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact50.png", "font_impact50.lua", limited_codepoint_ranges, "Impact50")
+make_font(vec(512,512), vec(50,50),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact50.png", "font_impact50.lua", limited_codepoint_ranges, "Impact50")
 make_font(vec(512,128), vec(24,24),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact24.png", "font_impact24.lua", limited_codepoint_ranges, "Impact24")
