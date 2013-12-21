@@ -19,22 +19,25 @@
  * THE SOFTWARE.
  */
 
-#ifndef TEXT_H
-#define TEXT_H
-
-#include <cmath>
-
-#include <ostream>
-#include <string>
+#ifndef DDS_H
+#define DDS_H
 
 #include "Image.h"
 
-void text_init (void);
+enum DDSFormat {
+        DDSF_R8G8B8,
+        DDSF_R8G8B8A8
+};
 
-Image<1,0> *make_text_codepoint (const std::string &font, uimglen_t font_w, uimglen_t font_h, unsigned long cp);
+struct DDSMipmaps {
+        unsigned levels;
+        const ImageBase **maps;
+};
 
-Image<1,0> *make_text (const std::string &font, uimglen_t font_w, uimglen_t font_h, const std::string &text,
-                       float xx, float xy, float yx, float yy);
+struct DDSCubeFace {
+        DDSMipmaps north, south, east, west, top, bottom;
+};
 
+void dds_save_simple (const std::string &filename, DDSFormat format, const DDSMipmaps &img);
 
 #endif

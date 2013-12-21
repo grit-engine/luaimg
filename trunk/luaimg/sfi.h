@@ -19,22 +19,15 @@
  * THE SOFTWARE.
  */
 
-#ifndef TEXT_H
-#define TEXT_H
+#ifndef SFI_H
+#define SFI_H
 
-#include <cmath>
-
-#include <ostream>
 #include <string>
 
 #include "Image.h"
 
-void text_init (void);
+void sfi_save (const std::string &filename, ImageBase *img);
 
-Image<1,0> *make_text_codepoint (const std::string &font, uimglen_t font_w, uimglen_t font_h, unsigned long cp);
-
-Image<1,0> *make_text (const std::string &font, uimglen_t font_w, uimglen_t font_h, const std::string &text,
-                       float xx, float xy, float yx, float yy);
-
+ImageBase *sfi_open (const std::string &filename);
 
 #endif

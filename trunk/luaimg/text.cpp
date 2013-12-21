@@ -29,43 +29,50 @@
 #include <iostream>
 #include <fstream>
 
+#include <ft2build.h>
+// wrap in #ifdef to keep makedepend happy
+#ifdef FT_FREETYPE_H
+#include FT_FREETYPE_H
+#endif
+
+FT_Library ft2;
+
 #include <lua_util.h>
 #include <unicode_util.h>
+#include <exception.h>
 
 #include "text.h"
 #include "Image.h"
 
-FT_Library ft2;
-
 void text_init (void)
 {
     if (0 != FT_Init_FreeType(&ft2)) {
-        std::cerr << "Error initialising the FreeType2 font library." << std::endl;
-        abort();
+        EXCEPT << "Couldn't initialise the FreeType2 font library." << std::endl;
     }
 }
 
-Image<1,0> *make_text_codepoint (lua_State *L, const std::string &font, uimglen_t font_w, uimglen_t font_h, unsigned long cp)
+Image<1,0> *make_text_codepoint (const std::string &font, uimglen_t font_w, uimglen_t font_h, unsigned long cp)
 {
     FT_Face face;
     int error = FT_New_Face(ft2, font.c_str(), 0, &face);
     if (error == FT_Err_Unknown_File_Format) {
         FT_Done_Face(face);
-        my_lua_error(L, "Unknown file format reading: "+font);
+        EXCEPT<<"Unknown file format reading: "<<font<<std::endl;
     } else if (error != 0) {
         FT_Done_Face(face);
-        my_lua_error(L, "I/O error "+str(error)+" reading: "+font);
+        EXCEPT<<"Could not read "<<font<<": "<<error<<std::endl;
     }
 
     error = FT_Set_Pixel_Sizes(face, font_w, font_h);
     if (0 != error) {
         FT_Done_Face(face);
-        my_lua_error(L, "Error "+str(error)+" setting pixel sizes: "+font);
+        EXCEPT<<"Could not set font size ("<<font_w<<","<<font_h<<") for font "<<font<<": "<<error<<std::endl;
     }
     
     error = FT_Load_Char(face, cp, FT_LOAD_RENDER);
     if (0 != error) {
-        my_lua_error(L, "Error "+str(error)+" loading glyph: "+font);
+        FT_Done_Face(face);
+        EXCEPT<<"Could not load glyph "<<cp<<" for font "<<font<<": "<<error<<std::endl;
     }
 
     // record max in here
@@ -102,8 +109,8 @@ Image<1,0> *make_text_codepoint (lua_State *L, const std::string &font, uimglen_
             }
         }
     } else {
-        std::cerr << "Unknown value of face->glyph->bitmap.num_grays: " << face->glyph->bitmap.num_grays << std::endl;
-        abort();
+        FT_Done_Face(face);
+        EXCEPTEX<<font<<": "<<face->glyph->bitmap.num_grays<<std::endl;
     }
 
     FT_Done_Face(face);
@@ -111,23 +118,23 @@ Image<1,0> *make_text_codepoint (lua_State *L, const std::string &font, uimglen_
     return img;
 }
 
-Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, uimglen_t font_h, const std::string &text,
+Image<1,0> *make_text (const std::string &font, uimglen_t font_w, uimglen_t font_h, const std::string &text,
                        float xx, float xy, float yx, float yy)
 {
     FT_Face face;
     int error = FT_New_Face(ft2, font.c_str(), 0, &face);
     if (error == FT_Err_Unknown_File_Format) {
         FT_Done_Face(face);
-        my_lua_error(L, "Unknown file format reading: "+font);
+        EXCEPT<<"Unknown file format reading: "<<font<<std::endl;
     } else if (error != 0) {
         FT_Done_Face(face);
-        my_lua_error(L, "I/O error "+str(error)+" reading: "+font);
+        EXCEPT<<"Could not read "<<font<<": "<<error<<std::endl;
     }
 
     error = FT_Set_Pixel_Sizes(face, font_w, font_h);
     if (0 != error) {
         FT_Done_Face(face);
-        my_lua_error(L, "Error "+str(error)+" setting pixel sizes: "+font);
+        EXCEPT<<"Could not set font size ("<<font_w<<","<<font_h<<") for font "<<font<<": "<<error<<std::endl;
     }
     
     FT_Matrix     matrix;
@@ -154,7 +161,8 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
 
         error = FT_Load_Char(face, cp, FT_LOAD_RENDER);
         if (0 != error) {
-            my_lua_error(L, "Error "+str(error)+" loading glyph: "+font);
+            FT_Done_Face(face);
+            EXCEPT<<"Could not load glyph "<<cp<<" for font "<<font<<": "<<error<<std::endl;
         }
 
         for (simglen_t p=0 ; p<face->glyph->bitmap.width ; p++) {
@@ -192,7 +200,8 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
 
         error = FT_Load_Char(face, cp, FT_LOAD_RENDER);
         if (0 != error) {
-            my_lua_error(L, "Error "+str(error)+" loading glyph: "+font);
+            FT_Done_Face(face);
+            EXCEPT<<"Could not load glyph "<<cp<<" for font "<<font<<": "<<error<<std::endl;
         }
 
         if (face->glyph->bitmap.num_grays == 1) {
@@ -216,8 +225,8 @@ Image<1,0> *make_text (lua_State *L, const std::string &font, uimglen_t font_w, 
                 }
             }
         } else {
-            std::cerr << "Unknown value of face->glyph->bitmap.num_grays: " << face->glyph->bitmap.num_grays << std::endl;
-            abort();
+            FT_Done_Face(face);
+            EXCEPTEX<<font<<": "<<face->glyph->bitmap.num_grays<<std::endl;
         }
 
         pen.x += face->glyph->advance.x;

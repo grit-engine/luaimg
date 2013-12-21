@@ -35,6 +35,7 @@ extern "C" {
 #include <lua_util.h>
 #include <unicode_util.h>
 #include <sleep.h>
+#include <exception.h>
 
 #include "lua_wrappers_image.h"
 
@@ -912,13 +913,13 @@ static ImageBase *image_blend_lua3 (lua_State *L, const Image<ch1,ach1> *v1, con
 template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2>
 static ImageBase *image_blend_lua3 (lua_State *L, const Colour<ch1,ach1> *v1, const Image<ch2,ach2> *v2)
 {
-	if (ach1 != 0) abort();
+    if (ach1 != 0) abort();
     if (ch1==ch2+1 && (ach2==1 || (ach2==0 && ch2>1))) {
-		// e.g. vec(1,1,1,1)..make(sz, 3, true)
-		// if ach2==0 then we have to worry about a mask image on the right, so require ch2>1 
-		// e.g. vec(1,1,1,1)..make(sz, 3, false)
-		// redo the colour, it was assumed to have no alpha channel but only fits if it does have alpha channel 
-		Colour<ch2, 1> v1_;
+        // e.g. vec(1,1,1,1)..make(sz, 3, true)
+        // if ach2==0 then we have to worry about a mask image on the right, so require ch2>1 
+        // e.g. vec(1,1,1,1)..make(sz, 3, false)
+        // redo the colour, it was assumed to have no alpha channel but only fits if it does have alpha channel 
+        Colour<ch2, 1> v1_;
         for (chan_t c=0 ; c<ch1 ; ++c) v1_[c] = (*v1)[c];
         return image_blend_lua4<ch2, 1, ch2, ach2, const Colour<ch2,1>*, const Image<ch2,ach2>*>(L, &v1_, v2);
     } else {
@@ -1055,7 +1056,7 @@ static int image_gc (lua_State *L)
 { 
     check_args(L, 1); 
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    lua_extmemburden(L, -self->numBytes());
+    lua_extmemburden(L, -(long)self->numBytes());
     delete self; 
     return 0; 
 }
@@ -1183,7 +1184,7 @@ static int image_map (lua_State *L)
         dst_ch = check_int(L, 2, 1, 4);
         dst_ach = check_bool(L, 3);
         check_is_function(L, 4);
-		if (dst_ach && dst_ch==4) my_lua_error(L, "Image with alpha channel can have at most 3 colour channels.");
+        if (dst_ach && dst_ch==4) my_lua_error(L, "Image with alpha channel can have at most 3 colour channels.");
         fi = 4;
     } else {
         check_args(L,3);
@@ -1326,7 +1327,7 @@ static int image_reduce (lua_State *L)
     switch (self->channels()) {
         case 1:
         if (self->hasAlpha()) {
-			my_lua_error(L, "Internal error");
+            my_lua_error(L, "Internal error");
         } else {
             Colour<1,0> p;
             if (!check_colour(L, p, pi)) my_lua_error(L, "Reduce 'zero' value had the wrong number of elements.");
@@ -2180,7 +2181,6 @@ static int global_gaussian (lua_State *L)
     push_image(L, my_image->normalise());
     delete my_image;
     return 1;
-    
 }
 
 static int global_make (lua_State *L)
@@ -2193,7 +2193,7 @@ static int global_make (lua_State *L)
         check_coord(L, 1, w, h);
         channels = check_int(L, 2, 1, 4);
         alpha = check_bool(L, 3);
-		if (channels==4 && alpha) my_lua_error(L, "Image with alpha channel can have at most 3 colour channels.");
+        if (channels==4 && alpha) my_lua_error(L, "Image with alpha channel can have at most 3 colour channels.");
         ii = 4;
     } else {
         check_args(L,3);
@@ -2259,6 +2259,7 @@ static int global_open (lua_State *L)
 
 static int global_text_codepoint (lua_State *L)
 {
+HANDLE_BEGIN
     check_args(L,3);
     std::string font = luaL_checkstring(L,1);
     uimglen_t width, height;
@@ -2267,13 +2268,15 @@ static int global_text_codepoint (lua_State *L)
     size_t i = 0;
     unsigned long cp = decode_utf8(text, i);
     if (i != text.size()-1) my_lua_error(L, "Only one character can be supplied to text_codepoint().");
-    ImageBase *image = make_text_codepoint(L, font, width, height, cp);
+    ImageBase *image = make_text_codepoint(font, width, height, cp);
     push_image(L, image);
     return 1;
+HANDLE_END
 }
 
 static int global_text (lua_State *L)
 {
+HANDLE_BEGIN
     if (lua_gettop(L) == 5) {
         std::string font = luaL_checkstring(L,1);
         uimglen_t width, height;
@@ -2282,7 +2285,7 @@ static int global_text (lua_State *L)
         float xx, xy, yx, yy;
         lua_checkvector2(L, 4, &xx, &xy);
         lua_checkvector2(L, 5, &yx, &yy);
-        ImageBase *image = make_text(L, font, width, height, text, xx, xy, yx, yy);
+        ImageBase *image = make_text(font, width, height, text, xx, xy, yx, yy);
         push_image(L, image);
     } else {
         check_args(L,3);
@@ -2290,10 +2293,11 @@ static int global_text (lua_State *L)
         uimglen_t width, height;
         check_coord(L, 2, width, height);
         std::string text = luaL_checkstring(L,3);
-        ImageBase *image = make_text(L, font, width, height, text, 1, 0, 0, 1);
+        ImageBase *image = make_text(font, width, height, text, 1, 0, 0, 1);
         push_image(L, image);
     }
     return 1;
+HANDLE_END
 }
 
 static int global_rgb_to_hsl (lua_State *L)
