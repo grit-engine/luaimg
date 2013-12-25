@@ -37,7 +37,8 @@ rotated_rose = simple_rose:rotate(45):scaleBy(0.7, "BOX")
 
 -- scale down to antialias
 simple_rose = simple_rose:scale(out_sz, "BOX")
-rotated_rose = rotated_rose:scaleBy(out_sz/sz, "BOX"):cropCentre(out_sz, 0)
+
+rotated_rose = rotated_rose:scaleBy(out_sz/sz, "BOX"):cropCentre(out_sz, vec(0,0,0,0))
 
 -- make the actual rose by using the simple rose, with a smaller rotated
 -- version behind it, on top of black
