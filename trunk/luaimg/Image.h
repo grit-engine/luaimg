@@ -55,6 +55,8 @@ void HSVtoRGB (float H, float S, float L, float &R, float &G, float &B);
 #include <ostream>
 #include <string>
 
+#include "dds.h"
+
 static inline simglen_t mymod (simglen_t a, simglen_t b)
 {
     simglen_t c = a % b;
@@ -887,7 +889,7 @@ Colour<ch1,ach1> global_lerp_colour_right_mask (const Colour<ch1,ach1> *a, const
 
 ImageBase *image_load (const std::string &filename);
 
-bool image_save (ImageBase *image, const std::string &filename);
+void image_save (ImageBase *image, const std::string &filename);
 
 template<chan_t ch, chan_t ach> Image<ch,ach> *image_make (uimglen_t width, uimglen_t height, const ColourBase &init_)
 {

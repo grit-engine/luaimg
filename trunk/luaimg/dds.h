@@ -22,22 +22,31 @@
 #ifndef DDS_H
 #define DDS_H
 
+#include <vector>
+
 #include "Image.h"
 
 enum DDSFormat {
+        DDSF_R5G6B5,
         DDSF_R8G8B8,
-        DDSF_R8G8B8A8
+        DDSF_A8R8G8B8,
+        DDSF_A2R10G10B10,
+        DDSF_R8,
+        DDSF_R16,
+        DDSF_A8R8,
+        DDSF_A16R16,
+        DDSF_R3G3B2,
 };
 
-struct DDSMipmaps {
-        unsigned levels;
-        const ImageBase **maps;
-};
+typedef std::vector<ImageBase*> ImageBases;
 
 struct DDSCubeFace {
-        DDSMipmaps north, south, east, west, top, bottom;
+        ImageBases north, south, east, west, top, bottom;
 };
 
-void dds_save_simple (const std::string &filename, DDSFormat format, const DDSMipmaps &img);
+DDSFormat format_from_string (const std::string &str);
+std::string format_to_string (DDSFormat fmt);
+
+void dds_save_simple (const std::string &filename, DDSFormat format, const ImageBases &img);
 
 #endif

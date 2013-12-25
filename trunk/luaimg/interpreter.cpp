@@ -197,9 +197,8 @@ bool interpreter_exec_snippet (const std::string &str, const std::vector<std::st
             print_stack();
             return true;
         } else {
-            const char *msg = lua_tostring(L, -1);
             std::cerr << "Error executing Lua snippet: \"" << str << "\"" << std::endl;
-            std::cerr << msg << std::endl;
+            // msg already printed
             lua_pop(L, 1);      
             return false;
         }

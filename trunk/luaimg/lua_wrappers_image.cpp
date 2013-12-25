@@ -249,10 +249,7 @@ void push_colour (lua_State *L, chan_t channels, bool has_alpha, const ColourBas
 // image must never have been pushed before, or it will be double-freed upon GC
 void push_image (lua_State *L, ImageBase *image)
 {
-    if (image == NULL) {
-        std::cerr << "INTERNAL ERROR: pushing a null image" << std::endl;
-        abort();
-    }
+    ASSERT(image != NULL);
     void **self_ptr = static_cast<void**>(lua_newuserdata(L, sizeof(*self_ptr)));
     lua_extmemburden(L, image->numBytes());
     *self_ptr = image;
@@ -1082,11 +1079,13 @@ static int image_tostring (lua_State *L)
 
 static int image_save (lua_State *L)
 {
+HANDLE_BEGIN
     check_args(L,2);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     std::string filename = lua_tostring(L, 2);
-    if (!image_save(self, filename)) my_lua_error(L, "Could not save: \""+filename+"\"");
+    image_save(self, filename);
     return 0;
+HANDLE_END
 }
 
 template<chan_t ch, chan_t ach> void foreach (lua_State *L, const ImageBase *self_, int func_index)
@@ -1423,7 +1422,7 @@ static int image_crop_centre (lua_State *L)
     return 1;
 }
 
-ScaleFilter scale_filter_from_string (lua_State *L, const std::string &s)
+ScaleFilter scale_filter_from_string (const std::string &s)
 {
     if (s == "BOX") return SF_BOX;
     if (s == "BILINEAR") return SF_BILINEAR;
@@ -1431,24 +1430,26 @@ ScaleFilter scale_filter_from_string (lua_State *L, const std::string &s)
     if (s == "BICUBIC") return SF_BICUBIC;
     if (s == "CATMULLROM") return SF_CATMULLROM;
     if (s == "LANCZOS3") return SF_LANCZOS3;
-    my_lua_error(L, "Expected BOX, BILINEAR, BSPLINE, BICUBIC, CATMULLROM, or LANCZOS3.  Got: \""+s+"\"");
-    return SF_BOX; // silly compilers
+    EXCEPT << "Expected BOX, BILINEAR, BSPLINE, BICUBIC, CATMULLROM, or LANCZOS3.  Got: \"" << s << "\"" << ENDL;
 }
 
 static int image_scale (lua_State *L)
 {
+HANDLE_BEGIN
     check_args(L, 3);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     uimglen_t width, height;
     check_coord(L, 2, width, height);
     std::string filter_type = luaL_checkstring(L, 3);
-    ImageBase *out = self->scale(width, height, scale_filter_from_string(L, filter_type));
+    ImageBase *out = self->scale(width, height, scale_filter_from_string(filter_type));
     push_image(L, out);
     return 1;
+HANDLE_END
 }
 
 static int image_scale_by (lua_State *L)
 {
+HANDLE_BEGIN
     check_args(L, 3);
     ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
     float x_=0, y_=0;
@@ -1464,10 +1465,11 @@ static int image_scale_by (lua_State *L)
     }
     uimglen_t width = x_ * self->width;
     uimglen_t height = y_ * self->height;
-    std::string filter_type = luaL_checkstring(L, 3);
-    ImageBase *out = self->scale(width, height, scale_filter_from_string(L, filter_type));
+    ScaleFilter scale_filter = scale_filter_from_string(luaL_checkstring(L, 3));
+    ImageBase *out = self->scale(width, height, scale_filter);
     push_image(L, out);
     return 1;
+HANDLE_END
 }
 
 static int image_rotate (lua_State *L)
@@ -2246,6 +2248,7 @@ static int global_make (lua_State *L)
 
 static int global_open (lua_State *L)
 {
+HANDLE_BEGIN
     check_args(L,1);
     std::string filename = luaL_checkstring(L,1);
     ImageBase *image = image_load(filename);
@@ -2255,6 +2258,7 @@ static int global_open (lua_State *L)
         push_image(L, image);
     }
     return 1;
+HANDLE_END
 }
 
 static int global_text_codepoint (lua_State *L)
@@ -2297,6 +2301,62 @@ HANDLE_BEGIN
         push_image(L, image);
     }
     return 1;
+HANDLE_END
+}
+
+static int global_mipmaps (lua_State *L)
+{
+HANDLE_BEGIN
+    check_args(L, 2);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    ScaleFilter scale_filter = scale_filter_from_string(luaL_checkstring(L, 2));
+    unsigned counter = 1;
+    lua_newtable(L);
+    int table_index = lua_gettop(L);
+
+    lua_pushvalue(L, 1);
+    ImageBase *last = self;
+    uimglen_t width = last->width;
+    uimglen_t height = last->height;
+    lua_rawseti(L, table_index, counter++);
+
+    do {
+        width = last->width == 1 ? 1 : last->width / 2;
+        height = last->height == 1 ? 1 : last->height / 2;
+        last = last->scale(width, height, scale_filter);
+        push_image(L, last);
+        lua_rawseti(L, table_index, counter++);
+    } while (height > 1 || width > 1);
+
+    return 1;
+HANDLE_END
+}
+
+static int global_dds_save_simple (lua_State *L)
+{
+HANDLE_BEGIN
+    check_args(L, 3);
+    std::string filename = lua_tostring(L, 1);
+    DDSFormat format = format_from_string(luaL_checkstring(L, 2));
+    int table_index = 3;
+    ImageBases mips;
+    if (lua_istable(L, table_index)) {
+        int counter = 1;
+        while (true) {
+            lua_rawgeti(L, table_index, counter);
+            if (lua_isnil(L, -1)) {
+                lua_pop(L, 1);
+                break;
+            }
+            mips.push_back(check_ptr<ImageBase>(L, -1, IMAGE_TAG));
+            lua_pop(L, 1);
+            counter++;
+        }
+    } else {
+        mips.push_back(check_ptr<ImageBase>(L, table_index, IMAGE_TAG));
+    }
+    dds_save_simple(filename, format, mips);
+    return 0;
 HANDLE_END
 }
 
@@ -2413,6 +2473,8 @@ static const luaL_reg global[] = {
     {"open", global_open},
     {"text_codepoint", global_text_codepoint},
     {"text", global_text},
+    {"dds_save_simple", global_dds_save_simple},
+    {"mipmaps", global_mipmaps},
     {"RGBtoHSL", global_rgb_to_hsl},
     {"HSLtoRGB", global_hsl_to_rgb},
     {"HSVtoHSL", global_hsv_to_hsl},
