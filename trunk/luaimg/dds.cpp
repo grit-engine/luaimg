@@ -22,9 +22,11 @@
 #include <cstdlib>
 #include <cstdint>
 
-#include "dds.h"
+#include <squish.h>
 
 #include <io_util.h>
+
+#include "dds.h"
 
 #define DDSD_CAPS 0x1
 #define DDSD_HEIGHT 0x2
@@ -55,6 +57,8 @@
 #define DDPF_YUV 0x200
 #define DDPF_LUMINANCE 0x20000
 
+#define FOURCC(x,y,z,w) uint32_t(((w)<<24) | ((z)<<16) | ((y)<<8) | (x))
+
 
 DDSFormat format_from_string (const std::string &str)
 {
@@ -62,11 +66,18 @@ DDSFormat format_from_string (const std::string &str)
     else if (str == "R8G8B8") return DDSF_R8G8B8;
     else if (str == "A8R8G8B8") return DDSF_A8R8G8B8;
     else if (str == "A2R10G10B10") return DDSF_A2R10G10B10;
+    else if (str == "A1R5G5B5") return DDSF_A1R5G5B5;
     else if (str == "R8") return DDSF_R8;
+    else if (str == "G16R16") return DDSF_G16R16;
     else if (str == "R16") return DDSF_R16;
     else if (str == "A8R8") return DDSF_A8R8;
+    else if (str == "A4R4") return DDSF_A4R4;
     else if (str == "A16R16") return DDSF_A16R16;
     else if (str == "R3G3B2") return DDSF_R3G3B2;
+    else if (str == "A4R4G4B4") return DDSF_A4R4G4B4;
+    else if (str == "DXT1") return DDSF_DXT1;
+    else if (str == "DXT3") return DDSF_DXT3;
+    else if (str == "DXT5") return DDSF_DXT5;
     else {
         EXCEPT << "Unrecognised DDS Format: " << str << ENDL;
     }
@@ -79,11 +90,18 @@ std::string format_to_string (DDSFormat format)
         case DDSF_R8G8B8: return "R8G8B8";
         case DDSF_A8R8G8B8: return "A8R8G8B8";
         case DDSF_A2R10G10B10: return "A2R10G10B10";
+        case DDSF_A1R5G5B5: return "A1R5G5B5";
         case DDSF_R8: return "R8";
         case DDSF_R16: return "R16";
+        case DDSF_G16R16: return "G16R16";
         case DDSF_A8R8: return "A8R8";
+        case DDSF_A4R4: return "A4R4";
         case DDSF_A16R16: return "A16R16";
         case DDSF_R3G3B2: return "R3G3B2";
+        case DDSF_A4R4G4B4: return "A4R4G4B4";
+        case DDSF_DXT1: return "DXT1";
+        case DDSF_DXT3: return "DXT3";
+        case DDSF_DXT5: return "DXT5";
         default: EXCEPTEX << format << ENDL;
     }
 }
@@ -94,7 +112,12 @@ namespace {
     {
         switch (format) {
             case DDSF_A2R10G10B10:
+            case DDSF_A1R5G5B5:
             case DDSF_A8R8G8B8:
+            case DDSF_A4R4G4B4:
+            case DDSF_DXT1:
+            case DDSF_DXT3:
+            case DDSF_DXT5:
             if (ch==3 && alpha) return;
             break;
             case DDSF_R8G8B8:
@@ -102,12 +125,16 @@ namespace {
             case DDSF_R3G3B2:
             if (ch==3 && !alpha) return;
             break;
+            case DDSF_G16R16:
+            if (ch==2 && !alpha) return;
+            break;
             case DDSF_R16:
             case DDSF_R8:
             if (ch==1 && !alpha) return;
             break;
             case DDSF_A16R16:
             case DDSF_A8R8:
+            case DDSF_A4R4:
             if (ch==1 && alpha) return;
             break;
             default: EXCEPTEX << format << ENDL;
@@ -118,13 +145,22 @@ namespace {
     uint32_t bits_per_pixel (DDSFormat format)
     {
         switch (format) {
+
+            case DDSF_DXT1:
+            return 4;
+
+            case DDSF_DXT3:
+            case DDSF_DXT5:
             case DDSF_R8:
             case DDSF_R3G3B2:
+            case DDSF_A4R4:
             return 8;
 
             case DDSF_R16:
             case DDSF_A8R8:
             case DDSF_R5G6B5:
+            case DDSF_A1R5G5B5:
+            case DDSF_A4R4G4B4:
             return 16;
 
             case DDSF_R8G8B8:
@@ -133,9 +169,21 @@ namespace {
             case DDSF_A16R16:
             case DDSF_A8R8G8B8:
             case DDSF_A2R10G10B10:
+            case DDSF_G16R16:
             return 32;
 
             default: EXCEPTEX << format << ENDL;
+        }
+    }
+
+    bool is_compressed (DDSFormat format)
+    {
+        switch (format) {
+            case DDSF_DXT1:
+            case DDSF_DXT3:
+            case DDSF_DXT5:
+            return true;
+            default: return false;
         }
     }
 
@@ -144,6 +192,7 @@ namespace {
         // DDS_HEADER.PIXELFORMAT
         uint32_t flags = 0;
         uint32_t fourcc = 0;
+        uint32_t rgb_bitcount = bits_per_pixel(format);
         uint32_t r_mask = 0;
         uint32_t g_mask = 0;
         uint32_t b_mask = 0;
@@ -175,6 +224,13 @@ namespace {
             b_mask = 0x000003ff;
             a_mask = 0xc0000000;
             break;
+            case DDSF_A1R5G5B5:
+            flags = DDPF_ALPHAPIXELS | DDPF_RGB;
+            r_mask = 0x00007c00;
+            g_mask = 0x000003e0;
+            b_mask = 0x0000001f;
+            a_mask = 0x00008000;
+            break;
             case DDSF_R8:
             flags = DDPF_RGB;
             r_mask = 0x000000ff;
@@ -189,12 +245,26 @@ namespace {
             b_mask = 0x00000000;
             a_mask = 0x00000000;
             break;
+            case DDSF_G16R16:
+            flags = DDPF_RGB;
+            r_mask = 0xffff0000;
+            g_mask = 0x0000ffff;
+            b_mask = 0x00000000;
+            a_mask = 0x00000000;
+            break;
             case DDSF_A8R8:
             flags = DDPF_ALPHAPIXELS | DDPF_RGB;
             r_mask = 0x000000ff;
             g_mask = 0x00000000;
             b_mask = 0x00000000;
             a_mask = 0x0000ff00;
+            break;
+            case DDSF_A4R4:
+            flags = DDPF_ALPHAPIXELS | DDPF_RGB;
+            r_mask = 0x0000000f;
+            g_mask = 0x00000000;
+            b_mask = 0x00000000;
+            a_mask = 0x000000f0;
             break;
             case DDSF_A16R16:
             flags = DDPF_ALPHAPIXELS | DDPF_RGB;
@@ -209,12 +279,34 @@ namespace {
             g_mask = 0x0000001c;
             b_mask = 0x00000003;
             break;
+            case DDSF_A4R4G4B4:
+            flags = DDPF_ALPHAPIXELS | DDPF_RGB;
+            r_mask = 0x00000f00;
+            g_mask = 0x000000f0;
+            b_mask = 0x0000000f;
+            a_mask = 0x0000f000;
+            break;
+            case DDSF_DXT1:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = FOURCC('D','X','T','1');
+            break;
+            case DDSF_DXT3:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = FOURCC('D','X','T','3');
+            break;
+            case DDSF_DXT5:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = FOURCC('D','X','T','5');
+            break;
             default: EXCEPTEX << format << ENDL;
         }
         io_util_write(filename, out, uint32_t(32));
         io_util_write(filename, out, flags);
         io_util_write(filename, out, fourcc);
-        io_util_write(filename, out, bits_per_pixel(format));
+        io_util_write(filename, out, rgb_bitcount);
         io_util_write(filename, out, r_mask);
         io_util_write(filename, out, g_mask);
         io_util_write(filename, out, b_mask);
@@ -260,16 +352,36 @@ namespace {
                 io_util_write(filename, out, word);
                 break;
             }
+            case DDSF_A1R5G5B5: {
+                uint16_t word = 0;
+                word |= to_range<unsigned>(col[3], 1) << 15;
+                word |= to_range<unsigned>(col[0], 31) << 10;
+                word |= to_range<unsigned>(col[1], 31) << 5;
+                word |= to_range<unsigned>(col[2], 31) << 0;
+                io_util_write(filename, out, word);
+                break;
+            }
             case DDSF_R8:
             io_util_write(filename, out, to_range<uint8_t>(col[0], 255));
             break;
             case DDSF_R16:
             io_util_write(filename, out, to_range<uint16_t>(col[0], 65535));
             break;
+            case DDSF_G16R16:
+            io_util_write(filename, out, to_range<uint16_t>(col[0], 65535));
+            io_util_write(filename, out, to_range<uint16_t>(col[1], 65535));
+            break;
             case DDSF_A8R8:
             io_util_write(filename, out, to_range<uint8_t>(col[0], 255));
             io_util_write(filename, out, to_range<uint8_t>(col[1], 255));
             break;
+            case DDSF_A4R4: {
+                uint8_t word = 0;
+                word |= to_range<unsigned>(col[1], 15) << 4;
+                word |= to_range<unsigned>(col[0], 15) << 0;
+                io_util_write(filename, out, word);
+                break;
+            }
             case DDSF_A16R16:
             io_util_write(filename, out, to_range<uint16_t>(col[0], 65535));
             io_util_write(filename, out, to_range<uint16_t>(col[1], 65535));
@@ -282,6 +394,15 @@ namespace {
                 io_util_write(filename, out, word);
                 break;
             }
+            case DDSF_A4R4G4B4: {
+                uint16_t word = 0;
+                word |= to_range<unsigned>(col[3], 15) << 12;
+                word |= to_range<unsigned>(col[0], 15) << 8;
+                word |= to_range<unsigned>(col[1], 15) << 4;
+                word |= to_range<unsigned>(col[2], 15) << 0;
+                io_util_write(filename, out, word);
+                break;
+            }
             default: EXCEPTEX << format << ENDL;
         }
     }
@@ -289,10 +410,67 @@ namespace {
     template<chan_t ch, chan_t ach> void write_image2 (const std::string &filename, std::ostream &out,
                                                       DDSFormat format, const ImageBase *img_)
     {
+        ASSERT(!is_compressed(format));
         const Image<ch,ach> *img = static_cast<const Image<ch,ach>*>(img_);
         for (uimglen_t y=0 ; y<img->height ; ++y) {
             for (uimglen_t x=0 ; x<img->width ; ++x) {
                 write_colour(filename, out, format, img->pixel(x,img->height-y-1));
+            }
+        }
+    }
+
+    void write_compressed_image (const std::string &filename, std::ostream &out,
+                                 DDSFormat format, const Image<3,1> *img, int dxt_flags)
+    {
+        ASSERT(is_compressed(format));
+
+        // convert flags to squish enum
+        int squish_flags = 0;
+        switch (dxt_flags & 3) {
+            case DXT_QUALITY_HIGHEST: squish_flags |= squish::kColourIterativeClusterFit; break;
+            case DXT_QUALITY_HIGH: squish_flags |= squish::kColourClusterFit; break;
+            case DXT_QUALITY_LOW: squish_flags |= squish::kColourRangeFit; break;
+            default: EXCEPT << "Invalid DXT compression flags: " << dxt_flags << ENDL;
+        }
+        squish_flags |= (dxt_flags & DXT_METRIC_PERCEPTUAL) ?
+                        squish::kColourMetricPerceptual : squish::kColourMetricUniform;
+        if (dxt_flags & DXT_WEIGHT_COLOUR_BY_ALPHA) squish_flags |= squish::kWeightColourByAlpha;
+
+        for (uimglen_t y=0 ; y<img->height ; y+=4) {
+            for (uimglen_t x=0 ; x<img->width ; x+=4) {
+                squish::u8 input[4*4*4] = { 0 };
+                for (uimglen_t j=0 ; j<4 ; ++j) {
+                    for (uimglen_t i=0 ; i<4 ; ++i) {
+                        if (x+i >= img->width) continue;
+                        if (y+j >= img->height) continue;
+                        Colour<3,1> c = img->pixel(x+i, img->height-y-j-1);
+                        input[4*(j*4+i)+0] = to_range<squish::u8>(c[0], 255);
+                        input[4*(j*4+i)+1] = to_range<squish::u8>(c[1], 255);
+                        input[4*(j*4+i)+2] = to_range<squish::u8>(c[2], 255);
+                        input[4*(j*4+i)+3] = to_range<squish::u8>(c[3], 255);
+                    }
+                }
+                switch (format) {
+                    case DDSF_DXT1: {
+                        squish::u8 output[8];
+                        squish::Compress(input, output, squish_flags | squish::kDxt1);
+                        io_util_write(filename, out, output);
+                    }
+                    break;
+                    case DDSF_DXT3: {
+                        squish::u8 output[16];
+                        squish::Compress(input, output, squish_flags | squish::kDxt3);
+                        io_util_write(filename, out, output);
+                    }
+                    break;
+                    case DDSF_DXT5: {
+                        squish::u8 output[16];
+                        squish::Compress(input, output, squish_flags | squish::kDxt5);
+                        io_util_write(filename, out, output);
+                    }
+                    break;
+                    default: EXCEPTEX << format << ENDL;
+                }
             }
         }
     }
@@ -323,7 +501,7 @@ namespace {
 
 }
 
-void dds_save_simple (const std::string &filename, DDSFormat format, const ImageBases &img)
+void dds_save_simple (const std::string &filename, DDSFormat format, const ImageBases &img, int dxt_flags)
 {
     ASSERT(img.size() > 0u);
     const ImageBase *top = img[0];
@@ -356,10 +534,16 @@ void dds_save_simple (const std::string &filename, DDSFormat format, const Image
     io_util_write(filename, out, ' ');
 
     // DDS_HEADER
-    uint32_t flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH | DDSD_PIXELFORMAT;
+    uint32_t flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
     if (img.size() > 1) flags |= DDSD_MIPMAPCOUNT;
-    // | DDSD_LINEARSIZE*/;
-    uint32_t pitch_or_linear_size = (top->width * bits_per_pixel(format) + 7) / 8;
+    uint32_t pitch_or_linear_size;
+    if (is_compressed(format)) {
+        pitch_or_linear_size = (top->width * top->height * bits_per_pixel(format) + 7) / 8;
+        flags |= DDSD_LINEARSIZE;
+    } else {
+        pitch_or_linear_size = (top->width * bits_per_pixel(format) + 7) / 8;
+        flags |= DDSD_PITCH;
+    }
     io_util_write(filename, out, uint32_t(124));
     io_util_write(filename, out, flags);
     io_util_write(filename, out, uint32_t(top->height));
@@ -392,8 +576,14 @@ void dds_save_simple (const std::string &filename, DDSFormat format, const Image
         io_util_write(filename, out, misc_flags2);
     }
 
-    for (unsigned i=0 ; i<img.size() ; ++i) {
-        write_image(filename, out, format, img[i]);
+    if (is_compressed(format)) {
+        for (unsigned i=0 ; i<img.size() ; ++i) {
+            write_compressed_image(filename, out, format, static_cast<const Image<3,1>*>(img[i]), dxt_flags);
+        }
+    } else {
+        for (unsigned i=0 ; i<img.size() ; ++i) {
+            write_image(filename, out, format, img[i]);
+        }
     }
     
     out.close();

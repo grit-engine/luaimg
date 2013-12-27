@@ -2335,11 +2335,38 @@ HANDLE_END
 static int global_dds_save_simple (lua_State *L)
 {
 HANDLE_BEGIN
-    check_args(L, 3);
+    unsigned args = lua_gettop(L);
+    if (args < 3) {
+        my_lua_error(L, "Expected at least 3 args to dds_save_simple.");
+    }
     std::string filename = lua_tostring(L, 1);
     DDSFormat format = format_from_string(luaL_checkstring(L, 2));
+    int quality = DXT_QUALITY_HIGH;
+    int metric = DXT_METRIC_PERCEPTUAL;
+    int alpha_weight = 0;
+    for (unsigned i=4 ; i<=args ; ++i) {
+        std::string flag = luaL_checkstring(L, i);
+        if (flag == "QUALITY_HIGHEST") {
+            quality = DXT_QUALITY_HIGHEST;
+        } else if (flag == "QUALITY_HIGH") {
+            quality = DXT_QUALITY_HIGH;
+        } else if (flag == "QUALITY_LOW") {
+            quality = DXT_QUALITY_LOW;
+        } else if (flag == "METRIC_PERCEPTUAL") {
+            metric = DXT_METRIC_PERCEPTUAL;
+        } else if (flag == "METRIC_UNIFORM") {
+            metric = 0;
+        } else if (flag == "WEIGHT_COLOUR_BY_ALPHA") {
+            alpha_weight = DXT_WEIGHT_COLOUR_BY_ALPHA;
+        } else if (flag == "NO_WEIGHT_COLOUR_BY_ALPHA") {
+            alpha_weight = 0;
+        } else {
+            EXCEPT << "Unrecognised DDS flag: " << flag << ENDL;
+        }
+    }
     int table_index = 3;
     ImageBases mips;
+    // pull mips out of table
     if (lua_istable(L, table_index)) {
         int counter = 1;
         while (true) {
@@ -2355,7 +2382,7 @@ HANDLE_BEGIN
     } else {
         mips.push_back(check_ptr<ImageBase>(L, table_index, IMAGE_TAG));
     }
-    dds_save_simple(filename, format, mips);
+    dds_save_simple(filename, format, mips, quality | metric | alpha_weight);
     return 0;
 HANDLE_END
 }

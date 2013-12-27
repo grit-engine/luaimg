@@ -52,7 +52,7 @@
     <BuildLog />
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\lua-5.1.4;$(SolutionDir)\dependencies\icu\include;$(SolutionDir)\dependencies\grit_ogre_dependencies\include;$(SolutionDir)\dependencies\util;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\lua-5.1.4;$(SolutionDir)\dependencies\icu\include;$(SolutionDir)\dependencies\grit_ogre_dependencies\include;$(SolutionDir)\dependencies\util;$(SolutionDir)\dependencies\squish-1.11;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;NOMINMAX;FREEIMAGE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -83,7 +83,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\lua-5.1.4;$(SolutionDir)\dependencies\icu\include;$(SolutionDir)\dependencies\grit_ogre_dependencies\include;$(SolutionDir)\dependencies\util;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\dependencies\lua-5.1.4;$(SolutionDir)\dependencies\icu\include;$(SolutionDir)\dependencies\grit_ogre_dependencies\include;$(SolutionDir)\dependencies\util;$(SolutionDir)\dependencies\squish-1.11;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;NOMINMAX;FREEIMAGE_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -115,6 +115,14 @@
     <ProjectReference Include="..\dependencies\lua.vcxproj">
       <Project>{1d855945-f091-48e0-b995-06fb891ad900}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\dependencies\squish.vcxproj">
+      <Project>{32295ff9-fa94-4e03-957b-48ae90e50541}</Project>
+      <Private>true</Private>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

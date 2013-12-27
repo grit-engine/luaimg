@@ -4,9 +4,7 @@ ROOT = ..
 
 include $(ROOT)/common.mk
 
-LUA_A =  $(ROOT)/dependencies/lua-5.1.4/liblua.a
- 
-LUAIMG_CXXFLAGS = $(ICU_CXXFLAGS) $(GRIT_CXX_CONFORMANCE) $(GRIT_CXX_CODEGEN) $(FREEIMAGE_CXXFLAGS) $(LUA_CXXFLAGS) -DLUA_USE_READLINE -Wno-type-limits $(shell pkg-config freetype2 --cflags) -I $(ROOT)/dependencies/util
+LUAIMG_CXXFLAGS = $(ICU_CXXFLAGS) $(GRIT_CXX_CONFORMANCE) $(GRIT_CXX_CODEGEN) $(FREEIMAGE_CXXFLAGS) $(LUA_CXXFLAGS) $(SQUISH_CXXFLAGS) -DLUA_USE_READLINE -Wno-type-limits $(shell pkg-config freetype2 --cflags) -I $(ROOT)/dependencies/util
 LUAIMG_LDFLAGS  = $(ICU_LDFLAGS) $(FREEIMAGE_LDFLAGS) $(LUA_LDFLAGS) $(shell pkg-config freetype2 --libs-only-L)
 LUAIMG_LDLIBS   = $(ICU_LDLIBS) $(FREEIMAGE_LDLIBS) $(LUA_LDLIBS) -lm -lreadline $(shell pkg-config freetype2 --libs-only-l)
 
@@ -32,8 +30,8 @@ OBJECTS = \
 %.o: %.cpp
 	$(CXX) -c $(LUAIMG_CXXFLAGS) $< -o $@
 
-luaimg.$(GRIT_EXEC_SUFFIX): $(OBJECTS) $(LUA_A) $(ICU_ARCHIVES)
-	$(CXX) $^ $(LUAIMG_LDFLAGS) $(LUAIMG_LDLIBS) -o $@
+luaimg.$(GRIT_EXEC_SUFFIX): $(OBJECTS) $(LUA_ARCHIVES) $(ICU_ARCHIVES) $(SQUISH_ARCHIVES)
+	$(CXX) $^ $(LUAIMG_LDFLAGS) $(LUAIMG_LDLIBS) $(SQUISH_LDFLAGS) $(SQUISH_LDLIBS) -o $@
 
 depend:
 	makedepend -Y -f Makefile *.cpp $(ROOT)/dependencies/util/*.cpp -I $(ROOT)/dependencies/util -I depend_stubs
@@ -97,16 +95,18 @@ clean:
 	rm -fv luaimg.$(GRIT_EXEC_SUFFIX) $(OBJECTS)
 # DO NOT DELETE
 
-dds.o: dds.h depend_stubs/vector Image.h depend_stubs/cinttypes
-dds.o: depend_stubs/cmath depend_stubs/cassert depend_stubs/ostream
-dds.o: depend_stubs/string ../dependencies/util/io_util.h
-dds.o: depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cstring
-dds.o: depend_stubs/iostream depend_stubs/fstream
-dds.o: ../dependencies/util/exception.h depend_stubs/sstream
-dds.o: ../dependencies/util/intrinsics.h
+dds.o: depend_stubs/cstdlib depend_stubs/cstdint depend_stubs/squish.h
+dds.o: ../dependencies/util/io_util.h depend_stubs/cstdio
+dds.o: depend_stubs/cstring depend_stubs/string depend_stubs/iostream
+dds.o: depend_stubs/fstream ../dependencies/util/exception.h
+dds.o: depend_stubs/sstream ../dependencies/util/intrinsics.h dds.h
+dds.o: depend_stubs/vector Image.h depend_stubs/cinttypes depend_stubs/cmath
+dds.o: depend_stubs/cassert depend_stubs/ostream
 Image.o: depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
 Image.o: depend_stubs/cstring depend_stubs/string depend_stubs/iostream
 Image.o: depend_stubs/fstream depend_stubs/FreeImage.h
+Image.o: ../dependencies/util/exception.h depend_stubs/sstream
+Image.o: ../dependencies/util/intrinsics.h
 Image.o: ../dependencies/util/colour_conversion.h Image.h
 Image.o: depend_stubs/cinttypes depend_stubs/cassert depend_stubs/ostream
 Image.o: dds.h depend_stubs/vector sfi.h

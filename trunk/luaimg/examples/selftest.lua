@@ -165,7 +165,7 @@ try_io(imgbase, ".jpg", 1/40)
 try_io(imgbase_a, ".png", 1/255)
 
 
-lena = open("lena.jpg")
+lena = open("lena_std.png")
 lena_a = lena:map(lena.colourChannels,true,function(c)return vec4(c,0.5)end)
 
 -- SIMPLE TRANSFORMATIONS AND MAP

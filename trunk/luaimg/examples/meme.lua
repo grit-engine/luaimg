@@ -2,7 +2,7 @@
 
 -- Create a popular meme (image with white text and black shadow at the bottom)
 
-img = open("lena.jpg")
+img = open("lena_std.png")
 
 -- black/white image containing text (font location is hard-coded)
 txt = text("/usr/share/fonts/truetype/msttcorefonts/Impact.ttf", vec(40,40), "Classic Lena image ╬ψφ£")
