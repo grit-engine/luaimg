@@ -501,28 +501,34 @@ namespace {
 
 }
 
+void check_mipmaps (const std::string &filename, DDSFormat format, const ImageBases &img)
+{
+    const ImageBase *top = img[0];
+
+    // sanity checks:
+    check_colour(format, top->colourChannels(), top->hasAlpha());
+
+    unsigned expected_width = top->width;
+    unsigned expected_height = top->height;
+    for (unsigned i=1 ; i<img.size() ; ++i) {
+        if (img[i]->colourChannels() != top->colourChannels() || img[i]->hasAlpha() != top->hasAlpha()) {
+            EXCEPT << "Couldn't write " << filename << ": All mipmaps must have compatible channels." << ENDL;
+        }
+        expected_width = expected_width == 1 ? 1 : expected_width/2;
+        expected_height = expected_height == 1 ? 1 : expected_height/2;
+        if (expected_width != img[i]->width || expected_height != img[i]->height) {
+            EXCEPT << "Couldn't write " << filename << ": Mipmap "<<i<<" has the wrong size." << ENDL;
+        }
+    }
+}
+
 void dds_save_simple (const std::string &filename, DDSFormat format, const ImageBases &img, int dxt_flags)
 {
     ASSERT(img.size() > 0u);
     const ImageBase *top = img[0];
 
     // sanity checks:
-    check_colour(format, top->colourChannels(), top->hasAlpha());
-    {
-        unsigned expected_width = top->width;
-        unsigned expected_height = top->height;
-        for (unsigned i=1 ; i<img.size() ; ++i) {
-            if (img[i]->colourChannels() != top->colourChannels() || img[i]->hasAlpha() != top->hasAlpha()) {
-                EXCEPT << "Couldn't write " << filename << ": All mipmaps must have compatible channels." << ENDL;
-            }
-            expected_width = expected_width == 1 ? 1 : expected_width/2;
-            expected_height = expected_height == 1 ? 1 : expected_height/2;
-            if (expected_width != img[i]->width || expected_height != img[i]->height) {
-                EXCEPT << "Couldn't write " << filename << ": Mipmap "<<i<<" has the wrong size." << ENDL;
-            }
-        }
-    }
-
+    check_mipmaps(filename, format, img);
 
     std::ofstream out;
     io_util_open(filename, out);
@@ -587,4 +593,14 @@ void dds_save_simple (const std::string &filename, DDSFormat format, const Image
     }
     
     out.close();
+}
+
+DDSFile dds_open (const std::string &filename)
+{
+    std::ifstream in;
+    io_util_open(filename, in);
+    in.close();
+
+    DDSFile file;
+    return file;
 }
