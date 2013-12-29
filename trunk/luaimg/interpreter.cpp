@@ -335,26 +335,24 @@ void interpreter_init (void)
         exit(EXIT_FAILURE);
     }       
 
-    lua_pushcfunction(L, luaopen_base);   lua_pushstring(L, ""); lua_call(L, 1, 0);
-    lua_pushcfunction(L, luaopen_table);  lua_pushstring(L, "table"); lua_call(L, 1, 0);
-    lua_pushcfunction(L, luaopen_io);     lua_pushstring(L, "io"); lua_call(L, 1, 0);
-    lua_pushcfunction(L, luaopen_os);     lua_pushstring(L, "os"); lua_call(L, 1, 0);
-    lua_pushcfunction(L, luaopen_string); lua_pushstring(L, "string"); lua_call(L, 1, 0);
-    lua_pushcfunction(L, luaopen_math);   lua_pushstring(L, "math"); lua_call(L, 1, 0);
-    lua_pushcfunction(L, luaopen_debug);  lua_pushstring(L, "debug"); lua_call(L, 1, 0);
+	luaL_openlibs(L); //opens all standart lua libs
 
     // replace string functions with ICU versions
     utf8_lua_init(L);
 
     // Move all members of math to the top level (i.e. become global funtions, vars, etc)
-    lua_getfield(L, LUA_GLOBALSINDEX, "math");
+    lua_pushglobaltable(L);
+    lua_getfield(L, -1, "math");
+    lua_remove(L,-2); //global table
     int t = lua_gettop(L);
     for (lua_pushnil(L) ; lua_next(L,t)!=0 ; lua_pop(L,1)) {
         int key = lua_gettop(L) - 1;
         int val = lua_gettop(L);
+        lua_pushglobaltable(L);
         lua_pushvalue(L, key);
         lua_pushvalue(L, val);
-        lua_settable(L, LUA_GLOBALSINDEX);
+        lua_settable(L, -3);
+    	lua_remove(L, -1); //global table
     }
     lua_pop(L,1); // math table
 

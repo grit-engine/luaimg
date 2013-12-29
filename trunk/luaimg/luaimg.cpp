@@ -44,7 +44,7 @@ extern "C" {
 const char *prompt = "luaimg> ";
 
 const char *info =
-    "luaimg (c) Dave Cunningham 2013  (version: "LUAIMG_VERSION")\n"
+    "luaimg (c) Dave Cunningham 2013  (version: " LUAIMG_VERSION ")\n"
     "A command-line image processing tool based on the Lua language.\n"
 ;
 
