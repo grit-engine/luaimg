@@ -354,6 +354,8 @@ void interpreter_init (void)
         lua_settable(L, -3);
     	lua_remove(L, -1); //global table
     }
+    //and fmod to mod alias for compat with lua5.1 code
+    lua_getfield(L, -1, "fmod"); lua_setglobal(L, "mod");
     lua_pop(L,1); // math table
 
     luaL_register(L, "_G", global);
