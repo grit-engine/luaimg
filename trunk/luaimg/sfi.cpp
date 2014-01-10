@@ -37,34 +37,31 @@ void sfi_save (const std::string &filename, ImageBase *image)
     uimglen_t height = image->height;
     chan_t channels = image->channels();
 
-    std::ofstream out;
-    io_util_open(filename, out);
-    io_util_write(filename, out, width);
-    io_util_write(filename, out, height);
-    io_util_write(filename, out, channels);
+    OutFile out(filename);
+    out.write(width);
+    out.write(height);
+    out.write(channels);
 
-    out << (image->hasAlpha() ? 'A' : 'a');
+    out.write(image->hasAlpha() ? 'A' : 'a');
 
     float *raw = image->raw();
     for (size_t i=0 ; i<width*height*channels ; ++i) {
-        io_util_write(filename, out, raw[i]);
+        out.write(raw[i]);
     }
-    out.close();
 }
 
 ImageBase *sfi_open (const std::string &filename)
 {
-    std::ifstream in;
-    io_util_open(filename, in);
+    InFile in(filename);
 
     uimglen_t width, height;
     chan_t channels;
-    io_util_read(filename, in, width);
-    io_util_read(filename, in, height);
-    io_util_read(filename, in, channels);
+    in.read(width);
+    in.read(height);
+    in.read(channels);
 
     char alpha_char;
-    io_util_read(filename, in, alpha_char);
+    in.read(alpha_char);
     bool has_alpha;
     if (alpha_char == 'A') {
         has_alpha = true;
@@ -104,15 +101,13 @@ ImageBase *sfi_open (const std::string &filename)
 
         float *raw = img->raw();
         for (size_t i=0 ; i<width*height*channels ; ++i) {
-            io_util_read(filename, in, raw[i]);
+            in.read(raw[i]);
         }
 
     } catch (const Exception &e) {
         delete img;
         throw e;
     }
-
-    in.close();
 
     return img;
 }

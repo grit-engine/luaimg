@@ -187,7 +187,7 @@ namespace {
         }
     }
 
-    void output_pixelformat (const std::string &filename, std::ostream &out, DDSFormat format)
+    void output_pixelformat (OutFile &out, DDSFormat format)
     {
         // DDS_HEADER.PIXELFORMAT
         uint32_t flags = 0;
@@ -303,14 +303,14 @@ namespace {
             break;
             default: EXCEPTEX << format << ENDL;
         }
-        io_util_write(filename, out, uint32_t(32));
-        io_util_write(filename, out, flags);
-        io_util_write(filename, out, fourcc);
-        io_util_write(filename, out, rgb_bitcount);
-        io_util_write(filename, out, r_mask);
-        io_util_write(filename, out, g_mask);
-        io_util_write(filename, out, b_mask);
-        io_util_write(filename, out, a_mask);
+        out.write(uint32_t(32));
+        out.write(flags);
+        out.write(fourcc);
+        out.write(rgb_bitcount);
+        out.write(r_mask);
+        out.write(g_mask);
+        out.write(b_mask);
+        out.write(a_mask);
     }
 
     template<class T> T to_range (float v, unsigned max)
@@ -320,8 +320,7 @@ namespace {
         return v * max + 0.5;
     }
 
-    template<chan_t ch, chan_t ach> void write_colour (const std::string &filename, std::ostream &out,
-                                                       DDSFormat format, const Colour<ch,ach> &col)
+    template<chan_t ch, chan_t ach> void write_colour (OutFile &out, DDSFormat format, const Colour<ch,ach> &col)
     {
         switch (format) {
             case DDSF_R5G6B5: {
@@ -329,19 +328,19 @@ namespace {
                 word |= to_range<unsigned>(col[0], 31) << 11;
                 word |= to_range<unsigned>(col[1], 63) << 5;
                 word |= to_range<unsigned>(col[2], 31) << 0;
-                io_util_write(filename, out, word);
+                out.write(word);
                 break;
             }
             case DDSF_R8G8B8:
-            io_util_write(filename, out, to_range<uint8_t>(col[2], 255));
-            io_util_write(filename, out, to_range<uint8_t>(col[1], 255));
-            io_util_write(filename, out, to_range<uint8_t>(col[0], 255));
+            out.write(to_range<uint8_t>(col[2], 255));
+            out.write(to_range<uint8_t>(col[1], 255));
+            out.write(to_range<uint8_t>(col[0], 255));
             break;
             case DDSF_A8R8G8B8:
-            io_util_write(filename, out, to_range<uint8_t>(col[2], 255));
-            io_util_write(filename, out, to_range<uint8_t>(col[1], 255));
-            io_util_write(filename, out, to_range<uint8_t>(col[0], 255));
-            io_util_write(filename, out, to_range<uint8_t>(col[3], 255));
+            out.write(to_range<uint8_t>(col[2], 255));
+            out.write(to_range<uint8_t>(col[1], 255));
+            out.write(to_range<uint8_t>(col[0], 255));
+            out.write(to_range<uint8_t>(col[3], 255));
             break;
             case DDSF_A2R10G10B10: {
                 uint32_t word = 0;
@@ -349,7 +348,7 @@ namespace {
                 word |= to_range<unsigned>(col[0], 1023) << 20;
                 word |= to_range<unsigned>(col[1], 1023) << 10;
                 word |= to_range<unsigned>(col[2], 1023) << 0;
-                io_util_write(filename, out, word);
+                out.write(word);
                 break;
             }
             case DDSF_A1R5G5B5: {
@@ -358,40 +357,40 @@ namespace {
                 word |= to_range<unsigned>(col[0], 31) << 10;
                 word |= to_range<unsigned>(col[1], 31) << 5;
                 word |= to_range<unsigned>(col[2], 31) << 0;
-                io_util_write(filename, out, word);
+                out.write(word);
                 break;
             }
             case DDSF_R8:
-            io_util_write(filename, out, to_range<uint8_t>(col[0], 255));
+            out.write(to_range<uint8_t>(col[0], 255));
             break;
             case DDSF_R16:
-            io_util_write(filename, out, to_range<uint16_t>(col[0], 65535));
+            out.write(to_range<uint16_t>(col[0], 65535));
             break;
             case DDSF_G16R16:
-            io_util_write(filename, out, to_range<uint16_t>(col[0], 65535));
-            io_util_write(filename, out, to_range<uint16_t>(col[1], 65535));
+            out.write(to_range<uint16_t>(col[0], 65535));
+            out.write(to_range<uint16_t>(col[1], 65535));
             break;
             case DDSF_A8R8:
-            io_util_write(filename, out, to_range<uint8_t>(col[0], 255));
-            io_util_write(filename, out, to_range<uint8_t>(col[1], 255));
+            out.write(to_range<uint8_t>(col[0], 255));
+            out.write(to_range<uint8_t>(col[1], 255));
             break;
             case DDSF_A4R4: {
                 uint8_t word = 0;
                 word |= to_range<unsigned>(col[1], 15) << 4;
                 word |= to_range<unsigned>(col[0], 15) << 0;
-                io_util_write(filename, out, word);
+                out.write(word);
                 break;
             }
             case DDSF_A16R16:
-            io_util_write(filename, out, to_range<uint16_t>(col[0], 65535));
-            io_util_write(filename, out, to_range<uint16_t>(col[1], 65535));
+            out.write(to_range<uint16_t>(col[0], 65535));
+            out.write(to_range<uint16_t>(col[1], 65535));
             break;
             case DDSF_R3G3B2: {
                 uint8_t word = 0;
                 word |= to_range<unsigned>(col[0], 7) << 5;
                 word |= to_range<unsigned>(col[1], 7) << 2;
                 word |= to_range<unsigned>(col[2], 3) << 0;
-                io_util_write(filename, out, word);
+                out.write(word);
                 break;
             }
             case DDSF_A4R4G4B4: {
@@ -400,27 +399,25 @@ namespace {
                 word |= to_range<unsigned>(col[0], 15) << 8;
                 word |= to_range<unsigned>(col[1], 15) << 4;
                 word |= to_range<unsigned>(col[2], 15) << 0;
-                io_util_write(filename, out, word);
+                out.write(word);
                 break;
             }
             default: EXCEPTEX << format << ENDL;
         }
     }
 
-    template<chan_t ch, chan_t ach> void write_image2 (const std::string &filename, std::ostream &out,
-                                                      DDSFormat format, const ImageBase *img_)
+    template<chan_t ch, chan_t ach> void write_image2 (OutFile &out, DDSFormat format, const ImageBase *img_)
     {
         ASSERT(!is_compressed(format));
         const Image<ch,ach> *img = static_cast<const Image<ch,ach>*>(img_);
         for (uimglen_t y=0 ; y<img->height ; ++y) {
             for (uimglen_t x=0 ; x<img->width ; ++x) {
-                write_colour(filename, out, format, img->pixel(x,img->height-y-1));
+                write_colour(out, format, img->pixel(x,img->height-y-1));
             }
         }
     }
 
-    void write_compressed_image (const std::string &filename, std::ostream &out,
-                                 DDSFormat format, const Image<3,1> *img, int dxt_flags)
+    void write_compressed_image (OutFile &out, DDSFormat format, const Image<3,1> *img, int dxt_flags)
     {
         ASSERT(is_compressed(format));
 
@@ -454,19 +451,19 @@ namespace {
                     case DDSF_DXT1: {
                         squish::u8 output[8];
                         squish::Compress(input, output, squish_flags | squish::kDxt1);
-                        io_util_write(filename, out, output);
+                        out.write(output);
                     }
                     break;
                     case DDSF_DXT3: {
                         squish::u8 output[16];
                         squish::Compress(input, output, squish_flags | squish::kDxt3);
-                        io_util_write(filename, out, output);
+                        out.write(output);
                     }
                     break;
                     case DDSF_DXT5: {
                         squish::u8 output[16];
                         squish::Compress(input, output, squish_flags | squish::kDxt5);
-                        io_util_write(filename, out, output);
+                        out.write(output);
                     }
                     break;
                     default: EXCEPTEX << format << ENDL;
@@ -475,49 +472,67 @@ namespace {
         }
     }
 
-    void write_image (const std::string &filename, std::ostream &out, DDSFormat format, const ImageBase *map)
+    void write_image (OutFile &out, DDSFormat format, const ImageBase *map)
     {
         // a GCC bug got in the way of
         // (map->hasAlpha()?write_image2<3,1>:write_image2<3,0>)(...);
         switch (map->colourChannels()) {
             case 4:
-            write_image2<4,0>(filename, out, format, map);
+            write_image2<4,0>(out, format, map);
             break;
             case 3:
-            if (map->hasAlpha()) write_image2<3,1>(filename, out, format, map);
-            else write_image2<3,0>(filename, out, format, map);
+            if (map->hasAlpha()) write_image2<3,1>(out, format, map);
+            else write_image2<3,0>(out, format, map);
             break;
             case 2:
-            if (map->hasAlpha()) write_image2<2,1>(filename, out, format, map);
-            else write_image2<2,0>(filename, out, format, map);
+            if (map->hasAlpha()) write_image2<2,1>(out, format, map);
+            else write_image2<2,0>(out, format, map);
             break;
             case 1:
-            if (map->hasAlpha()) write_image2<1,1>(filename, out, format, map);
-            else write_image2<1,0>(filename, out, format, map);
+            if (map->hasAlpha()) write_image2<1,1>(out, format, map);
+            else write_image2<1,0>(out, format, map);
             break;
             default: EXCEPTEX << map->colourChannels() << ENDL;
         }
     }
 
-}
+    void check_mipmaps (const std::string &filename, DDSFormat format, const ImageBases &img)
+    {
+        const ImageBase *top = img[0];
 
-void check_mipmaps (const std::string &filename, DDSFormat format, const ImageBases &img)
-{
-    const ImageBase *top = img[0];
+        // sanity checks:
+        check_colour(format, top->colourChannels(), top->hasAlpha());
 
-    // sanity checks:
-    check_colour(format, top->colourChannels(), top->hasAlpha());
-
-    unsigned expected_width = top->width;
-    unsigned expected_height = top->height;
-    for (unsigned i=1 ; i<img.size() ; ++i) {
-        if (img[i]->colourChannels() != top->colourChannels() || img[i]->hasAlpha() != top->hasAlpha()) {
-            EXCEPT << "Couldn't write " << filename << ": All mipmaps must have compatible channels." << ENDL;
+        unsigned expected_width = top->width;
+        unsigned expected_height = top->height;
+        for (unsigned i=1 ; i<img.size() ; ++i) {
+            if (img[i]->colourChannels() != top->colourChannels() || img[i]->hasAlpha() != top->hasAlpha()) {
+                EXCEPT << "Couldn't write " << filename << ": All mipmaps must have compatible channels." << ENDL;
+            }
+            expected_width = expected_width == 1 ? 1 : expected_width/2;
+            expected_height = expected_height == 1 ? 1 : expected_height/2;
+            if (expected_width != img[i]->width || expected_height != img[i]->height) {
+                EXCEPT << "Couldn't write " << filename << ": Mipmap "<<i<<" has the wrong size." << ENDL;
+            }
         }
-        expected_width = expected_width == 1 ? 1 : expected_width/2;
-        expected_height = expected_height == 1 ? 1 : expected_height/2;
-        if (expected_width != img[i]->width || expected_height != img[i]->height) {
-            EXCEPT << "Couldn't write " << filename << ": Mipmap "<<i<<" has the wrong size." << ENDL;
+    }
+
+    uint32_t pitch_or_linear_size (DDSFormat format, uimglen_t width, uimglen_t height)
+    {
+        if (is_compressed(format)) {
+            unsigned block_size;
+            switch (format) {
+                case DDSF_DXT1:
+                break;
+                default: block_size = 16;
+            }
+            unsigned width_blocks = (width + 3)/4;
+            if (width_blocks == 0) width_blocks = 1;
+            unsigned height_blocks = (height + 3)/4;
+            if (height_blocks == 0) height_blocks = 1;
+            return width_blocks * height_blocks * block_size;
+        } else {
+            return (width * bits_per_pixel(format) + 7) / 8;
         }
     }
 }
@@ -530,43 +545,32 @@ void dds_save_simple (const std::string &filename, DDSFormat format, const Image
     // sanity checks:
     check_mipmaps(filename, format, img);
 
-    std::ofstream out;
-    io_util_open(filename, out);
+    OutFile out(filename);
 
     // Filetype magic
-    io_util_write(filename, out, 'D');
-    io_util_write(filename, out, 'D');
-    io_util_write(filename, out, 'S');
-    io_util_write(filename, out, ' ');
+    out.write(FOURCC('D', 'D', 'S', ' '));
 
     // DDS_HEADER
     uint32_t flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
     if (img.size() > 1) flags |= DDSD_MIPMAPCOUNT;
-    uint32_t pitch_or_linear_size;
-    if (is_compressed(format)) {
-        pitch_or_linear_size = (top->width * top->height * bits_per_pixel(format) + 7) / 8;
-        flags |= DDSD_LINEARSIZE;
-    } else {
-        pitch_or_linear_size = (top->width * bits_per_pixel(format) + 7) / 8;
-        flags |= DDSD_PITCH;
-    }
-    io_util_write(filename, out, uint32_t(124));
-    io_util_write(filename, out, flags);
-    io_util_write(filename, out, uint32_t(top->height));
-    io_util_write(filename, out, uint32_t(top->width));
-    io_util_write(filename, out, pitch_or_linear_size);
-    io_util_write(filename, out, uint32_t(0)); // DDS_DEPTH
-    io_util_write(filename, out, uint32_t(img.size())); // DDSD_MIPMAPCOUNT
-    for (int i=0 ; i<11 ; ++i) io_util_write(filename, out, uint32_t(0)); //unused
-    output_pixelformat(filename, out, format);
+    flags |= is_compressed(format) ? DDSD_LINEARSIZE :  DDSD_PITCH;
+    out.write(uint32_t(124));
+    out.write(flags);
+    out.write(uint32_t(top->height));
+    out.write(uint32_t(top->width));
+    out.write(pitch_or_linear_size(format, top->width, top->height));
+    out.write(uint32_t(0)); // DDS_DEPTH
+    out.write(uint32_t(img.size())); // DDSD_MIPMAPCOUNT
+    for (int i=0 ; i<11 ; ++i) out.write(uint32_t(0)); //unused
+    output_pixelformat(out, format);
     uint32_t caps = DDSCAPS_TEXTURE;
     if (img.size() > 1) caps |= DDSCAPS_COMPLEX | DDSCAPS_MIPMAP;
     uint32_t caps2 = 0; // used for cubes
-    io_util_write(filename, out, caps);
-    io_util_write(filename, out, caps2);
-    io_util_write(filename, out, uint32_t(0)); // caps3
-    io_util_write(filename, out, uint32_t(0)); // caps4
-    io_util_write(filename, out, uint32_t(0)); // unused
+    out.write(caps);
+    out.write(caps2);
+    out.write(uint32_t(0)); // caps3
+    out.write(uint32_t(0)); // caps4
+    out.write(uint32_t(0)); // unused
 
     // DDS_HEADER_DX10
     if (false) {
@@ -575,32 +579,175 @@ void dds_save_simple (const std::string &filename, DDSFormat format, const Image
         uint32_t misc_flag = 0;
         uint32_t array_size = 0;
         uint32_t misc_flags2 = 0;
-        io_util_write(filename, out, dx10_format);
-        io_util_write(filename, out, resource_dimension);
-        io_util_write(filename, out, misc_flag);
-        io_util_write(filename, out, array_size);
-        io_util_write(filename, out, misc_flags2);
+        out.write(dx10_format);
+        out.write(resource_dimension);
+        out.write(misc_flag);
+        out.write(array_size);
+        out.write(misc_flags2);
     }
 
     if (is_compressed(format)) {
         for (unsigned i=0 ; i<img.size() ; ++i) {
-            write_compressed_image(filename, out, format, static_cast<const Image<3,1>*>(img[i]), dxt_flags);
+            write_compressed_image(out, format, static_cast<const Image<3,1>*>(img[i]), dxt_flags);
         }
     } else {
         for (unsigned i=0 ; i<img.size() ; ++i) {
-            write_image(filename, out, format, img[i]);
+            write_image(out, format, img[i]);
         }
     }
     
-    out.close();
+}
+
+// assumes ch is the number of non-zero rgb masks and ach is 1 if a_mask is non-zero
+template<chan_t ch, chan_t ach> Image<ch,ach> *read_rgb_image(InFile &in, uimglen_t width, uimglen_t height,
+                                                              unsigned bytes,
+                                                              uint32_t r_mask, uint32_t g_mask,
+                                                              uint32_t b_mask, uint32_t a_mask)
+{
+    Image<ch,ach> *nu = new Image<ch,ach>(width, height);
+    for (uimglen_t y=0 ; y<height ; ++y) {
+        for (uimglen_t x=0 ; x<width ; ++x) {
+            uint32_t word = 0;
+            // read little endian
+            for (unsigned i=0 ; i<bytes ; ++i) {
+                word |= in.read<unsigned char>() << (i*8);
+            }
+            chan_t i = 0;
+            if (r_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & r_mask)/r_mask;
+            if (g_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & g_mask)/g_mask;
+            if (b_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & b_mask)/b_mask;
+            if (a_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & a_mask)/a_mask;
+        }
+    }
+    return nu;
 }
 
 DDSFile dds_open (const std::string &filename)
 {
-    std::ifstream in;
-    io_util_open(filename, in);
-    in.close();
-
     DDSFile file;
+    InFile in(filename);
+
+    uint32_t magic = in.read<uint32_t>();
+    if (magic != FOURCC('D', 'D', 'S', ' ')) {
+        EXCEPT << "Not a DDS file: \"" << filename << "\"" << ENDL;
+    }
+
+    uint32_t sz = in.read<uint32_t>();
+    if (sz != 124) EXCEPT << "DDS header of \""<<filename<<"\" had wrong size: " << sz << ENDL;
+    uint32_t flags = in.read<uint32_t>();
+    uint32_t height = in.read<uint32_t>();
+    uint32_t width = in.read<uint32_t>();
+    in.read<uint32_t>(); // pitch_or_linear_size: can't be relied upon
+    uint32_t depth = in.read<uint32_t>();
+    uint32_t mipmap_count = in.read<uint32_t>();
+    // don't rely on DDSD_MIPMAPCOUNT flag being set
+    if (mipmap_count == 0) mipmap_count = 1;
+    for (int i=0 ; i<11 ; ++i) in.read<uint32_t>(); //unused
+
+    uint32_t pf_sz = in.read<uint32_t>();
+    if (pf_sz != 32) EXCEPT << "DDS PixelFormat header of \""<<filename<<"\" had wrong size: " << pf_sz << ENDL;
+    uint32_t pf_flags = in.read<uint32_t>();
+    uint32_t pf_fourcc = in.read<uint32_t>();
+    uint32_t pf_rgb_bitcount = in.read<uint32_t>();
+    uint32_t pf_r_mask = in.read<uint32_t>();
+    uint32_t pf_g_mask = in.read<uint32_t>();
+    uint32_t pf_b_mask = in.read<uint32_t>();
+    uint32_t pf_a_mask = in.read<uint32_t>();
+
+
+    in.read<uint32_t>(); // caps: can't be relied upon
+    uint32_t caps2 = in.read<uint32_t>(); // cubemap, volume map
+    in.read<uint32_t>(); // caps3
+    in.read<uint32_t>(); // caps4
+    in.read<uint32_t>(); // unused
+
+    if ((pf_flags & DDPF_FOURCC) && pf_fourcc==FOURCC('D', 'X', '1', '0')) {
+        uint32_t dx10_format = in.read<uint32_t>();
+        uint32_t resource_dimension = in.read<uint32_t>();
+        uint32_t misc_flag = in.read<uint32_t>();
+        uint32_t array_size = in.read<uint32_t>();
+        uint32_t misc_flags2 = in.read<uint32_t>();
+        (void) dx10_format;
+        (void) resource_dimension;
+        (void) misc_flag;
+        (void) array_size;
+        (void) misc_flags2;
+        EXCEPT << "DDS DX10 header not yet supported in \"" << filename << "\"" << ENDL;
+    } else {
+        ASSERT(depth == 0);
+        ASSERT((flags & DDSD_DEPTH) == 0);
+        ASSERT(caps2 == 0); // fix when using cubemap or volume map
+    }
+    
+    file.kind = DDS_SIMPLE;
+    for (unsigned i=0 ; i<mipmap_count ; ++i) {
+        chan_t ch=0, ach=0;
+        ImageBase *nu = NULL;
+        if (pf_flags & DDPF_RGB) {
+            if ((pf_r_mask | pf_g_mask | pf_b_mask) == 0) {
+                EXCEPT << "DDS file \""<<filename<<"\" has all RGB masks set to 0." << ENDL;
+            }
+            switch (pf_rgb_bitcount) {
+                case 8: case 16: case 24: case 32: break;
+                default:
+                EXCEPT << "DDS file \""<<filename<<"\" has unsupported RGB bitcount: " << pf_rgb_bitcount << ENDL;
+            }
+            unsigned bytes = pf_rgb_bitcount / 8;
+            if (!(pf_flags & DDPF_ALPHAPIXELS)) pf_a_mask = 0;
+            if (pf_r_mask != 0) ch++;
+            if (pf_g_mask != 0) ch++;
+            if (pf_b_mask != 0) ch++;
+            if (pf_a_mask) ach = 1;
+            switch (ch) {
+                case 1: 
+                if (ach == 1) {
+                    nu = read_rgb_image<1,1>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                } else {
+                    nu = read_rgb_image<1,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                }
+                break;
+                case 2: 
+                if (ach == 1) {
+                    nu = read_rgb_image<2,1>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                } else {
+                    nu = read_rgb_image<2,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                }
+                break;
+                case 3: 
+                if (ach == 1) {
+                    nu = read_rgb_image<3,1>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                } else {
+                    nu = read_rgb_image<3,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                }
+                break;
+                case 4: 
+                nu = read_rgb_image<4,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                break;
+            }
+        } else if (pf_flags & DDPF_FOURCC) {
+            nu = read_compressed_image(in, width, height, pf_fourcc);
+        } else {
+            EXCEPT << "DDS file \""<<filename<<"\" has neither fourcc nor RGB pixel format." << ENDL;
+        }
+        file.simple.push_back(nu);
+
+        width = width == 1 ? 1 : width / 2;
+        height = height == 1 ? 1 : height / 2;
+    }
+
     return file;
+}
+
+Image<3,1> *read_compressed_image(InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_fourcc)
+{
+    int dxt;
+    switch (pf_fourcc) {
+        case FOURCC('D', 'X', 'T', '1'): dxt = 1; break;
+        case FOURCC('D', 'X', 'T', '2'):
+        case FOURCC('D', 'X', 'T', '3'): dxt = 3; break;
+        case FOURCC('D', 'X', 'T', '4'):
+        case FOURCC('D', 'X', 'T', '5'): dxt = 5; break;
+        default:
+        EXCEPT << "DDS file \""<<filename<<"\" has unrecognised fourcc:" << pf_fourcc << ENDL;
+    }
 }

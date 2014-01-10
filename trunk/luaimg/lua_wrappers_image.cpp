@@ -2339,7 +2339,7 @@ HANDLE_BEGIN
     if (args < 3) {
         my_lua_error(L, "Expected at least 3 args to dds_save_simple.");
     }
-    std::string filename = lua_tostring(L, 1);
+    std::string filename = luaL_checkstring(L, 1);
     DDSFormat format = format_from_string(luaL_checkstring(L, 2));
     int quality = DXT_QUALITY_HIGH;
     int metric = DXT_METRIC_PERCEPTUAL;
@@ -2384,6 +2384,66 @@ HANDLE_BEGIN
     }
     dds_save_simple(filename, format, mips, quality | metric | alpha_weight);
     return 0;
+HANDLE_END
+}
+
+static void push_mipmaps (lua_State *L, const ImageBases &imgs)
+{
+    lua_newtable(L);
+    int table_index = lua_gettop(L);
+    for (unsigned i=0 ; i<imgs.size() ; ++i) {
+        push_image(L, imgs[i]);
+        lua_rawseti(L, table_index, i+1);
+    }
+}
+
+static int global_dds_open (lua_State *L)
+{
+HANDLE_BEGIN
+    check_args(L,1);
+    const char *filename = luaL_checkstring(L, 1);
+    DDSFile file = dds_open(filename);
+    switch (file.kind) {
+        case DDS_SIMPLE: {
+            lua_pushstring(L, "SIMPLE");
+            push_mipmaps(L, file.simple);
+        } break;
+        case DDS_CUBE: {
+            lua_pushstring(L, "CUBE");
+            lua_newtable(L);
+            int table_index = lua_gettop(L);
+            push_mipmaps(L, file.cube.west);
+            lua_setfield(L, table_index, "west");
+            push_mipmaps(L, file.cube.east);
+            lua_setfield(L, table_index, "east");
+            push_mipmaps(L, file.cube.south);
+            lua_setfield(L, table_index, "south");
+            push_mipmaps(L, file.cube.north);
+            lua_setfield(L, table_index, "north");
+            push_mipmaps(L, file.cube.bottom);
+            lua_setfield(L, table_index, "bottom");
+            push_mipmaps(L, file.cube.top);
+            lua_setfield(L, table_index, "top");
+        } break;
+        case DDS_VOLUME: {
+            lua_pushstring(L, "VOLUME");
+            lua_newtable(L);
+            int mips_table_index = lua_gettop(L);
+            unsigned num_mips = file.volume.size();
+            for (unsigned i=0 ; i<num_mips ; ++i) {
+                lua_newtable(L);
+                int layer_table_index = lua_gettop(L);
+                for (unsigned l=0 ; l<file.volume[i].size() ; ++l) {
+                    push_image(L, file.volume[i][l]);
+                    lua_rawseti(L, layer_table_index, l+1);
+                }
+                lua_rawseti(L, mips_table_index, i+1);
+            }
+        } break;
+        default:
+        EXCEPTEX << file.kind << ENDL;
+    }
+    return 2;
 HANDLE_END
 }
 
@@ -2501,6 +2561,7 @@ static const luaL_reg global[] = {
     {"text_codepoint", global_text_codepoint},
     {"text", global_text},
     {"dds_save_simple", global_dds_save_simple},
+    {"dds_open", global_dds_open},
     {"mipmaps", global_mipmaps},
     {"RGBtoHSL", global_rgb_to_hsl},
     {"HSLtoRGB", global_hsl_to_rgb},

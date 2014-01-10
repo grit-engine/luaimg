@@ -59,7 +59,7 @@ enum DXTFlags {
 typedef std::vector<ImageBase*> ImageBases;
 
 struct DDSCube {
-        ImageBases north, south, east, west, top, bottom;
+    ImageBases west, east, south, north, bottom, top;
 };
 
 DDSFormat format_from_string (const std::string &str);
@@ -76,9 +76,11 @@ enum DDSFileType {
 };
 
 struct DDSFile {
-    DDSFormat format;
+    DDSFileType kind;
     ImageBases simple;
     DDSCube cube;
+    // The top-level vector contains the mip levels, inside each of which is all the layers for that level.
+    std::vector<ImageBases> volume;
 };
 
 DDSFile dds_open (const std::string &filename);
