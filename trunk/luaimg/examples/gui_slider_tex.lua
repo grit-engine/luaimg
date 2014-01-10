@@ -8,7 +8,6 @@ make(sz, 3, function(pos) return HSVtoRGB(vec(pos.x/(sz.x-1),1,1)) end):save("bg
 
 make(sz, 1, true, function(pos) return vec(0.5, 1 - pos.x/(sz.x-1)) end):save("bg_sat.png")
 
---[[
 local tick_colour = vec(1,0,0)
 local bg_colour = vec(0,0,0)
 local fg_colour = vec(1,1,1)
@@ -18,8 +17,7 @@ make(sz, 3, function(pos)
     val = pow(val, 2.2)
     val = val * 10
     local val_last = (pos.x-1) / (sz.x)
-    val_last = pow(val_last, 2.2)
-    val_last = val_last * 10
+    val_last = val_last ^ 2.2 * 10
     if floor(val) > floor(val_last) then return tick_colour end
     local decade
     if pos.y < 3 then
@@ -30,15 +28,19 @@ make(sz, 3, function(pos)
     if val < decade then return bg_colour end
     if val >= decade + 1 then return fg_colour end
     return (val - decade) * vec(1,1,1)
-end):save("slider_val1.png")
+end):save("bg_val3.png")
+
+make(sz, 3, function(pos)
+    local val = pos.x / sz.x
+    return val
+end):save("bg_val_simple.png")
 
 make(sz, 3, function(pos)
     local val = pos.x / sz.x
     val = pow(val, 2.2)
     val = val * 10
     return (val % 1) * vec(1,1,1)
-end):save("slider_val2.png")
-]]
+end):save("bg_val2.png")
 
 make(sz, 3, function(pos)
     local val = pos.x / sz.x
