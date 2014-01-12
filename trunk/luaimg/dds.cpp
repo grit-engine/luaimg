@@ -598,28 +598,80 @@ void dds_save_simple (const std::string &filename, DDSFormat format, const Image
     
 }
 
-// assumes ch is the number of non-zero rgb masks and ach is 1 if a_mask is non-zero
-template<chan_t ch, chan_t ach> Image<ch,ach> *read_rgb_image(InFile &in, uimglen_t width, uimglen_t height,
-                                                              unsigned bytes,
-                                                              uint32_t r_mask, uint32_t g_mask,
-                                                              uint32_t b_mask, uint32_t a_mask)
-{
-    Image<ch,ach> *nu = new Image<ch,ach>(width, height);
-    for (uimglen_t y=0 ; y<height ; ++y) {
-        for (uimglen_t x=0 ; x<width ; ++x) {
-            uint32_t word = 0;
-            // read little endian
-            for (unsigned i=0 ; i<bytes ; ++i) {
-                word |= in.read<unsigned char>() << (i*8);
+namespace {
+    // assumes ch is the number of non-zero rgb masks and ach is 1 if a_mask is non-zero
+    template<chan_t ch, chan_t ach> Image<ch,ach> *read_rgb_image(InFile &in, uimglen_t width, uimglen_t height,
+                                                                  unsigned bytes,
+                                                                  uint32_t r_mask, uint32_t g_mask,
+                                                                  uint32_t b_mask, uint32_t a_mask)
+    {
+        Image<ch,ach> *nu = new Image<ch,ach>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                uint32_t word = 0;
+                // read little endian
+                for (unsigned i=0 ; i<bytes ; ++i) {
+                    word |= in.read<unsigned char>() << (i*8);
+                }
+                chan_t i = 0;
+                if (r_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & r_mask)/r_mask;
+                if (g_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & g_mask)/g_mask;
+                if (b_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & b_mask)/b_mask;
+                if (a_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & a_mask)/a_mask;
             }
-            chan_t i = 0;
-            if (r_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & r_mask)/r_mask;
-            if (g_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & g_mask)/g_mask;
-            if (b_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & b_mask)/b_mask;
-            if (a_mask != 0) nu->pixel(x, height-y-1)[i++] = float(word & a_mask)/a_mask;
         }
+        return nu;
     }
-    return nu;
+
+    Colour<3,1> decode_r5g6b5 (uint16_t col)
+    {
+        Colour<3,1> r;
+        r[0] = float(col & 0xfc00) / 0xfc00;
+        r[1] = float(col & 0x03e0) / 0x03e0;
+        r[2] = float(col & 0x001f) / 0x001f;
+        r[3] = 1.0;
+        return r;
+    }
+
+    Image<3,1> *read_compressed_image(InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_fourcc)
+    {
+        enum { DXT1, DXT3, DXT5 } codec;
+        switch (pf_fourcc) {
+            case FOURCC('D', 'X', 'T', '1'): codec = DXT1; break;
+            case FOURCC('D', 'X', 'T', '2'):
+            case FOURCC('D', 'X', 'T', '3'): codec = DXT3; break;
+            case FOURCC('D', 'X', 'T', '4'):
+            case FOURCC('D', 'X', 'T', '5'): codec = DXT5; break;
+            default:
+            EXCEPT << "DDS file \""<<in.filename<<"\" has unrecognised fourcc:" << pf_fourcc << ENDL;
+        }
+        Image<3,1> *nu = new Image<3,1>(width, height);
+        for (uimglen_t y=0 ; y<height ; y+=4) {
+            for (uimglen_t x=0 ; x<width ; x+=4) {
+                switch (codec) {
+                    case DXT1: {
+                        auto col1 = in.read<uint16_t>();
+                        auto col2 = in.read<uint16_t>();
+                        auto pixels = in.read<uint32_t>();
+                        if (col2 > col1) {
+                            Colour<3,1> palette[4];
+                            palette[0] = decode_r5g6b5(col1);
+                            palette[3] = decode_r5g6b5(col2);
+                            palette[1] = (col1 + 2*col2)/3;
+                            palette[2] = (2*col1 + col2)/3;
+                        } else {
+                            Colour<3,1> palette[4];
+                            palette[0] = decode_r5g6b5(col1);
+                            palette[2] = decode_r5g6b5(col2);
+                            palette[1] = (col1 + col2)/3;
+                        }
+                    } break;
+                    default: EXCEPTEX << codec << ENDL;
+                }
+            }
+        }
+        return nu;
+    }
 }
 
 DDSFile dds_open (const std::string &filename)
@@ -738,16 +790,3 @@ DDSFile dds_open (const std::string &filename)
     return file;
 }
 
-Image<3,1> *read_compressed_image(InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_fourcc)
-{
-    int dxt;
-    switch (pf_fourcc) {
-        case FOURCC('D', 'X', 'T', '1'): dxt = 1; break;
-        case FOURCC('D', 'X', 'T', '2'):
-        case FOURCC('D', 'X', 'T', '3'): dxt = 3; break;
-        case FOURCC('D', 'X', 'T', '4'):
-        case FOURCC('D', 'X', 'T', '5'): dxt = 5; break;
-        default:
-        EXCEPT << "DDS file \""<<filename<<"\" has unrecognised fourcc:" << pf_fourcc << ENDL;
-    }
-}
