@@ -2341,23 +2341,23 @@ HANDLE_BEGIN
     }
     std::string filename = luaL_checkstring(L, 1);
     DDSFormat format = format_from_string(luaL_checkstring(L, 2));
-    int quality = DXT_QUALITY_HIGH;
-    int metric = DXT_METRIC_PERCEPTUAL;
+    int quality = SQUISH_QUALITY_HIGH;
+    int metric = SQUISH_METRIC_PERCEPTUAL;
     int alpha_weight = 0;
     for (unsigned i=4 ; i<=args ; ++i) {
         std::string flag = luaL_checkstring(L, i);
         if (flag == "QUALITY_HIGHEST") {
-            quality = DXT_QUALITY_HIGHEST;
+            quality = SQUISH_QUALITY_HIGHEST;
         } else if (flag == "QUALITY_HIGH") {
-            quality = DXT_QUALITY_HIGH;
+            quality = SQUISH_QUALITY_HIGH;
         } else if (flag == "QUALITY_LOW") {
-            quality = DXT_QUALITY_LOW;
+            quality = SQUISH_QUALITY_LOW;
         } else if (flag == "METRIC_PERCEPTUAL") {
-            metric = DXT_METRIC_PERCEPTUAL;
+            metric = SQUISH_METRIC_PERCEPTUAL;
         } else if (flag == "METRIC_UNIFORM") {
             metric = 0;
         } else if (flag == "WEIGHT_COLOUR_BY_ALPHA") {
-            alpha_weight = DXT_WEIGHT_COLOUR_BY_ALPHA;
+            alpha_weight = SQUISH_WEIGHT_COLOUR_BY_ALPHA;
         } else if (flag == "NO_WEIGHT_COLOUR_BY_ALPHA") {
             alpha_weight = 0;
         } else {

@@ -75,9 +75,9 @@ DDSFormat format_from_string (const std::string &str)
     else if (str == "A16R16") return DDSF_A16R16;
     else if (str == "R3G3B2") return DDSF_R3G3B2;
     else if (str == "A4R4G4B4") return DDSF_A4R4G4B4;
-    else if (str == "DXT1") return DDSF_DXT1;
-    else if (str == "DXT3") return DDSF_DXT3;
-    else if (str == "DXT5") return DDSF_DXT5;
+    else if (str == "BC1") return DDSF_BC1;
+    else if (str == "BC2") return DDSF_BC2;
+    else if (str == "BC3") return DDSF_BC3;
     else {
         EXCEPT << "Unrecognised DDS Format: " << str << ENDL;
     }
@@ -99,9 +99,9 @@ std::string format_to_string (DDSFormat format)
         case DDSF_A16R16: return "A16R16";
         case DDSF_R3G3B2: return "R3G3B2";
         case DDSF_A4R4G4B4: return "A4R4G4B4";
-        case DDSF_DXT1: return "DXT1";
-        case DDSF_DXT3: return "DXT3";
-        case DDSF_DXT5: return "DXT5";
+        case DDSF_BC1: return "BC1";
+        case DDSF_BC2: return "BC2";
+        case DDSF_BC3: return "BC3";
         default: EXCEPTEX << format << ENDL;
     }
 }
@@ -115,9 +115,9 @@ namespace {
             case DDSF_A1R5G5B5:
             case DDSF_A8R8G8B8:
             case DDSF_A4R4G4B4:
-            case DDSF_DXT1:
-            case DDSF_DXT3:
-            case DDSF_DXT5:
+            case DDSF_BC1:
+            case DDSF_BC2:
+            case DDSF_BC3:
             if (ch==3 && alpha) return;
             break;
             case DDSF_R8G8B8:
@@ -146,11 +146,11 @@ namespace {
     {
         switch (format) {
 
-            case DDSF_DXT1:
+            case DDSF_BC1:
             return 4;
 
-            case DDSF_DXT3:
-            case DDSF_DXT5:
+            case DDSF_BC2:
+            case DDSF_BC3:
             case DDSF_R8:
             case DDSF_R3G3B2:
             case DDSF_A4R4:
@@ -179,9 +179,9 @@ namespace {
     bool is_compressed (DDSFormat format)
     {
         switch (format) {
-            case DDSF_DXT1:
-            case DDSF_DXT3:
-            case DDSF_DXT5:
+            case DDSF_BC1:
+            case DDSF_BC2:
+            case DDSF_BC3:
             return true;
             default: return false;
         }
@@ -200,7 +200,7 @@ namespace {
         switch (format) {
             case DDSF_R5G6B5:
             flags = DDPF_RGB;
-            r_mask = 0x00004800;
+            r_mask = 0x0000f800;
             g_mask = 0x000007e0;
             b_mask = 0x0000001f;
             break;
@@ -286,17 +286,17 @@ namespace {
             b_mask = 0x0000000f;
             a_mask = 0x0000f000;
             break;
-            case DDSF_DXT1:
+            case DDSF_BC1:
             rgb_bitcount = 0;
             flags = DDPF_FOURCC;
             fourcc = FOURCC('D','X','T','1');
             break;
-            case DDSF_DXT3:
+            case DDSF_BC2:
             rgb_bitcount = 0;
             flags = DDPF_FOURCC;
             fourcc = FOURCC('D','X','T','3');
             break;
-            case DDSF_DXT5:
+            case DDSF_BC3:
             rgb_bitcount = 0;
             flags = DDPF_FOURCC;
             fourcc = FOURCC('D','X','T','5');
@@ -417,21 +417,21 @@ namespace {
         }
     }
 
-    void write_compressed_image (OutFile &out, DDSFormat format, const Image<3,1> *img, int dxt_flags)
+    void write_compressed_image (OutFile &out, DDSFormat format, const Image<3,1> *img, int squish_flags_)
     {
         ASSERT(is_compressed(format));
 
         // convert flags to squish enum
         int squish_flags = 0;
-        switch (dxt_flags & 3) {
-            case DXT_QUALITY_HIGHEST: squish_flags |= squish::kColourIterativeClusterFit; break;
-            case DXT_QUALITY_HIGH: squish_flags |= squish::kColourClusterFit; break;
-            case DXT_QUALITY_LOW: squish_flags |= squish::kColourRangeFit; break;
-            default: EXCEPT << "Invalid DXT compression flags: " << dxt_flags << ENDL;
+        switch (squish_flags_ & 3) {
+            case SQUISH_QUALITY_HIGHEST: squish_flags |= squish::kColourIterativeClusterFit; break;
+            case SQUISH_QUALITY_HIGH: squish_flags |= squish::kColourClusterFit; break;
+            case SQUISH_QUALITY_LOW: squish_flags |= squish::kColourRangeFit; break;
+            default: EXCEPT << "Invalid Squish compression flags: " << squish_flags_ << ENDL;
         }
-        squish_flags |= (dxt_flags & DXT_METRIC_PERCEPTUAL) ?
+        squish_flags |= (squish_flags_ & SQUISH_METRIC_PERCEPTUAL) ?
                         squish::kColourMetricPerceptual : squish::kColourMetricUniform;
-        if (dxt_flags & DXT_WEIGHT_COLOUR_BY_ALPHA) squish_flags |= squish::kWeightColourByAlpha;
+        if (squish_flags_ & SQUISH_WEIGHT_COLOUR_BY_ALPHA) squish_flags |= squish::kWeightColourByAlpha;
 
         for (uimglen_t y=0 ; y<img->height ; y+=4) {
             for (uimglen_t x=0 ; x<img->width ; x+=4) {
@@ -448,19 +448,19 @@ namespace {
                     }
                 }
                 switch (format) {
-                    case DDSF_DXT1: {
+                    case DDSF_BC1: {
                         squish::u8 output[8];
                         squish::Compress(input, output, squish_flags | squish::kDxt1);
                         out.write(output);
                     }
                     break;
-                    case DDSF_DXT3: {
+                    case DDSF_BC2: {
                         squish::u8 output[16];
                         squish::Compress(input, output, squish_flags | squish::kDxt3);
                         out.write(output);
                     }
                     break;
-                    case DDSF_DXT5: {
+                    case DDSF_BC3: {
                         squish::u8 output[16];
                         squish::Compress(input, output, squish_flags | squish::kDxt5);
                         out.write(output);
@@ -522,7 +522,7 @@ namespace {
         if (is_compressed(format)) {
             unsigned block_size;
             switch (format) {
-                case DDSF_DXT1:
+                case DDSF_BC1: block_size = 8;
                 break;
                 default: block_size = 16;
             }
@@ -537,7 +537,7 @@ namespace {
     }
 }
 
-void dds_save_simple (const std::string &filename, DDSFormat format, const ImageBases &img, int dxt_flags)
+void dds_save_simple (const std::string &filename, DDSFormat format, const ImageBases &img, int squish_flags)
 {
     ASSERT(img.size() > 0u);
     const ImageBase *top = img[0];
@@ -588,7 +588,7 @@ void dds_save_simple (const std::string &filename, DDSFormat format, const Image
 
     if (is_compressed(format)) {
         for (unsigned i=0 ; i<img.size() ; ++i) {
-            write_compressed_image(out, format, static_cast<const Image<3,1>*>(img[i]), dxt_flags);
+            write_compressed_image(out, format, static_cast<const Image<3,1>*>(img[i]), squish_flags);
         }
     } else {
         for (unsigned i=0 ; i<img.size() ; ++i) {
@@ -626,22 +626,59 @@ namespace {
     Colour<3,1> decode_r5g6b5 (uint16_t col)
     {
         Colour<3,1> r;
-        r[0] = float(col & 0xfc00) / 0xfc00;
-        r[1] = float(col & 0x03e0) / 0x03e0;
+        r[0] = float(col & 0xf800) / 0xf800;
+        r[1] = float(col & 0x07e0) / 0x07e0;
         r[2] = float(col & 0x001f) / 0x001f;
         r[3] = 1.0;
         return r;
     }
 
-    Image<3,1> *read_compressed_image(InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_fourcc)
+    void draw_compressed_block (Image<3,1> *nu, uimglen_t x, uimglen_t y,
+                                uint16_t col1, uint16_t col2, uint32_t lu, bool use_alpha_mask)
     {
-        enum { DXT1, DXT3, DXT5 } codec;
+        Colour<3,1> palette[4];
+        if (col1 > col2 || !use_alpha_mask) {
+            palette[0] = decode_r5g6b5(col1);
+            palette[1] = decode_r5g6b5(col2);
+            for (chan_t c=0 ; c<3 ; ++c) {
+                palette[2][c] = (2*palette[0][c] + palette[1][c])/3;
+                palette[3][c] = (palette[0][c] + 2*palette[1][c])/3;
+            }
+            palette[2][3] = 1;
+            palette[3][3] = 1;
+        } else {
+            palette[0] = decode_r5g6b5(col1);
+            palette[1] = decode_r5g6b5(col2);
+            for (chan_t c=0 ; c<3 ; ++c) {
+                palette[2][c] = (palette[0][c] + palette[1][c])/2;
+            }
+            palette[2][3] = 1;
+            palette[3][0] = 0;
+            palette[3][1] = 0;
+            palette[3][2] = 0;
+            palette[3][3] = 0;
+        }
+        for (uimglen_t yoff=0 ; yoff<4 ; ++yoff) {
+            uimglen_t y2 = y + yoff;
+            if (y2 >= nu->height) break;
+            for (uimglen_t xoff=0 ; xoff<4 ; ++xoff) {
+                uimglen_t x2 = x + xoff;
+                if (x2 >= nu->width) break;
+                int p = (lu >> (yoff*4 + xoff)*2) & 0x3;
+                nu->pixel(x2, nu->height-y2-1) = palette[p];
+            }
+        }
+    }
+
+    Image<3,1> *read_compressed_image (InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_fourcc)
+    {
+        enum { BC1, BC2, BC3 } codec;
         switch (pf_fourcc) {
-            case FOURCC('D', 'X', 'T', '1'): codec = DXT1; break;
+            case FOURCC('D', 'X', 'T', '1'): codec = BC1; break;
             case FOURCC('D', 'X', 'T', '2'):
-            case FOURCC('D', 'X', 'T', '3'): codec = DXT3; break;
+            case FOURCC('D', 'X', 'T', '3'): codec = BC2; break;
             case FOURCC('D', 'X', 'T', '4'):
-            case FOURCC('D', 'X', 'T', '5'): codec = DXT5; break;
+            case FOURCC('D', 'X', 'T', '5'): codec = BC3; break;
             default:
             EXCEPT << "DDS file \""<<in.filename<<"\" has unrecognised fourcc:" << pf_fourcc << ENDL;
         }
@@ -649,24 +686,65 @@ namespace {
         for (uimglen_t y=0 ; y<height ; y+=4) {
             for (uimglen_t x=0 ; x<width ; x+=4) {
                 switch (codec) {
-                    case DXT1: {
+                    case BC1: {
                         auto col1 = in.read<uint16_t>();
                         auto col2 = in.read<uint16_t>();
-                        auto pixels = in.read<uint32_t>();
-                        if (col2 > col1) {
-                            Colour<3,1> palette[4];
-                            palette[0] = decode_r5g6b5(col1);
-                            palette[3] = decode_r5g6b5(col2);
-                            palette[1] = (col1 + 2*col2)/3;
-                            palette[2] = (2*col1 + col2)/3;
-                        } else {
-                            Colour<3,1> palette[4];
-                            palette[0] = decode_r5g6b5(col1);
-                            palette[2] = decode_r5g6b5(col2);
-                            palette[1] = (col1 + col2)/3;
+                        auto lu = in.read<uint32_t>();
+                        draw_compressed_block(nu, x, y, col1, col2, lu, true);
+                    } break;
+                    case BC2: {
+                        auto alpha = in.read<uint64_t>();
+                        auto col1 = in.read<uint16_t>();
+                        auto col2 = in.read<uint16_t>();
+                        auto lu = in.read<uint32_t>();
+                        draw_compressed_block(nu, x, y, col1, col2, lu, false);
+                        for (uimglen_t yoff=0 ; yoff<4 ; ++yoff) {
+                            uimglen_t y2 = y + yoff;
+                            if (y2 >= nu->height) break;
+                            for (uimglen_t xoff=0 ; xoff<4 ; ++xoff) {
+                                uimglen_t x2 = x + xoff;
+                                if (x2 >= nu->width) break;
+                                int a = (alpha >> (yoff*4 + xoff)*4) & 0xf;
+                                nu->pixel(x2, nu->height-y2-1)[3] = a * 16;
+                            }
                         }
                     } break;
-                    default: EXCEPTEX << codec << ENDL;
+                    case BC3: {
+                        auto alpha_blob = in.read<uint64_t>();
+                        auto col1 = in.read<uint16_t>();
+                        auto col2 = in.read<uint16_t>();
+                        auto lu = in.read<uint32_t>();
+                        draw_compressed_block(nu, x, y, col1, col2, lu, false);
+                        float a_palette[8];
+                        a_palette[0] = (alpha_blob >> 0) / 255.0f;
+                        a_palette[1] = (alpha_blob >> 8) / 255.0f;
+                        alpha_blob >>= 16;
+                        if (a_palette[0] > a_palette[1]) {
+                            a_palette[2] = (6*a_palette[0] + 1*a_palette[1])/7;
+                            a_palette[3] = (5*a_palette[0] + 2*a_palette[1])/7;
+                            a_palette[4] = (4*a_palette[0] + 3*a_palette[1])/7;
+                            a_palette[5] = (3*a_palette[0] + 4*a_palette[1])/7;
+                            a_palette[6] = (2*a_palette[0] + 5*a_palette[1])/7;
+                            a_palette[7] = (1*a_palette[0] + 6*a_palette[1])/7;
+                        } else {
+                            a_palette[2] = (4*a_palette[0] + 1*a_palette[1])/5;
+                            a_palette[3] = (3*a_palette[0] + 2*a_palette[1])/5;
+                            a_palette[4] = (2*a_palette[0] + 3*a_palette[1])/5;
+                            a_palette[5] = (1*a_palette[0] + 4*a_palette[1])/5;
+                            a_palette[6] = 0;
+                            a_palette[7] = 1;
+                        }
+                        for (uimglen_t yoff=0 ; yoff<4 ; ++yoff) {
+                            uimglen_t y2 = y + yoff;
+                            if (y2 >= nu->height) break;
+                            for (uimglen_t xoff=0 ; xoff<4 ; ++xoff) {
+                                uimglen_t x2 = x + xoff;
+                                if (x2 >= nu->width) break;
+                                int p = (lu >> (yoff*4 + xoff)*3) & 0x7;
+                                nu->pixel(x2, nu->height-y2-1)[3] = a_palette[p];
+                            }
+                        }
+                    }
                 }
             }
         }

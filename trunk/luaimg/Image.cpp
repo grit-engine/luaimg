@@ -95,7 +95,7 @@ template<chan_t ch, chan_t ach> FIBITMAP *image_to_fibitmap (Image<ch,ach> *imag
             for (chan_t c=0 ; c<ch+ach ; ++c) {
                 float v = image->pixel(x, y)[c];
                 v = v < 0 ? 0 : v > 1 ? 1 : v;
-                raw[channel_offset[c]] = BYTE(v * 255);
+                raw[channel_offset[c]] = BYTE(v * 255 + 0.5);
             }
 
             raw += ch+ach;
@@ -116,13 +116,13 @@ template<> FIBITMAP *image_to_fibitmap (Image<1,1> *image, uimglen_t width, uimg
 
             float v = image->pixel(x, y)[0];
             v = v < 0 ? 0 : v > 1 ? 1 : v;
-            raw[FI_RGBA_RED] = BYTE(v * 255);
-            raw[FI_RGBA_GREEN] = BYTE(v * 255);
-            raw[FI_RGBA_BLUE] = BYTE(v * 255);
+            raw[FI_RGBA_RED] = BYTE(v * 255 + 0.5);
+            raw[FI_RGBA_GREEN] = BYTE(v * 255 + 0.5);
+            raw[FI_RGBA_BLUE] = BYTE(v * 255 + 0.5);
 
             v = image->pixel(x, y)[1];
             v = v < 0 ? 0 : v > 1 ? 1 : v;
-            raw[FI_RGBA_ALPHA] = BYTE(v * 255);
+            raw[FI_RGBA_ALPHA] = BYTE(v * 255 + 0.5);
 
             raw += 4;
         }
@@ -143,12 +143,12 @@ template<> FIBITMAP *image_to_fibitmap (Image<2,0> *image, uimglen_t width, uimg
             {
                 float v = image->pixel(x, y)[0];
                 v = v < 0 ? 0 : v > 1 ? 1 : v;
-                raw[FI_RGBA_RED] = BYTE(v * 255);
+                raw[FI_RGBA_RED] = BYTE(v * 255 + 0.5);
             }
             {
                 float v = image->pixel(x, y)[1];
                 v = v < 0 ? 0 : v > 1 ? 1 : v;
-                raw[FI_RGBA_GREEN] = BYTE(v * 255);
+                raw[FI_RGBA_GREEN] = BYTE(v * 255 + 0.5);
             }
             {
                 raw[FI_RGBA_BLUE] = 0;
@@ -171,7 +171,7 @@ template<> FIBITMAP *image_to_fibitmap (Image<1,0> *image, uimglen_t width, uimg
         for (uimglen_t x=0 ; x<width ; x++) {
             float v = image->pixel(x, y)[0];
             v = v < 0 ? 0 : v > 1 ? 1 : v;
-            raw[x] = BYTE(v * 255);
+            raw[x] = BYTE(v * 255 + 0.5);
         }
     }
 

@@ -40,20 +40,20 @@ enum DDSFormat {
     DDSF_A16R16,
     DDSF_R3G3B2,
     DDSF_A4R4G4B4,
-    DDSF_DXT1,
-    DDSF_DXT3,
-    DDSF_DXT5,
+    DDSF_BC1,
+    DDSF_BC2,
+    DDSF_BC3,
 };
 
 /** Bitwise OR of your chosen quality, and optionally enable perceptual colour error and/or alpha weighting. */
-enum DXTFlags {
-    DXT_QUALITY_HIGHEST = 1, // iterative cluster fit: slow
-    DXT_QUALITY_HIGH = 2, // cluster fit (recommended)
-    DXT_QUALITY_LOW = 3, // range fit
+enum SquishFlags {
+    SQUISH_QUALITY_HIGHEST = 1, // iterative cluster fit: slow
+    SQUISH_QUALITY_HIGH = 2, // cluster fit (recommended)
+    SQUISH_QUALITY_LOW = 3, // range fit
 
-    DXT_METRIC_PERCEPTUAL = 4, //  for colour error (recommended for diffuse textures)
+    SQUISH_METRIC_PERCEPTUAL = 4, //  for colour error (recommended for diffuse textures)
 
-    DXT_WEIGHT_COLOUR_BY_ALPHA = 8, // Weight the colour by alpha during cluster fit
+    SQUISH_WEIGHT_COLOUR_BY_ALPHA = 8, // Weight the colour by alpha during cluster fit
 };
 
 typedef std::vector<ImageBase*> ImageBases;

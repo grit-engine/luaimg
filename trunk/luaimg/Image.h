@@ -137,8 +137,6 @@ template<chan_t ch, chan_t ach> struct Colour : ColourBase {
     }
 };
 
-// TODO: need to find a way to 
-
 // a + b: a's alpha channel moderates a's effect on b.  b's alpha channel is used in the result.
 // lack of alpha channel implies an alpha value of 1
 template<chan_t ch1, chan_t ach1, chan_t ch2, chan_t ach2, float op(float,float)>
