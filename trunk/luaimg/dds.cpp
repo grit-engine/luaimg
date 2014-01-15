@@ -705,7 +705,7 @@ namespace {
                                 uimglen_t x2 = x + xoff;
                                 if (x2 >= nu->width) break;
                                 int a = (alpha >> (yoff*4 + xoff)*4) & 0xf;
-                                nu->pixel(x2, nu->height-y2-1)[3] = a * 16;
+                                nu->pixel(x2, nu->height-y2-1)[3] = (a * 16)/255.0;
                             }
                         }
                     } break;
@@ -716,9 +716,9 @@ namespace {
                         auto lu = in.read<uint32_t>();
                         draw_compressed_block(nu, x, y, col1, col2, lu, false);
                         float a_palette[8];
-                        a_palette[0] = (alpha_blob >> 0) / 255.0f;
-                        a_palette[1] = (alpha_blob >> 8) / 255.0f;
-                        alpha_blob >>= 16;
+                        a_palette[0] = ((alpha_blob >> 0) & 0xff) / 255.0f;
+                        a_palette[1] = ((alpha_blob >> 8) & 0xff) / 255.0f;
+                        auto alpha_lu = alpha_blob >> 16;
                         if (a_palette[0] > a_palette[1]) {
                             a_palette[2] = (6*a_palette[0] + 1*a_palette[1])/7;
                             a_palette[3] = (5*a_palette[0] + 2*a_palette[1])/7;
@@ -740,7 +740,7 @@ namespace {
                             for (uimglen_t xoff=0 ; xoff<4 ; ++xoff) {
                                 uimglen_t x2 = x + xoff;
                                 if (x2 >= nu->width) break;
-                                int p = (lu >> (yoff*4 + xoff)*3) & 0x7;
+                                int p = (alpha_lu >> (yoff*4 + xoff)*3) & 0x7;
                                 nu->pixel(x2, nu->height-y2-1)[3] = a_palette[p];
                             }
                         }
@@ -868,3 +868,16 @@ DDSFile dds_open (const std::string &filename)
     return file;
 }
 
+/* TODO:
+ * export:
+ ** cube
+ ** volume
+ ** BC45
+ * import
+ ** cube
+ ** volume
+ ** BC45
+ * tests
+ ** rectangular
+ ** non-power of two
+ */
