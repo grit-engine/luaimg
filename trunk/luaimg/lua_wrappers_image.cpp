@@ -2365,7 +2365,8 @@ HANDLE_BEGIN
         }
     }
     int table_index = 3;
-    ImageBases mips;
+    DDSFile content;
+    content.kind = DDS_SIMPLE;
     // pull mips out of table
     if (lua_istable(L, table_index)) {
         int counter = 1;
@@ -2375,14 +2376,14 @@ HANDLE_BEGIN
                 lua_pop(L, 1);
                 break;
             }
-            mips.push_back(check_ptr<ImageBase>(L, -1, IMAGE_TAG));
+            content.simple.push_back(check_ptr<ImageBase>(L, -1, IMAGE_TAG));
             lua_pop(L, 1);
             counter++;
         }
     } else {
-        mips.push_back(check_ptr<ImageBase>(L, table_index, IMAGE_TAG));
+        content.simple.push_back(check_ptr<ImageBase>(L, table_index, IMAGE_TAG));
     }
-    dds_save_simple(filename, format, mips, quality | metric | alpha_weight);
+    dds_save(filename, format, content, quality | metric | alpha_weight);
     return 0;
 HANDLE_END
 }
@@ -2412,18 +2413,18 @@ HANDLE_BEGIN
             lua_pushstring(L, "CUBE");
             lua_newtable(L);
             int table_index = lua_gettop(L);
-            push_mipmaps(L, file.cube.west);
-            lua_setfield(L, table_index, "west");
-            push_mipmaps(L, file.cube.east);
-            lua_setfield(L, table_index, "east");
-            push_mipmaps(L, file.cube.south);
-            lua_setfield(L, table_index, "south");
-            push_mipmaps(L, file.cube.north);
-            lua_setfield(L, table_index, "north");
-            push_mipmaps(L, file.cube.bottom);
-            lua_setfield(L, table_index, "bottom");
-            push_mipmaps(L, file.cube.top);
-            lua_setfield(L, table_index, "top");
+            push_mipmaps(L, file.cube.X);
+            lua_setfield(L, table_index, "X");
+            push_mipmaps(L, file.cube.x);
+            lua_setfield(L, table_index, "x");
+            push_mipmaps(L, file.cube.Y);
+            lua_setfield(L, table_index, "Y");
+            push_mipmaps(L, file.cube.y);
+            lua_setfield(L, table_index, "y");
+            push_mipmaps(L, file.cube.Z);
+            lua_setfield(L, table_index, "Z");
+            push_mipmaps(L, file.cube.z);
+            lua_setfield(L, table_index, "z");
         } break;
         case DDS_VOLUME: {
             lua_pushstring(L, "VOLUME");

@@ -472,8 +472,12 @@ namespace {
         }
     }
 
-    void write_image (OutFile &out, DDSFormat format, const ImageBase *map)
+    void write_image (OutFile &out, DDSFormat format, const ImageBase *map, int squish_flags)
     {
+        if (is_compressed(format)) {
+            write_compressed_image(out, format, static_cast<const Image<3,1>*>(map), squish_flags);
+            return;
+        }
         // a GCC bug got in the way of
         // (map->hasAlpha()?write_image2<3,1>:write_image2<3,0>)(...);
         switch (map->colourChannels()) {
@@ -496,7 +500,7 @@ namespace {
         }
     }
 
-    void check_mipmaps (const std::string &filename, DDSFormat format, const ImageBases &img)
+    void check_channels_sizes (const std::string &filename, DDSFormat format, const ImageBases &img)
     {
         const ImageBase *top = img[0];
 
@@ -537,13 +541,68 @@ namespace {
     }
 }
 
-void dds_save_simple (const std::string &filename, DDSFormat format, const ImageBases &img, int squish_flags)
+void dds_save (const std::string &filename, DDSFormat format, const DDSFile &content, int squish_flags)
 {
-    ASSERT(img.size() > 0u);
-    const ImageBase *top = img[0];
-
     // sanity checks:
-    check_mipmaps(filename, format, img);
+    unsigned mipmap_count;
+    switch (content.kind) {
+        case DDS_SIMPLE:
+        mipmap_count = content.simple.size();
+        break;
+        case DDS_CUBE:
+        mipmap_count = content.cube.X.size();
+        if (content.cube.x.size() != mipmap_count
+            || content.cube.y.size() != mipmap_count
+            || content.cube.Y.size() != mipmap_count
+            || content.cube.z.size() != mipmap_count
+            || content.cube.Z.size() != mipmap_count) {
+            EXCEPT << "In \"" << filename << "\", "
+                   << "all cube sides must have the same number of mipmaps." << ENDL;
+        }
+        break;
+        case DDS_VOLUME:
+        mipmap_count = content.volume.size();
+        break;
+        default: EXCEPTEX << content.kind << ENDL; // avoid warning
+    }
+    uimglen_t width;
+    uimglen_t height;
+    uimglen_t depth;
+    ASSERT(mipmap_count > 0u);
+    switch (content.kind) {
+        case DDS_SIMPLE:
+        check_channels_sizes(filename, format, content.simple);
+        width = content.simple[0]->width;
+        height = content.simple[0]->height;
+        depth = 1;
+        break;
+        case DDS_CUBE:
+        check_channels_sizes(filename, format, content.cube.X);
+        check_channels_sizes(filename, format, content.cube.x);
+        check_channels_sizes(filename, format, content.cube.Y);
+        check_channels_sizes(filename, format, content.cube.y);
+        check_channels_sizes(filename, format, content.cube.Z);
+        check_channels_sizes(filename, format, content.cube.z);
+        width = content.cube.X[0]->width;
+        height = content.cube.Y[0]->height;
+        depth = 1;
+        if (content.cube.x[0]->width != width
+            || content.cube.Y[0]->width != width
+            || content.cube.y[0]->width != width
+            || content.cube.Z[0]->width != width
+            || content.cube.z[0]->width != width
+            || content.cube.x[0]->height != height
+            || content.cube.Y[0]->height != height
+            || content.cube.y[0]->height != height
+            || content.cube.Z[0]->height != height
+            || content.cube.z[0]->height != height)
+            EXCEPT << "In \"" << filename << "\", cube faces must be square and the same size." << ENDL;
+        break;
+        case DDS_VOLUME:
+        EXCEPTEX << "Not supported." << ENDL;
+        break;
+        default: EXCEPTEX << content.kind << ENDL; // avoid warning
+    }
 
     OutFile out(filename);
 
@@ -552,21 +611,34 @@ void dds_save_simple (const std::string &filename, DDSFormat format, const Image
 
     // DDS_HEADER
     uint32_t flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
-    if (img.size() > 1) flags |= DDSD_MIPMAPCOUNT;
+    if (mipmap_count > 1) flags |= DDSD_MIPMAPCOUNT;
     flags |= is_compressed(format) ? DDSD_LINEARSIZE :  DDSD_PITCH;
+    if (content.kind == DDS_VOLUME) flags |= DDSD_DEPTH;
     out.write(uint32_t(124));
     out.write(flags);
-    out.write(uint32_t(top->height));
-    out.write(uint32_t(top->width));
-    out.write(pitch_or_linear_size(format, top->width, top->height));
-    out.write(uint32_t(0)); // DDS_DEPTH
-    out.write(uint32_t(img.size())); // DDSD_MIPMAPCOUNT
+    out.write(uint32_t(height));
+    out.write(uint32_t(width));
+    out.write(pitch_or_linear_size(format, width, height));
+    out.write(uint32_t(depth)); // DDSD_DEPTH
+    out.write(uint32_t(mipmap_count)); // DDSD_MIPMAPCOUNT
     for (int i=0 ; i<11 ; ++i) out.write(uint32_t(0)); //unused
     output_pixelformat(out, format);
     uint32_t caps = DDSCAPS_TEXTURE;
-    if (img.size() > 1) caps |= DDSCAPS_COMPLEX | DDSCAPS_MIPMAP;
-    uint32_t caps2 = 0; // used for cubes
+    if (mipmap_count > 1) caps |= DDSCAPS_MIPMAP;
+    if (mipmap_count > 1 || content.kind == DDS_CUBE) caps |= DDSCAPS_COMPLEX;
     out.write(caps);
+    uint32_t caps2 = 0;
+    if (content.kind == DDS_CUBE) {
+        caps2 |= DDSCAPS2_CUBEMAP;
+        caps2 |= DDSCAPS2_CUBEMAP_POSITIVEX;
+        caps2 |= DDSCAPS2_CUBEMAP_NEGATIVEX;
+        caps2 |= DDSCAPS2_CUBEMAP_POSITIVEY;
+        caps2 |= DDSCAPS2_CUBEMAP_NEGATIVEY;
+        caps2 |= DDSCAPS2_CUBEMAP_POSITIVEZ;
+        caps2 |= DDSCAPS2_CUBEMAP_NEGATIVEZ;
+    } else if (content.kind == DDS_VOLUME) {
+        caps2 |= DDSCAPS2_VOLUME;
+    }
     out.write(caps2);
     out.write(uint32_t(0)); // caps3
     out.write(uint32_t(0)); // caps4
@@ -586,16 +658,32 @@ void dds_save_simple (const std::string &filename, DDSFormat format, const Image
         out.write(misc_flags2);
     }
 
-    if (is_compressed(format)) {
-        for (unsigned i=0 ; i<img.size() ; ++i) {
-            write_compressed_image(out, format, static_cast<const Image<3,1>*>(img[i]), squish_flags);
-        }
-    } else {
-        for (unsigned i=0 ; i<img.size() ; ++i) {
-            write_image(out, format, img[i]);
-        }
+    switch (content.kind) {
+        case DDS_SIMPLE: {
+            for (unsigned i=0 ; i<mipmap_count ; ++i) {
+                write_image(out, format, content.simple[i], squish_flags);
+            }
+        } break;
+        case DDS_CUBE: {
+            for (unsigned i=0 ; i<mipmap_count ; ++i)
+                write_image(out, format, content.cube.X[i], squish_flags);
+            for (unsigned i=0 ; i<mipmap_count ; ++i)
+                write_image(out, format, content.cube.x[i], squish_flags);
+            for (unsigned i=0 ; i<mipmap_count ; ++i)
+                write_image(out, format, content.cube.Y[i], squish_flags);
+            for (unsigned i=0 ; i<mipmap_count ; ++i)
+                write_image(out, format, content.cube.y[i], squish_flags);
+            for (unsigned i=0 ; i<mipmap_count ; ++i)
+                write_image(out, format, content.cube.Z[i], squish_flags);
+            for (unsigned i=0 ; i<mipmap_count ; ++i)
+                write_image(out, format, content.cube.z[i], squish_flags);
+        } break;
+        case DDS_VOLUME: {
+            for (unsigned i=0 ; i<mipmap_count ; ++i)
+                for (unsigned z=0 ; z<content.volume[i].size() ; ++z)
+                    write_image(out, format, content.volume[i][z], squish_flags);
+        } break;
     }
-    
 }
 
 namespace {
@@ -870,7 +958,6 @@ DDSFile dds_open (const std::string &filename)
 
 /* TODO:
  * export:
- ** cube
  ** volume
  ** BC45
  * import

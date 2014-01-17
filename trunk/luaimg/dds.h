@@ -59,15 +59,11 @@ enum SquishFlags {
 typedef std::vector<ImageBase*> ImageBases;
 
 struct DDSCube {
-    ImageBases west, east, south, north, bottom, top;
+    ImageBases X, x, Y, y, Z, z;
 };
 
 DDSFormat format_from_string (const std::string &str);
 std::string format_to_string (DDSFormat fmt);
-
-void dds_save_simple (const std::string &filename, DDSFormat format, const ImageBases &img, int flags);
-void dds_save_cube (const std::string &filename, DDSFormat format, const ImageBases &img, int flags);
-void dds_save_volume (const std::string &filename, DDSFormat format, const ImageBases &img, int flags);
 
 enum DDSFileType {
     DDS_SIMPLE,
@@ -83,6 +79,7 @@ struct DDSFile {
     std::vector<ImageBases> volume;
 };
 
+void dds_save (const std::string &filename, DDSFormat format, const DDSFile &content, int flags);
 DDSFile dds_open (const std::string &filename);
 
 #endif
