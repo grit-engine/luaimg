@@ -43,6 +43,8 @@ enum DDSFormat {
     DDSF_BC1,
     DDSF_BC2,
     DDSF_BC3,
+    DDSF_BC4,
+    DDSF_BC5,
 };
 
 /** Bitwise OR of your chosen quality, and optionally enable perceptual colour error and/or alpha weighting. */

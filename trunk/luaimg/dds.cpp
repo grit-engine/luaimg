@@ -78,6 +78,8 @@ DDSFormat format_from_string (const std::string &str)
     else if (str == "BC1") return DDSF_BC1;
     else if (str == "BC2") return DDSF_BC2;
     else if (str == "BC3") return DDSF_BC3;
+    else if (str == "BC4") return DDSF_BC4;
+    else if (str == "BC5") return DDSF_BC5;
     else {
         EXCEPT << "Unrecognised DDS Format: " << str << ENDL;
     }
@@ -102,6 +104,8 @@ std::string format_to_string (DDSFormat format)
         case DDSF_BC1: return "BC1";
         case DDSF_BC2: return "BC2";
         case DDSF_BC3: return "BC3";
+        case DDSF_BC4: return "BC4";
+        case DDSF_BC5: return "BC5";
         default: EXCEPTEX << format << ENDL;
     }
 }
@@ -111,6 +115,12 @@ namespace {
     void check_colour (DDSFormat format, chan_t ch, bool alpha)
     {
         switch (format) {
+            case DDSF_BC4:
+            if (ch==1 && !alpha) return;
+            break;
+            case DDSF_BC5:
+            if (ch==2 && !alpha) return;
+            break;
             case DDSF_A2R10G10B10:
             case DDSF_A1R5G5B5:
             case DDSF_A8R8G8B8:
@@ -147,10 +157,12 @@ namespace {
         switch (format) {
 
             case DDSF_BC1:
+            case DDSF_BC4:
             return 4;
 
             case DDSF_BC2:
             case DDSF_BC3:
+            case DDSF_BC5:
             case DDSF_R8:
             case DDSF_R3G3B2:
             case DDSF_A4R4:
@@ -182,6 +194,8 @@ namespace {
             case DDSF_BC1:
             case DDSF_BC2:
             case DDSF_BC3:
+            case DDSF_BC4:
+            case DDSF_BC5:
             return true;
             default: return false;
         }
@@ -301,6 +315,16 @@ namespace {
             flags = DDPF_FOURCC;
             fourcc = FOURCC('D','X','T','5');
             break;
+            case DDSF_BC4:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = FOURCC('A','T','I','1');
+            break;
+            case DDSF_BC5:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = FOURCC('A','T','I','2');
+            break;
             default: EXCEPTEX << format << ENDL;
         }
         out.write(uint32_t(32));
@@ -417,7 +441,55 @@ namespace {
         }
     }
 
-    void write_compressed_image (OutFile &out, DDSFormat format, const Image<3,1> *img, int squish_flags_)
+    void initialise_squish_input (const ImageBase *img, squish::u8 *in, squish::u8 *in2, uimglen_t x, uimglen_t y, DDSFormat format)
+    {
+        for (uimglen_t j=0 ; j<4 ; ++j) {
+            for (uimglen_t i=0 ; i<4 ; ++i) {
+                switch (format) {
+                    case DDSF_BC1:
+                    case DDSF_BC2:
+                    case DDSF_BC3: {
+                        if (x+i >= img->width) continue;
+                        if (y+j >= img->height) continue;
+                        auto c = static_cast<const Image<3,1>*>(img)->pixel(x+i, img->height-y-j-1);
+                        in[4*(j*4+i)+0] = to_range<squish::u8>(c[0], 255);
+                        in[4*(j*4+i)+1] = to_range<squish::u8>(c[1], 255);
+                        in[4*(j*4+i)+2] = to_range<squish::u8>(c[2], 255);
+                        in[4*(j*4+i)+3] = to_range<squish::u8>(c[3], 255);
+                    }
+                    break;
+                    case DDSF_BC4: {
+                        if (x+i >= img->width) continue;
+                        if (y+j >= img->height) continue;
+                        auto c = static_cast<const Image<1,0>*>(img)->pixel(x+i, img->height-y-j-1);
+                        in[4*(j*4+i)+0] = 255;
+                        in[4*(j*4+i)+1] = 255;
+                        in[4*(j*4+i)+2] = 255;
+                        in[4*(j*4+i)+3] = to_range<squish::u8>(c[0], 255);
+                    }
+                    break;
+                    case DDSF_BC5: {
+                        if (x+i >= img->width) continue;
+                        if (y+j >= img->height) continue;
+                        auto c = static_cast<const Image<2,0>*>(img)->pixel(x+i, img->height-y-j-1);
+                        in[4*(j*4+i)+0] = 255;
+                        in[4*(j*4+i)+1] = 255;
+                        in[4*(j*4+i)+2] = 255;
+                        in[4*(j*4+i)+3] = to_range<squish::u8>(c[0], 255);
+                        in2[4*(j*4+i)+0] = 255;
+                        in2[4*(j*4+i)+1] = 255;
+                        in2[4*(j*4+i)+2] = 255;
+                        in2[4*(j*4+i)+3] = to_range<squish::u8>(c[1], 255);
+                    }
+                    break;
+                    default: EXCEPTEX << format << ENDL;
+                }
+            }
+        }
+
+    }
+
+    void write_compressed_image (OutFile &out, DDSFormat format, const ImageBase *img, int squish_flags_)
     {
         ASSERT(is_compressed(format));
 
@@ -436,34 +508,47 @@ namespace {
         for (uimglen_t y=0 ; y<img->height ; y+=4) {
             for (uimglen_t x=0 ; x<img->width ; x+=4) {
                 squish::u8 input[4*4*4] = { 0 };
-                for (uimglen_t j=0 ; j<4 ; ++j) {
-                    for (uimglen_t i=0 ; i<4 ; ++i) {
-                        if (x+i >= img->width) continue;
-                        if (y+j >= img->height) continue;
-                        Colour<3,1> c = img->pixel(x+i, img->height-y-j-1);
-                        input[4*(j*4+i)+0] = to_range<squish::u8>(c[0], 255);
-                        input[4*(j*4+i)+1] = to_range<squish::u8>(c[1], 255);
-                        input[4*(j*4+i)+2] = to_range<squish::u8>(c[2], 255);
-                        input[4*(j*4+i)+3] = to_range<squish::u8>(c[3], 255);
-                    }
-                }
+                squish::u8 input2[4*4*4] = { 0 };
                 switch (format) {
                     case DDSF_BC1: {
                         squish::u8 output[8];
+                        initialise_squish_input(img, input, input2, x, y, format);
                         squish::Compress(input, output, squish_flags | squish::kDxt1);
                         out.write(output);
                     }
                     break;
                     case DDSF_BC2: {
                         squish::u8 output[16];
+                        initialise_squish_input(img, input, input2, x, y, format);
                         squish::Compress(input, output, squish_flags | squish::kDxt3);
                         out.write(output);
                     }
                     break;
                     case DDSF_BC3: {
                         squish::u8 output[16];
+                        initialise_squish_input(img, input, input2, x, y, format);
                         squish::Compress(input, output, squish_flags | squish::kDxt5);
                         out.write(output);
+                    }
+                    break;
+                    case DDSF_BC4: {
+                        squish::u8 output[16];
+                        initialise_squish_input(img, input, input2, x, y, format);
+                        squish::Compress(input, output, squish_flags | squish::kDxt5);
+                        for (unsigned i=0 ; i<8 ; ++i)
+                            out.write(output[i]);
+                    }
+                    break;
+                    case DDSF_BC5: {
+                        squish::u8 output[16];
+                        squish::u8 output2[16];
+                        initialise_squish_input(img, input, input2, x, y, format);
+                        squish::Compress(input, output, squish_flags | squish::kDxt5);
+                        squish::Compress(input2, output2, squish_flags | squish::kDxt5);
+                        for (unsigned i=0 ; i<8 ; ++i)
+                            out.write(output2[i]);
+                        for (unsigned i=0 ; i<8 ; ++i)
+                            out.write(output[i]);
                     }
                     break;
                     default: EXCEPTEX << format << ENDL;
@@ -526,7 +611,7 @@ namespace {
         if (is_compressed(format)) {
             unsigned block_size;
             switch (format) {
-                case DDSF_BC1: block_size = 8;
+                case DDSF_BC1: case DDSF_BC4: block_size = 8;
                 break;
                 default: block_size = 16;
             }
@@ -574,7 +659,7 @@ void dds_save (const std::string &filename, DDSFormat format, const DDSFile &con
         check_channels_sizes(filename, format, content.simple);
         width = content.simple[0]->width;
         height = content.simple[0]->height;
-        depth = 1;
+        depth = 0;
         break;
         case DDS_CUBE:
         check_channels_sizes(filename, format, content.cube.X);
@@ -585,7 +670,7 @@ void dds_save (const std::string &filename, DDSFormat format, const DDSFile &con
         check_channels_sizes(filename, format, content.cube.z);
         width = content.cube.X[0]->width;
         height = content.cube.Y[0]->height;
-        depth = 1;
+        depth = 0;
         if (content.cube.x[0]->width != width
             || content.cube.Y[0]->width != width
             || content.cube.y[0]->width != width
@@ -758,29 +843,71 @@ namespace {
         }
     }
 
-    Image<3,1> *read_compressed_image (InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_fourcc)
+    template<chan_t ch, chan_t ach, chan_t into>
+    void draw_compressed_alpha_block (Image<ch,ach> *nu, uimglen_t x, uimglen_t y, uint64_t alpha_blob)
     {
-        enum { BC1, BC2, BC3 } codec;
+        float a_palette[8];
+        a_palette[0] = ((alpha_blob >> 0) & 0xff) / 255.0f;
+        a_palette[1] = ((alpha_blob >> 8) & 0xff) / 255.0f;
+        auto alpha_lu = alpha_blob >> 16;
+        if (a_palette[0] > a_palette[1]) {
+            a_palette[2] = (6*a_palette[0] + 1*a_palette[1])/7;
+            a_palette[3] = (5*a_palette[0] + 2*a_palette[1])/7;
+            a_palette[4] = (4*a_palette[0] + 3*a_palette[1])/7;
+            a_palette[5] = (3*a_palette[0] + 4*a_palette[1])/7;
+            a_palette[6] = (2*a_palette[0] + 5*a_palette[1])/7;
+            a_palette[7] = (1*a_palette[0] + 6*a_palette[1])/7;
+        } else {
+            a_palette[2] = (4*a_palette[0] + 1*a_palette[1])/5;
+            a_palette[3] = (3*a_palette[0] + 2*a_palette[1])/5;
+            a_palette[4] = (2*a_palette[0] + 3*a_palette[1])/5;
+            a_palette[5] = (1*a_palette[0] + 4*a_palette[1])/5;
+            a_palette[6] = 0;
+            a_palette[7] = 1;
+        }
+        for (uimglen_t yoff=0 ; yoff<4 ; ++yoff) {
+            uimglen_t y2 = y + yoff;
+            if (y2 >= nu->height) break;
+            for (uimglen_t xoff=0 ; xoff<4 ; ++xoff) {
+                uimglen_t x2 = x + xoff;
+                if (x2 >= nu->width) break;
+                int p = (alpha_lu >> (yoff*4 + xoff)*3) & 0x7;
+                nu->pixel(x2, nu->height-y2-1)[into] = a_palette[p];
+            }
+        }
+    }
+
+    ImageBase *read_compressed_image (InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_fourcc)
+    {
+        enum { BC1, BC2, BC3, BC4, BC5 } codec;
         switch (pf_fourcc) {
             case FOURCC('D', 'X', 'T', '1'): codec = BC1; break;
             case FOURCC('D', 'X', 'T', '2'):
             case FOURCC('D', 'X', 'T', '3'): codec = BC2; break;
             case FOURCC('D', 'X', 'T', '4'):
             case FOURCC('D', 'X', 'T', '5'): codec = BC3; break;
+            case FOURCC('A', 'T', 'I', '1'): codec = BC4; break;
+            case FOURCC('A', 'T', 'I', '2'): codec = BC5; break;
             default:
-            EXCEPT << "DDS file \""<<in.filename<<"\" has unrecognised fourcc:" << pf_fourcc << ENDL;
+            EXCEPT << "DDS file \""<<in.filename<<"\" has unrecognised fourcc:" << std::hex << pf_fourcc << ENDL;
         }
-        Image<3,1> *nu = new Image<3,1>(width, height);
-        for (uimglen_t y=0 ; y<height ; y+=4) {
-            for (uimglen_t x=0 ; x<width ; x+=4) {
-                switch (codec) {
-                    case BC1: {
+        switch (codec) {
+            case BC1: {
+                Image<3,1> *nu = new Image<3,1>(width, height);
+                for (uimglen_t y=0 ; y<height ; y+=4) {
+                    for (uimglen_t x=0 ; x<width ; x+=4) {
                         auto col1 = in.read<uint16_t>();
                         auto col2 = in.read<uint16_t>();
                         auto lu = in.read<uint32_t>();
                         draw_compressed_block(nu, x, y, col1, col2, lu, true);
-                    } break;
-                    case BC2: {
+                    }
+                }
+                return nu;
+            }
+            case BC2: {
+                Image<3,1> *nu = new Image<3,1>(width, height);
+                for (uimglen_t y=0 ; y<height ; y+=4) {
+                    for (uimglen_t x=0 ; x<width ; x+=4) {
                         auto alpha = in.read<uint64_t>();
                         auto col1 = in.read<uint16_t>();
                         auto col2 = in.read<uint16_t>();
@@ -796,47 +923,116 @@ namespace {
                                 nu->pixel(x2, nu->height-y2-1)[3] = (a * 16)/255.0;
                             }
                         }
-                    } break;
-                    case BC3: {
+                    }
+                }
+                return nu;
+            }
+            case BC3: {
+                Image<3,1> *nu = new Image<3,1>(width, height);
+                for (uimglen_t y=0 ; y<height ; y+=4) {
+                    for (uimglen_t x=0 ; x<width ; x+=4) {
                         auto alpha_blob = in.read<uint64_t>();
                         auto col1 = in.read<uint16_t>();
                         auto col2 = in.read<uint16_t>();
                         auto lu = in.read<uint32_t>();
                         draw_compressed_block(nu, x, y, col1, col2, lu, false);
-                        float a_palette[8];
-                        a_palette[0] = ((alpha_blob >> 0) & 0xff) / 255.0f;
-                        a_palette[1] = ((alpha_blob >> 8) & 0xff) / 255.0f;
-                        auto alpha_lu = alpha_blob >> 16;
-                        if (a_palette[0] > a_palette[1]) {
-                            a_palette[2] = (6*a_palette[0] + 1*a_palette[1])/7;
-                            a_palette[3] = (5*a_palette[0] + 2*a_palette[1])/7;
-                            a_palette[4] = (4*a_palette[0] + 3*a_palette[1])/7;
-                            a_palette[5] = (3*a_palette[0] + 4*a_palette[1])/7;
-                            a_palette[6] = (2*a_palette[0] + 5*a_palette[1])/7;
-                            a_palette[7] = (1*a_palette[0] + 6*a_palette[1])/7;
-                        } else {
-                            a_palette[2] = (4*a_palette[0] + 1*a_palette[1])/5;
-                            a_palette[3] = (3*a_palette[0] + 2*a_palette[1])/5;
-                            a_palette[4] = (2*a_palette[0] + 3*a_palette[1])/5;
-                            a_palette[5] = (1*a_palette[0] + 4*a_palette[1])/5;
-                            a_palette[6] = 0;
-                            a_palette[7] = 1;
-                        }
-                        for (uimglen_t yoff=0 ; yoff<4 ; ++yoff) {
-                            uimglen_t y2 = y + yoff;
-                            if (y2 >= nu->height) break;
-                            for (uimglen_t xoff=0 ; xoff<4 ; ++xoff) {
-                                uimglen_t x2 = x + xoff;
-                                if (x2 >= nu->width) break;
-                                int p = (alpha_lu >> (yoff*4 + xoff)*3) & 0x7;
-                                nu->pixel(x2, nu->height-y2-1)[3] = a_palette[p];
-                            }
-                        }
+                        draw_compressed_alpha_block<3,1,3>(nu, x, y, alpha_blob);
                     }
                 }
+                return nu;
             }
+            case BC4: {
+                Image<1,0> *nu = new Image<1,0>(width, height);
+                for (uimglen_t y=0 ; y<height ; y+=4) {
+                    for (uimglen_t x=0 ; x<width ; x+=4) {
+                        auto alpha_blob = in.read<uint64_t>();
+                        draw_compressed_alpha_block<1,0,0>(nu, x, y, alpha_blob);
+                    }
+                }
+                return nu;
+            }
+            case BC5: {
+                Image<2,0> *nu = new Image<2,0>(width, height);
+                for (uimglen_t y=0 ; y<height ; y+=4) {
+                    for (uimglen_t x=0 ; x<width ; x+=4) {
+                        auto alpha_blob1 = in.read<uint64_t>();
+                        auto alpha_blob2 = in.read<uint64_t>();
+                        draw_compressed_alpha_block<2,0,1>(nu, x, y, alpha_blob1);
+                        draw_compressed_alpha_block<2,0,0>(nu, x, y, alpha_blob2);
+                    }
+                }
+                return nu;
+            }
+            default: EXCEPTEX << codec << ENDL;
+        }
+    }
+
+    ImageBase *read_mipmap (InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_rgb_bitcount,
+                            uint32_t pf_r_mask, uint32_t pf_g_mask, uint32_t pf_b_mask, uint32_t pf_a_mask,
+                            uint32_t pf_flags, uint32_t pf_fourcc)
+    {
+        chan_t ch=0, ach=0;
+        ImageBase *nu = NULL;
+        if (pf_flags & DDPF_RGB) {
+            if ((pf_r_mask | pf_g_mask | pf_b_mask) == 0) {
+                EXCEPT << "DDS file \""<<in.filename<<"\" has all RGB masks set to 0." << ENDL;
+            }
+            switch (pf_rgb_bitcount) {
+                case 8: case 16: case 24: case 32: break;
+                default:
+                EXCEPT << "DDS file \""<<in.filename<<"\" has unsupported RGB bitcount: " << pf_rgb_bitcount << ENDL;
+            }
+            unsigned bytes = pf_rgb_bitcount / 8;
+            if (!(pf_flags & DDPF_ALPHAPIXELS)) pf_a_mask = 0;
+            if (pf_r_mask != 0) ch++;
+            if (pf_g_mask != 0) ch++;
+            if (pf_b_mask != 0) ch++;
+            if (pf_a_mask) ach = 1;
+            switch (ch) {
+                case 1: 
+                if (ach == 1) {
+                    nu = read_rgb_image<1,1>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                } else {
+                    nu = read_rgb_image<1,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                }
+                break;
+                case 2: 
+                if (ach == 1) {
+                    nu = read_rgb_image<2,1>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                } else {
+                    nu = read_rgb_image<2,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                }
+                break;
+                case 3: 
+                if (ach == 1) {
+                    nu = read_rgb_image<3,1>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                } else {
+                    nu = read_rgb_image<3,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                }
+                break;
+                case 4: 
+                nu = read_rgb_image<4,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
+                break;
+            }
+        } else if (pf_flags & DDPF_FOURCC) {
+            nu = read_compressed_image(in, width, height, pf_fourcc);
+        } else {
+            EXCEPT << "DDS file \""<<in.filename<<"\" has neither fourcc nor RGB pixel format." << ENDL;
         }
         return nu;
+    }
+
+    ImageBases read_mipmaps (InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_rgb_bitcount,
+                             uint32_t r_mask, uint32_t g_mask, uint32_t b_mask, uint32_t a_mask,
+                             uint32_t pf_flags, uint32_t pf_fourcc, unsigned mipmap_count)
+    {
+        ImageBases mips;
+        for (unsigned i=0 ; i<mipmap_count ; ++i) {
+            mips.push_back(read_mipmap(in, width, height, pf_rgb_bitcount, r_mask, g_mask, b_mask, a_mask, pf_flags, pf_fourcc));
+            width = width == 1 ? 1 : width / 2;
+            height = height == 1 ? 1 : height / 2;
+        }
+        return mips;
     }
 }
 
@@ -853,6 +1049,7 @@ DDSFile dds_open (const std::string &filename)
     uint32_t sz = in.read<uint32_t>();
     if (sz != 124) EXCEPT << "DDS header of \""<<filename<<"\" had wrong size: " << sz << ENDL;
     uint32_t flags = in.read<uint32_t>();
+    (void) flags; // they are too frequently wrong to bother reading
     uint32_t height = in.read<uint32_t>();
     uint32_t width = in.read<uint32_t>();
     in.read<uint32_t>(); // pitch_or_linear_size: can't be relied upon
@@ -891,80 +1088,49 @@ DDSFile dds_open (const std::string &filename)
         (void) array_size;
         (void) misc_flags2;
         EXCEPT << "DDS DX10 header not yet supported in \"" << filename << "\"" << ENDL;
-    } else {
-        ASSERT(depth == 0);
-        ASSERT((flags & DDSD_DEPTH) == 0);
-        ASSERT(caps2 == 0); // fix when using cubemap or volume map
     }
-    
-    file.kind = DDS_SIMPLE;
-    for (unsigned i=0 ; i<mipmap_count ; ++i) {
-        chan_t ch=0, ach=0;
-        ImageBase *nu = NULL;
-        if (pf_flags & DDPF_RGB) {
-            if ((pf_r_mask | pf_g_mask | pf_b_mask) == 0) {
-                EXCEPT << "DDS file \""<<filename<<"\" has all RGB masks set to 0." << ENDL;
-            }
-            switch (pf_rgb_bitcount) {
-                case 8: case 16: case 24: case 32: break;
-                default:
-                EXCEPT << "DDS file \""<<filename<<"\" has unsupported RGB bitcount: " << pf_rgb_bitcount << ENDL;
-            }
-            unsigned bytes = pf_rgb_bitcount / 8;
-            if (!(pf_flags & DDPF_ALPHAPIXELS)) pf_a_mask = 0;
-            if (pf_r_mask != 0) ch++;
-            if (pf_g_mask != 0) ch++;
-            if (pf_b_mask != 0) ch++;
-            if (pf_a_mask) ach = 1;
-            switch (ch) {
-                case 1: 
-                if (ach == 1) {
-                    nu = read_rgb_image<1,1>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
-                } else {
-                    nu = read_rgb_image<1,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
-                }
-                break;
-                case 2: 
-                if (ach == 1) {
-                    nu = read_rgb_image<2,1>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
-                } else {
-                    nu = read_rgb_image<2,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
-                }
-                break;
-                case 3: 
-                if (ach == 1) {
-                    nu = read_rgb_image<3,1>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
-                } else {
-                    nu = read_rgb_image<3,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
-                }
-                break;
-                case 4: 
-                nu = read_rgb_image<4,0>(in, width, height, bytes, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask);
-                break;
-            }
-        } else if (pf_flags & DDPF_FOURCC) {
-            nu = read_compressed_image(in, width, height, pf_fourcc);
-        } else {
-            EXCEPT << "DDS file \""<<filename<<"\" has neither fourcc nor RGB pixel format." << ENDL;
-        }
-        file.simple.push_back(nu);
+    if (caps2 & DDSCAPS2_CUBEMAP) {
+        file.kind = DDS_CUBE;
+    } else if (caps2 & DDSCAPS2_VOLUME) {
+        file.kind = DDS_VOLUME;
+    } else {
+        file.kind = DDS_SIMPLE;
+    }
 
-        width = width == 1 ? 1 : width / 2;
-        height = height == 1 ? 1 : height / 2;
+    ImageBases mips;
+    switch (file.kind) {
+        case DDS_SIMPLE:
+        file.simple = read_mipmaps(in, width, height, pf_rgb_bitcount, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask,
+                                   pf_flags, pf_fourcc, mipmap_count);
+        break;
+        case DDS_CUBE:
+        file.cube.X = read_mipmaps(in, width, height, pf_rgb_bitcount, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask,
+                                   pf_flags, pf_fourcc, mipmap_count);
+        file.cube.x = read_mipmaps(in, width, height, pf_rgb_bitcount, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask,
+                                   pf_flags, pf_fourcc, mipmap_count);
+        file.cube.Y = read_mipmaps(in, width, height, pf_rgb_bitcount, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask,
+                                   pf_flags, pf_fourcc, mipmap_count);
+        file.cube.y = read_mipmaps(in, width, height, pf_rgb_bitcount, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask,
+                                   pf_flags, pf_fourcc, mipmap_count);
+        file.cube.Z = read_mipmaps(in, width, height, pf_rgb_bitcount, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask,
+                                   pf_flags, pf_fourcc, mipmap_count);
+        file.cube.z = read_mipmaps(in, width, height, pf_rgb_bitcount, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask,
+                                   pf_flags, pf_fourcc, mipmap_count);
+        break;
+        case DDS_VOLUME: {
+            file.volume.resize(mipmap_count);
+            for (unsigned i=0 ; i<mipmap_count ; ++i) {
+                ImageBases &layers = file.volume[i];
+                for (unsigned j=0 ; j<depth ; ++j) {
+                    layers.push_back(read_mipmap(in, width, height, pf_rgb_bitcount, pf_r_mask, pf_g_mask, pf_b_mask, pf_a_mask,
+                                                 pf_flags, pf_fourcc));
+                }
+                width = width == 1 ? 1 : width / 2;
+                height = height == 1 ? 1 : height / 2;
+                depth = depth == 1 ? 1 : depth / 2;
+            }
+        } break;
     }
 
     return file;
 }
-
-/* TODO:
- * export:
- ** volume
- ** BC45
- * import
- ** cube
- ** volume
- ** BC45
- * tests
- ** rectangular
- ** non-power of two
- */

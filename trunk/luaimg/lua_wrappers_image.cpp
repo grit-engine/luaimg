@@ -2332,19 +2332,13 @@ HANDLE_BEGIN
 HANDLE_END
 }
 
-static int global_dds_save_simple (lua_State *L)
+static int get_squish_flags (lua_State *L, int tab)
 {
-HANDLE_BEGIN
     unsigned args = lua_gettop(L);
-    if (args < 3) {
-        my_lua_error(L, "Expected at least 3 args to dds_save_simple.");
-    }
-    std::string filename = luaL_checkstring(L, 1);
-    DDSFormat format = format_from_string(luaL_checkstring(L, 2));
     int quality = SQUISH_QUALITY_HIGH;
     int metric = SQUISH_METRIC_PERCEPTUAL;
     int alpha_weight = 0;
-    for (unsigned i=4 ; i<=args ; ++i) {
+    for (unsigned i=tab ; i<=args ; ++i) {
         std::string flag = luaL_checkstring(L, i);
         if (flag == "QUALITY_HIGHEST") {
             quality = SQUISH_QUALITY_HIGHEST;
@@ -2364,9 +2358,12 @@ HANDLE_BEGIN
             EXCEPT << "Unrecognised DDS flag: " << flag << ENDL;
         }
     }
-    int table_index = 3;
-    DDSFile content;
-    content.kind = DDS_SIMPLE;
+    return quality | metric | alpha_weight;
+}
+
+static ImageBases get_mipmaps (lua_State *L, int table_index)
+{
+    ImageBases imgs;
     // pull mips out of table
     if (lua_istable(L, table_index)) {
         int counter = 1;
@@ -2376,14 +2373,53 @@ HANDLE_BEGIN
                 lua_pop(L, 1);
                 break;
             }
-            content.simple.push_back(check_ptr<ImageBase>(L, -1, IMAGE_TAG));
+            imgs.push_back(check_ptr<ImageBase>(L, -1, IMAGE_TAG));
             lua_pop(L, 1);
             counter++;
         }
     } else {
-        content.simple.push_back(check_ptr<ImageBase>(L, table_index, IMAGE_TAG));
+        imgs.push_back(check_ptr<ImageBase>(L, table_index, IMAGE_TAG));
     }
-    dds_save(filename, format, content, quality | metric | alpha_weight);
+    return imgs;
+}
+
+static int global_dds_save_simple (lua_State *L)
+{
+HANDLE_BEGIN
+    unsigned args = lua_gettop(L);
+    if (args < 3) {
+        my_lua_error(L, "Expected at least 3 args to dds_save_simple.");
+    }
+    std::string filename = luaL_checkstring(L, 1);
+    DDSFormat format = format_from_string(luaL_checkstring(L, 2));
+    DDSFile content;
+    content.kind = DDS_SIMPLE;
+    content.simple = get_mipmaps(L, 3);
+    int squish_flags = get_squish_flags(L, 4);
+    dds_save(filename, format, content, squish_flags);
+    return 0;
+HANDLE_END
+}
+
+static int global_dds_save_cube (lua_State *L)
+{
+HANDLE_BEGIN
+    unsigned args = lua_gettop(L);
+    if (args < 8) {
+        my_lua_error(L, "Expected at least 8 args to dds_save_cube.");
+    }
+    std::string filename = luaL_checkstring(L, 1);
+    DDSFormat format = format_from_string(luaL_checkstring(L, 2));
+    DDSFile content;
+    content.kind = DDS_CUBE;
+    content.cube.X = get_mipmaps(L, 3);
+    content.cube.x = get_mipmaps(L, 4);
+    content.cube.Y = get_mipmaps(L, 5);
+    content.cube.y = get_mipmaps(L, 6);
+    content.cube.Z = get_mipmaps(L, 7);
+    content.cube.z = get_mipmaps(L, 8);
+    int squish_flags = get_squish_flags(L, 9);
+    dds_save(filename, format, content, squish_flags);
     return 0;
 HANDLE_END
 }
@@ -2406,11 +2442,10 @@ HANDLE_BEGIN
     DDSFile file = dds_open(filename);
     switch (file.kind) {
         case DDS_SIMPLE: {
-            lua_pushstring(L, "SIMPLE");
             push_mipmaps(L, file.simple);
+            lua_pushstring(L, "SIMPLE");
         } break;
         case DDS_CUBE: {
-            lua_pushstring(L, "CUBE");
             lua_newtable(L);
             int table_index = lua_gettop(L);
             push_mipmaps(L, file.cube.X);
@@ -2425,9 +2460,9 @@ HANDLE_BEGIN
             lua_setfield(L, table_index, "Z");
             push_mipmaps(L, file.cube.z);
             lua_setfield(L, table_index, "z");
+            lua_pushstring(L, "CUBE");
         } break;
         case DDS_VOLUME: {
-            lua_pushstring(L, "VOLUME");
             lua_newtable(L);
             int mips_table_index = lua_gettop(L);
             unsigned num_mips = file.volume.size();
@@ -2440,6 +2475,7 @@ HANDLE_BEGIN
                 }
                 lua_rawseti(L, mips_table_index, i+1);
             }
+            lua_pushstring(L, "VOLUME");
         } break;
         default:
         EXCEPTEX << file.kind << ENDL;
@@ -2562,6 +2598,7 @@ static const luaL_reg global[] = {
     {"text_codepoint", global_text_codepoint},
     {"text", global_text},
     {"dds_save_simple", global_dds_save_simple},
+    {"dds_save_cube", global_dds_save_cube},
     {"dds_open", global_dds_open},
     {"mipmaps", global_mipmaps},
     {"RGBtoHSL", global_rgb_to_hsl},
