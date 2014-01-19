@@ -19,6 +19,19 @@
  * THE SOFTWARE.
  */
 
+
+/* Reference material for this code:
+ *
+ * BC1-3 (DXT1,3,5): http://en.wikipedia.org/wiki/S3_Texture_Compression
+ *
+ * BC4-5 (ATI1,2): http://en.wikipedia.org/wiki/3Dc
+ *
+ * High level stuff about current and future formats:
+ *     http://www.reedbeta.com/blog/2012/02/12/understanding-bcn-texture-compression-formats/
+ *
+ * MSDN resources: http://msdn.microsoft.com/en-us/library/windows/desktop/bb943990(v=vs.85).aspx
+ */
+
 #include <cstdlib>
 #include <cstdint>
 
@@ -532,6 +545,7 @@ namespace {
                     }
                     break;
                     case DDSF_BC4: {
+                        // Convert to RGBA with RGB zero, use DXT5, throw away colour channel
                         squish::u8 output[16];
                         initialise_squish_input(img, input, input2, x, y, format);
                         squish::Compress(input, output, squish_flags | squish::kDxt5);
@@ -540,6 +554,7 @@ namespace {
                     }
                     break;
                     case DDSF_BC5: {
+                        // As BC4, but do it once for each input channel.
                         squish::u8 output[16];
                         squish::u8 output2[16];
                         initialise_squish_input(img, input, input2, x, y, format);
