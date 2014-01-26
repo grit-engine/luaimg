@@ -698,8 +698,34 @@ void dds_save (const std::string &filename, DDSFormat format, const DDSFile &con
             || content.cube.z[0]->height != height)
             EXCEPT << "In \"" << filename << "\", cube faces must be square and the same size." << ENDL;
         break;
-        case DDS_VOLUME:
-        EXCEPTEX << "Not supported." << ENDL;
+        case DDS_VOLUME: {
+            depth = content.volume[0].size();
+            ASSERT(depth > 0u);
+            width = content.volume[0][0]->width;
+            height = content.volume[0][0]->height;
+            for (unsigned mip=0 ; mip<mipmap_count ; ++mip) {
+                uimglen_t mip_width = content.volume[mip][0]->width;
+                uimglen_t mip_height = content.volume[mip][0]->height;
+                uimglen_t mip_depth = content.volume[mip].size();
+                uimglen_t exp_width = width >> mip > 0 ? width >> mip : 1;
+                uimglen_t exp_height = height >> mip > 0 ? height >> mip : 1;
+                uimglen_t exp_depth = depth >> mip > 0 ? depth >> mip : 1;
+                if (mip_width != exp_width || mip_height != exp_height || mip_depth != exp_depth) {
+                    EXCEPT << "Couldn't write \""<<filename<<"\" as mipmap "<<mip<<" had the wrong size ("
+                           << mip_width << ", " << mip_height << ", " << mip_depth << ") expected ("
+                           << exp_width << ", " << exp_height << ", " << exp_depth << ")." << ENDL;
+                }
+                for (uimglen_t z=0 ; z<mip_depth ; ++z) {
+                    const ImageBase *layer = content.volume[mip][z];
+                    check_colour(format, layer->colourChannels(), layer->hasAlpha());
+                    if (layer->width != mip_width || layer->height != mip_height) {
+                        EXCEPT << "Couldn't write \""<<filename<<"\" as mipmap "<<mip<<" had a layer with the wrong size ("
+                               << layer->width << ", " << layer->width << ") expected ("
+                               << exp_width << ", " << exp_height << ")." << ENDL;
+                    }
+                }
+            }
+        }
         break;
         default: EXCEPTEX << content.kind << ENDL; // avoid warning
     }

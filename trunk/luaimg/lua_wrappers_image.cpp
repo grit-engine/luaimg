@@ -2307,9 +2307,16 @@ HANDLE_END
 static int global_mipmaps (lua_State *L)
 {
 HANDLE_BEGIN
-    check_args(L, 2);
-    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    ScaleFilter scale_filter = scale_filter_from_string(luaL_checkstring(L, 2));
+    ImageBase *self;
+    ScaleFilter scale_filter = SF_BOX;
+    switch (lua_gettop(L)) {
+        case 2:
+        scale_filter = scale_filter_from_string(luaL_checkstring(L, 2));
+        case 1:
+        self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        break;
+        default: my_lua_error(L, "Expected 1 or 2 args.");
+    }
     unsigned counter = 1;
     lua_newtable(L);
     int table_index = lua_gettop(L);
@@ -2361,7 +2368,7 @@ static int get_squish_flags (lua_State *L, int tab)
     return quality | metric | alpha_weight;
 }
 
-static ImageBases get_mipmaps (lua_State *L, int table_index)
+static ImageBases get_image_vector (lua_State *L, int table_index)
 {
     ImageBases imgs;
     // pull mips out of table
@@ -2380,7 +2387,67 @@ static ImageBases get_mipmaps (lua_State *L, int table_index)
     } else {
         imgs.push_back(check_ptr<ImageBase>(L, table_index, IMAGE_TAG));
     }
+    if (imgs.size() == 0) {
+        my_lua_error(L, "Table had no elements.");
+    }
     return imgs;
+}
+
+static int global_volume_mipmaps (lua_State *L)
+{
+HANDLE_BEGIN
+    check_args(L, 1);
+    static const char *msg = "Argument must be a non-empty array of identically-sized images (a volume map).";
+    if (!lua_istable(L, 1)) my_lua_error(L, msg);
+    ImageBases volume = get_image_vector(L, 1);
+    uimglen_t vol_depth = volume.size();
+    if (vol_depth == 0) my_lua_error(L, msg);
+    uimglen_t vol_width = volume[0]->width;
+    uimglen_t vol_height = volume[0]->height;
+
+    // verify
+    for (unsigned i=1 ; i<vol_depth ; ++i) {
+        if (volume[i]->width != vol_width || volume[i]->height != vol_height)
+            my_lua_error(L, msg);
+    }
+
+    unsigned mip = 0;
+
+    lua_newtable(L);
+    int mips_table_index = lua_gettop(L);
+
+    // push top mipmap level
+    lua_newtable(L);
+    for (uimglen_t z=0 ; z<vol_depth ; ++z) {
+        push_image(L, volume[z]);
+        lua_rawseti(L, -2, z+1);
+    }
+    lua_rawseti(L, mips_table_index, mip+1);
+    mip++;
+
+    uimglen_t mip_width;
+    uimglen_t mip_height;
+    uimglen_t mip_depth;
+    do {
+        // calculate new width/height/depth for this layer
+        // make a vector of images
+        // initialise them
+        // push all layers into a table and set into top table
+        mip_width = vol_width>>mip > 0 ? vol_width>>mip : 1;
+        mip_height = vol_height>>mip > 0 ? vol_height>>mip : 1;
+        mip_depth = vol_depth>>mip > 0 ? vol_depth>>mip : 1;
+        lua_newtable(L);
+        for (unsigned z=0 ; z<mip_depth ; ++z) {
+            ImageBase *layer = NULL;
+            push_image(L, layer);
+            lua_rawseti(L, -2, z+1);
+        }
+        lua_rawseti(L, mips_table_index, mip+1);
+        mip++;
+    } while (mip_width>1 || mip_height>1 || mip_depth>1);
+
+    return 1;
+HANDLE_END
 }
 
 static int global_dds_save_simple (lua_State *L)
@@ -2394,7 +2461,7 @@ HANDLE_BEGIN
     DDSFormat format = format_from_string(luaL_checkstring(L, 2));
     DDSFile content;
     content.kind = DDS_SIMPLE;
-    content.simple = get_mipmaps(L, 3);
+    content.simple = get_image_vector(L, 3);
     int squish_flags = get_squish_flags(L, 4);
     dds_save(filename, format, content, squish_flags);
     return 0;
@@ -2412,13 +2479,53 @@ HANDLE_BEGIN
     DDSFormat format = format_from_string(luaL_checkstring(L, 2));
     DDSFile content;
     content.kind = DDS_CUBE;
-    content.cube.X = get_mipmaps(L, 3);
-    content.cube.x = get_mipmaps(L, 4);
-    content.cube.Y = get_mipmaps(L, 5);
-    content.cube.y = get_mipmaps(L, 6);
-    content.cube.Z = get_mipmaps(L, 7);
-    content.cube.z = get_mipmaps(L, 8);
+    content.cube.X = get_image_vector(L, 3);
+    content.cube.x = get_image_vector(L, 4);
+    content.cube.Y = get_image_vector(L, 5);
+    content.cube.y = get_image_vector(L, 6);
+    content.cube.Z = get_image_vector(L, 7);
+    content.cube.z = get_image_vector(L, 8);
     int squish_flags = get_squish_flags(L, 9);
+    dds_save(filename, format, content, squish_flags);
+    return 0;
+HANDLE_END
+}
+
+static int global_dds_save_volume (lua_State *L)
+{
+HANDLE_BEGIN
+    unsigned args = lua_gettop(L);
+    if (args < 3) {
+        my_lua_error(L, "Expected at least 3 args to dds_save_cube.");
+    }
+    std::string filename = luaL_checkstring(L, 1);
+    DDSFormat format = format_from_string(luaL_checkstring(L, 2));
+    int table_index = 3;
+    int squish_flags = get_squish_flags(L, 4);
+    DDSFile content;
+    content.kind = DDS_VOLUME;
+    if (!lua_istable(L, table_index)) {
+        my_lua_error(L, "3rd parameter must be a table of tables of images.");
+    }
+    // each mip is a volume
+    int counter = 1;
+    while (true) {
+        lua_rawgeti(L, table_index, counter);
+        if (lua_isnil(L, -1)) {
+            lua_pop(L, 1);
+            break;
+        }
+        if (lua_istable(L, -1)) {
+            content.volume.push_back(get_image_vector(L, -1));
+        } else {
+            my_lua_error(L, "3rd parameter should be a table of tables of images when saving "+filename+".");
+        }
+        lua_pop(L, 1);
+        counter++;
+    }
+    if (content.volume.size() == 0) {
+        my_lua_error(L, "Expected at least one mipmap when saving "+filename+".");
+    }
     dds_save(filename, format, content, squish_flags);
     return 0;
 HANDLE_END
@@ -2599,8 +2706,10 @@ static const luaL_reg global[] = {
     {"text", global_text},
     {"dds_save_simple", global_dds_save_simple},
     {"dds_save_cube", global_dds_save_cube},
+    {"dds_save_volume", global_dds_save_volume},
     {"dds_open", global_dds_open},
     {"mipmaps", global_mipmaps},
+    {"volume_mipmaps", global_volume_mipmaps},
     {"RGBtoHSL", global_rgb_to_hsl},
     {"HSLtoRGB", global_hsl_to_rgb},
     {"HSVtoHSL", global_hsv_to_hsl},

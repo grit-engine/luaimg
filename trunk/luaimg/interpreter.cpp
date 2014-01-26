@@ -117,9 +117,8 @@ bool interpreter_exec_file (const std::string &fname, const std::vector<std::str
             lua_settop(L, 0);
             return true;
         } else {
-            const char *msg = lua_tostring(L, -1);
             std::cerr << "Could not execute Lua file: \"" << fname << "\"" << std::endl;
-            std::cerr << msg << std::endl;
+            // No need to output message, the error handler will already have done that.
             lua_pop(L, 1);      
             return false;
         }
