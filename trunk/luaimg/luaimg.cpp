@@ -39,7 +39,7 @@ extern "C" {
 #include "Image.h"
 #include "text.h"
 
-#define LUAIMG_VERSION "0.8"
+#define LUAIMG_VERSION "0.9"
 
 const char *prompt = "luaimg> ";
 
