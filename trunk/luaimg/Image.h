@@ -227,8 +227,12 @@ class ImageBase {
 
     const uimglen_t width, height;
 
+    /** Whether or not we've been pushed onto the Lua heap.  This should only
+     * happen once or we get double-freed. */
+    bool beenPushed;
+
     ImageBase (uimglen_t width, uimglen_t height)
-      : width(width), height(height)
+      : width(width), height(height), beenPushed(false)
     {
     }
 
@@ -272,7 +276,7 @@ class ImageBase {
 
 static inline std::ostream &operator<<(std::ostream &o, const ImageBase &img)
 {
-    o << "Image ("<<img.width<<","<<img.height<<")x"<<int(img.channels())<<(img.hasAlpha()?"A":"")<<" [0x"<<&img<<"]";
+    o << "Image ("<<img.width<<","<<img.height<<")x"<<int(img.colourChannels())<<(img.hasAlpha()?"A":"")<<" [0x"<<&img<<"]";
     return o;
 }
 

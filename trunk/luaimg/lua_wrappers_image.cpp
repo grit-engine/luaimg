@@ -250,6 +250,8 @@ void push_colour (lua_State *L, chan_t channels, bool has_alpha, const ColourBas
 void push_image (lua_State *L, ImageBase *image)
 {
     ASSERT(image != NULL);
+    ASSERT(!image->beenPushed);
+    image->beenPushed = true;
     void **self_ptr = static_cast<void**>(lua_newuserdata(L, sizeof(*self_ptr)));
     lua_extmemburden(L, image->numBytes());
     *self_ptr = image;
@@ -2393,22 +2395,59 @@ static ImageBases get_image_vector (lua_State *L, int table_index)
     return imgs;
 }
 
+static bool is_power_of_two (uimglen_t x)
+{
+    return !((x-1) & x);
+}
+
+template<chan_t ch, chan_t ach> Image<ch,ach> *volume_box (const ImageBase *top_, const ImageBase *bot_, uimglen_t w, uimglen_t h)
+{
+    auto top = static_cast<const Image<ch,ach> *>(top_);
+    auto bot = static_cast<const Image<ch,ach> *>(bot_);
+    auto r = new Image<ch,ach>(w, h);
+    for (uimglen_t y=0 ; y<h ; ++y) {
+        for (uimglen_t x=0 ; x<w ; ++x) {
+            Colour<ch, ach> col(0);
+            for (chan_t c=0 ; c<ch+ach ; ++c) {
+                col[c] += top->pixel(2*x,2*y)[c] / 8;
+                col[c] += top->pixel(2*x,2*y+1)[c] / 8;
+                col[c] += top->pixel(2*x+1,2*y)[c] / 8;
+                col[c] += top->pixel(2*x+1,2*y+1)[c] / 8;
+                col[c] += bot->pixel(2*x,2*y)[c] / 8;
+                col[c] += bot->pixel(2*x,2*y+1)[c] / 8;
+                col[c] += bot->pixel(2*x+1,2*y)[c] / 8;
+                col[c] += bot->pixel(2*x+1,2*y+1)[c] / 8;
+            }
+            r->pixel(x,y) = col;
+        }
+    }
+    return r;
+}
+
 static int global_volume_mipmaps (lua_State *L)
 {
 HANDLE_BEGIN
     check_args(L, 1);
-    static const char *msg = "Argument must be a non-empty array of identically-sized images (a volume map).";
+    static const char *msg = "Argument must be a non-empty array of same size/channels/alpha images (a volume map).";
     if (!lua_istable(L, 1)) my_lua_error(L, msg);
     ImageBases volume = get_image_vector(L, 1);
     uimglen_t vol_depth = volume.size();
-    if (vol_depth == 0) my_lua_error(L, msg);
+    if (vol_depth == 0) my_lua_error(L, "volume_mipmaps received an empty array.");
     uimglen_t vol_width = volume[0]->width;
     uimglen_t vol_height = volume[0]->height;
+    unsigned ch = volume[0]->colourChannels();
+    bool ach = volume[0]->hasAlpha();
 
     // verify
     for (unsigned i=1 ; i<vol_depth ; ++i) {
         if (volume[i]->width != vol_width || volume[i]->height != vol_height)
             my_lua_error(L, msg);
+        if (volume[i]->colourChannels() != ch || volume[i]->hasAlpha() != ach)
+            my_lua_error(L, msg);
+    }
+
+    if (!is_power_of_two(vol_depth) || !is_power_of_two(vol_width) || !is_power_of_two(vol_height)) {
+        my_lua_error(L, "Currently volume_mipmaps only supports power of 2 textures.");
     }
 
     unsigned mip = 0;
@@ -2416,20 +2455,20 @@ HANDLE_BEGIN
     lua_newtable(L);
     int mips_table_index = lua_gettop(L);
 
-    // push top mipmap level
+    // push top mipmap level into new table, but reuse original image userdatas.
     lua_newtable(L);
     for (uimglen_t z=0 ; z<vol_depth ; ++z) {
-        push_image(L, volume[z]);
+        lua_rawgeti(L, 1, z+1);
         lua_rawseti(L, -2, z+1);
     }
     lua_rawseti(L, mips_table_index, mip+1);
     mip++;
 
+    ImageBases last_volume = volume;
     uimglen_t mip_width;
     uimglen_t mip_height;
     uimglen_t mip_depth;
     do {
-        // calculate new width/height/depth for this layer
         // make a vector of images
         // initialise them
         // push all layers into a table and set into top table
@@ -2437,12 +2476,50 @@ HANDLE_BEGIN
         mip_height = vol_height>>mip > 0 ? vol_height>>mip : 1;
         mip_depth = vol_depth>>mip > 0 ? vol_depth>>mip : 1;
         lua_newtable(L);
+        ImageBases new_volume;
         for (unsigned z=0 ; z<mip_depth ; ++z) {
+            ImageBase *top = last_volume[z*2 + 0];
+            ImageBase *bot = last_volume.size()==1 ? top : last_volume[z*2 + 1];
             ImageBase *layer = NULL;
-            push_image(L, layer);
+            switch (ch) {
+                case 1:
+                if (ach) {
+                    layer = volume_box<1,1>(top, bot, mip_width, mip_height);
+                } else {
+                    layer = volume_box<1,0>(top, bot, mip_width, mip_height);
+                }
+                break;
+                case 2:
+                if (ach) {
+                    layer = volume_box<2,1>(top, bot, mip_width, mip_height);
+                } else {
+                    layer = volume_box<2,0>(top, bot, mip_width, mip_height);
+                }
+                break;
+                case 3:
+                if (ach) {
+                    layer = volume_box<3,1>(top, bot, mip_width, mip_height);
+                } else {
+                    layer = volume_box<3,0>(top, bot, mip_width, mip_height);
+                }
+                break;
+                case 4:
+                if (ach) {
+                    layer = volume_box<4,1>(top, bot, mip_width, mip_height);
+                } else {
+                    layer = volume_box<4,0>(top, bot, mip_width, mip_height);
+                }
+                break;
+                default: EXCEPTEX << ch << ENDL;
+            }
+            new_volume.push_back(layer);
+        }
+        for (unsigned z=0 ; z<mip_depth ; ++z) {
+            push_image(L, new_volume[z]);
             lua_rawseti(L, -2, z+1);
         }
         lua_rawseti(L, mips_table_index, mip+1);
+        last_volume = new_volume;
         mip++;
     } while (mip_width>1 || mip_height>1 || mip_depth>1);
 

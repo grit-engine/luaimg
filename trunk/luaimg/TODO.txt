@@ -1,5 +1,4 @@
 reduce method more flexible with types
-DDS import/export
 Antialiased geometry drawing (lines, polygons) with pixel shader like functionality
 Texture lookups (filtering, mipmaps, etc)
 Custom stencil algorithms (e.g. game of life , expand borders, etc in a single step)
@@ -7,10 +6,3 @@ Different blending modes for draw ops: alpha blend, +, *, max, min,
 image mix method (custom blend) -- like map but takes an extra (compatible) image and passes both pixels into supplied function
 support colourgrade luts
 anigif import/export
-
-mipmapped = { mipmap0, mipmap1, mipmap2 }
-OR
-mipmapped = generate_mipmaps(mipmap0)
-dds_save_simple("filename.dds", "FORMAT", mipmapped})
-dds_save_cube("filename.dds", "FORMAT", mipmapped_left, mipmapped_top, etc)
-dds_save_volume("filename.dds", "FORMAT", { mipmapped_layer1, mipmapped_layer2 })
