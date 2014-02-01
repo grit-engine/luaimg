@@ -20,7 +20,9 @@ href="http://www.lua.org/">Lua</a> fork from the <a
 href="http://www.gritengine.com/">Grit</a> project).  Image operations are
 consistent with layer blending modes from Gimp/Photoshop (but extended for
 HDR), mathematical operators are available, as well as convolutions,
-transformations, and per-pixel computations inspired by shader programming.</p>
+transformations, and per-pixel computations inspired by shader programming.  It
+is also possible to draw images on other images (i.e. use 'brushes'), draw
+lines, and render text.</p>
 
         <p>LuaImg strives firstly to allow all forms of image manipulation,
 secondly to be easy to use, and finally to be fast (via the customised Lua
@@ -44,7 +46,7 @@ with per-pixel scripting in a few seconds.</p>
     <div class="prose">
 
         <p>LuaImg is an extension of the Lua language.  The additional features
-provide good performance for computaiton involving compound floating point types
+provide good performance for computation involving compound floating point types
 (colours, coordinates, etc).  The VM supports such types as primitives, instead
 of heap allocated and garbage collected objects.</p>
 
@@ -66,7 +68,7 @@ The unpack function will convert vectors to their components.  Additional
 functions like dot product, etc, are described in the LuaImg <a
 href='api.html'>API</a> documentation.  </p>
 
-        <p>Finally, to faciliate text rendering, the Lua string library has
+        <p>Finally, to facilitate text rendering, the Lua string library has
 been replaced by one that supports unicode.  The new string library is based on
 ICU and is backwards compatible with the old string library except for the
 regular expression syntax, which is documented <a

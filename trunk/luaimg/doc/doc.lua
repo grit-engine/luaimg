@@ -130,7 +130,191 @@ function emit_examples(file)
 
 end
 
-doc { "function", "make",
+
+-- {{{ General Utilities
+
+doc { "function", "seconds", module="General Utilities",
+
+[[Return the number of seconds since reboot.  Useful for benchmarking.]],
+
+    { "return", "number" },
+}
+
+doc { "function", "vec", module="General Utilities",
+
+[[Convert to a vector value, the number of arguments determines the number of
+dimensions of the vector.]],
+
+    { "param", "x", "number" },
+    { "param", "y", "number", optional=true },
+    { "param", "z", "number", optional=true },
+    { "param", "w", "number", optional=true },
+    { "return", "vector" },
+}
+
+doc { "function", "vec4", module="General Utilities",
+
+[[Convert to a vector4 value.  The arguments can be either numbers or other
+vectors of any size as long as the total number of elements is 2.  There are
+similar functions vec2 and vec3 for creating vectors of other sizes.]],
+
+    { "param", "...", {"number","vector","..."} },
+    { "return", "vector4" },
+}
+
+doc { "function", "colour", module="General Utilities",
+
+[[Return a vector value of the given dimensionality, all of whose elements
+are the given value.]],
+
+    { "param", "d", "number" },
+    { "param", "n", "number" },
+    { "return", "vector" },
+}
+
+doc { "function", "dot", module="General Utilities",
+
+[[Compute the dot product of the given vectors.]],
+
+    { "param", "a", "vector" },
+    { "param", "b", "vector" },
+    { "return", "number" },
+}
+
+doc { "function", "cross", module="General Utilities",
+
+[[Compute the cross product of the given vectors.]],
+
+    { "param", "a", "vector3" },
+    { "param", "b", "vector3" },
+    { "return", "vector3" },
+}
+
+doc { "function", "inv", module="General Utilities",
+
+[[Invert a quaternion.]],
+
+    { "param", "a", "quat" },
+    { "return", "quat" },
+}
+
+doc { "function", "slerp", module="General Utilities",
+
+[[Interpolate between two quaternions.]],
+
+    { "param", "a", "quat" },
+    { "param", "b", "quat" },
+    { "param", "alpha", "number" },
+    { "return", "quat" },
+}
+
+doc { "function", "norm", module="General Utilities",
+
+[[Normalise the vector or quaternion (return a value that has length 1 but is
+otherwise equivalent).]],
+
+    { "param", "a", {"vector","quat"} },
+    { "return", {"vector","quat"} },
+}
+
+doc { "function", "HSLtoRGB", module="General Utilities",
+
+[[There are 6 functions for converting between the various combinations of RGB,
+HSV, and HSL.  HSV is distinguished from HSL because in HSL, 100% brightness is
+white (i.e. it desaturates), whereas in HSV it retains saturation.]],
+
+    { "param", "colour", "vector3" },
+    { "return", "vector3" },
+}
+
+-- }}}
+
+-- {{{ Disk I/O
+
+doc { "function", "open", module="Disk I/O",
+
+[[Load an image file from disk.  The file extension is used to determine the
+format.  The extension 'sfi' is a special raw format.  This can be used to save
+and restore images in LuaImg's internal representation, which is 4 bytes per
+pixel per channel.  All other formats are loaded with libfreeimage.]],
+
+    { "param", "filename", "string" },
+    { "return", "Image" },
+}
+
+doc { "function", "dds_open", module="Disk I/O",
+
+[[Load a dds (Direct Draw Surface) file from disk.  This format is different
+from the other supported formats because it is a package of image files with
+associated metadata.  The first return value is the content of the dds file,
+which can consist of more than one image.  The second is a string indicating
+the kind of file that was opened, of which there are 3 possibilities.</p><p>If
+the kind is SIMPLE, then the dds file was a simple 2D texture so the content is
+a table containing the mipmaps (in descending order of size).  If the kind is
+CUBE, then the table contains 6 sides of this cube, e.g. in the field px is the
+positive x side, nx is the negative x side, and similarly for the y and z axes.
+Such textures are typically used for 360 degree panoramas.  Finally, if the
+kind is VOLUME, then this is a 3D texture.  The content is a table of volume
+mipmaps, each of which is a table containing all the single images that
+comprise the volume, one slice at a time.</p><p>BC1-5 are supported, as
+well as the basic raw formats.]],
+
+    { "param", "filename", "string" },
+    { "return", "table" },
+    { "return", { "\"SIMPLE\"", "\"CUBE\"", "\"VOLUME\"" } },
+}
+
+doc { "function", "dds_save_simple", module="Disk I/O",
+
+[[Save a simple dds (Direct Draw Surface) file to disk.  This will save a 2D
+texture, there are 2 other functions for saving cube maps and volume maps.  The
+available formats are R5G6B5, R8G8B8, A8R8G8B8, A2R10G10B10, A1R5G5B5, R8, R16,
+G16R16, A8R8, A4R4, A16R16, R3G3B2, A4R4G4B4, and BC1-5.  You must give an
+array of mipmaps to this function.  If you only want to save the top mipmap
+then use a single element array.  You can also use the mipmaps() function to
+generate mipmaps for you.</p><p>Note that the supplied images must have the right
+number of channels/alpha for the chosen format.  Don't forget that BC1 has an
+alpha channel.  To add a 100% alpha channel to an RGB image, use the img.xyzF
+swizzle.]],
+
+    { "param", "filename", "string" },
+    { "param", "format", "string" },
+    { "param", "mipmaps", "array of images" },
+}
+
+doc { "function", "dds_save_cube", module="Disk I/O",
+
+[[Save a cubemap dds (Direct Draw Surface) file to disk.  This behaves much like dds_save_simple() except all sides of the cube must be supplied.]],
+
+    { "param", "filename", "string" },
+    { "param", "format", "string" },
+    { "param", "pos_x", "array of images" },
+    { "param", "neg_x", "array of images" },
+    { "param", "pos_y", "array of images" },
+    { "param", "neg_y", "array of images" },
+    { "param", "pos_z", "array of images" },
+    { "param", "neg_z", "array of images" },
+}
+
+doc { "function", "dds_save_volume", module="Disk I/O",
+
+[[Save a volume dds (Direct Draw Surface) file to disk.  This behaves much like
+dds_save_simple() except each mipmap is a table of slices (images), thus the
+input is an array of arrays of images.  If you do not want images, give a
+singleton array containing the array of the slices in your volume.  You can
+also use volume_mipmaps() to generate the array of arrays from an array of
+images.]],
+
+    { "param", "filename", "string" },
+    { "param", "format", "string" },
+    { "param", "mipmaps", "array of arrays of images" },
+}
+
+-- }}}
+
+-- {{{ Image Globals
+
+doc { "function", "make", module="Image Globals",
 
 [[Create a new image of the specificed size, with the specified number of
 colour channels.  If channels&lt;4, one can also add an alpha channel.  Alpha
@@ -145,7 +329,70 @@ a function that provides the colour at each pixel.]],
     { "return", "Image" },
 }
 
-doc { "function", "text",
+doc { "function", "lerp", module="Image Globals",
+
+[[Interpolate between two colours / images.  T can be number, vector2/3/4, or
+Image.  If lerping images, they must be compatible.]],
+
+    { "param", "v1", "T" },
+    { "param", "v2", "T" },
+    { "param", "alpha", "number" },
+    { "return", "T" },
+}
+
+doc { "function", "gaussian", module="Image Globals",
+
+[[Generate a separated Gaussian convolution kernel.  This is an nx1 image
+containing that row of Pascal's triangle, normalised so it all sums to 1.]],
+
+    { "param", "n", "number" },
+    { "return", "Image" },
+}
+
+doc { "function", "mipmaps", module="Image Globals",
+
+[[Takes an image, and creates an array of scaled versions of the image, where
+each successive image is half the size of the previous one in both dimensions.
+This is mainly useful for the dds_save family of functions.  The available
+filters are the same as for the image:scale() method.]],
+
+    { "param", "img", "Image" },
+    { "param", "filter", "string" },
+    { "return", "array of Images" },
+}
+
+doc { "function", "volume_mipmaps", module="Image Globals",
+
+[[Takes a volume (an array of images), and creates an array of scaled versions
+of the volume, where each successive volume is half the size of the previous
+one in all 3 dimensions.  This is mainly useful for the dds_save_volume
+function.  The volume must have power of 2 size in all dimensions, and is
+filtered with a BOX filter.]],
+
+    { "param", "volume", "array of Images" },
+    { "return", "array of arrays of Images" },
+}
+
+-- }}}
+
+-- {{{ Text
+
+doc { "function", "text_codepoint", module="Text",
+
+[[Similar to the text() function but renders a single character (codepoint) of
+text (provided as a UTF8 string).  The size of the returned image includes
+spacing around the letter that is appropriate for collating this character with
+others from the same font and size to form paragraphs of text.  The text() call
+always removes blank pixels around the text so is not suitable for this
+purpose.  Kerning information is not provided.]],
+
+    { "param", "font", "string" },
+    { "param", "size", "vector2" },
+    { "param", "char", "string" },
+    { "return", "Image" },
+}
+
+doc { "function", "text", module="Text",
 
 [[Create a new image containing the rendered line of text.  The image is
 automatically sized to fit the text.  Bitmap or scalable fonts can be used, and
@@ -165,142 +412,31 @@ shadows, colour, etc.]],
     { "return", "Image" },
 }
 
-doc { "function", "vec",
+-- }}}
 
-[[Convert to a vector value, the number of arguments determine the size of the vector.]],
 
-    { "param", "x", "number" },
-    { "param", "y", "number", optional=true },
-    { "param", "z", "number", optional=true },
-    { "param", "w", "number", optional=true },
-    { "return", "vector" },
-}
-
-doc { "function", "vec4",
-
-[[Convert to a vector4 value.  The arguments can be either numbers or other
-vectors of any size as long as the total number of elements is 2.  There are
-similar functions vec2 and vec3 for creating vectors of other sizes.]],
-
-    { "param", "...", {"number","vector","..."} },
-    { "return", "vector4" },
-}
-
-doc { "function", "open",
-
-[[Load an image file from disk.  The file extension is used to determine
-the format.  The extension 'sfi' is a special raw format.  This can be used to
-save and restore images in LuaImg's internal representation, but it takes a lot
-of space on disk.  All other loading uses libfreeimage.]],
-
-    { "param", "filename", "string" },
-    { "return", "Image" },
-}
-
-doc { "function", "lerp",
-
-[[Interpolate between two colours / images.  T can be number, vector2/3/4,
-or Image.  If lerping images, they must be compatible.]],
-
-    { "param", "v1", "T" },
-    { "param", "v2", "T" },
-    { "param", "alpha", "number" },
-    { "return", "T" },
-}
-
-doc { "function", "gaussian",
-
-[[Generate a separated Gaussian convolution kernel.  This is an nx1 image
-containing that row of Pascal's triangle, normalised so it all sums to 1.]],
-
-    { "param", "n", "number" },
-    { "return", "Image" },
-}
-
-doc { "function", "colour",
-
-[[Return a vector value of the given dimensionality, all of whose elements
-are the given value.]],
-
-    { "param", "d", "number" },
-    { "param", "n", "number" },
-    { "return", "vector" },
-}
-
-doc { "function", "dot",
-
-[[Compute the dot product of the given vectors.]],
-
-    { "param", "a", "vector" },
-    { "param", "b", "vector" },
-    { "return", "number" },
-}
-
-doc { "function", "cross",
-
-[[Compute the cross product of the given vectors.]],
-
-    { "param", "a", "vector3" },
-    { "param", "b", "vector3" },
-    { "return", "vector3" },
-}
-
-doc { "function", "inv",
-
-[[Invert a quaternion.]],
-
-    { "param", "a", "quat" },
-    { "return", "quat" },
-}
-
-doc { "function", "slerp",
-
-[[Interpolate between two quaternions.]],
-
-    { "param", "a", "quat" },
-    { "param", "b", "quat" },
-    { "param", "alpha", "number" },
-    { "return", "quat" },
-}
-
-doc { "function", "norm",
-
-[[Normalise the vector or quaternion (return a value that has length 1 but is
-otherwise equivalent).]],
-
-    { "param", "a", {"vector","quat"} },
-    { "return", {"vector","quat"} },
-}
-
-doc { "function", "HSLtoRGB",
-
-[[There are 6 functions for converting between RGB, HSV, and HSL.]],
-
-    { "param", "colour", "vector3" },
-    { "return", "vector3" },
-}
+-- {{{ Image Class
 
 doc {
     "class",
     "Image",
 
-    [[A 2d rectangular grid of pixels.  Pixels are represented in single
-precision floating point.  The image can have 1,2,3, or 4 colour channels.  If
-an image has less than 4 channels, it is allowed to additionally have an alpha
-channel (alpha channels have special behaviours when composing images).</p> <p>
-Images can be combined by arithmetic (+,-,*,/,^).  The ..  operator combines
-images according to alpha blending (i.e. regular blend mode in Photoshop/Gimp).
-Other blend modes are available via the mathematical operators.  You can
-therefore mask images using the multiplication operator, add using the add
-operator, etc (see examples above).</p>  <p>Individual pixel values of an image
-can be accessed using the function call syntax, e.g. img(10,20).  Other
-functionality is exposed via specific methods on images.  Images can be
-swizzled to extract specific channels.  If a swizzle's last character is a
-capital letter, this creates an alpha channel.  E.g. img.yX will yield a
-greyscale image with alpha channel.  The value channel is the old green channel
-and the alpha channel is the old red channel.  The two special swizzle
-characters f (full) and e (empty) create a channel containing 1 or 0,
-respectively.]],
+[[A 2d rectangular grid of pixels.  Pixels are represented in single precision
+floating point.  The image can have 1,2,3, or 4 colour channels.  If an image
+has less than 4 channels, it is allowed to additionally have an alpha channel
+(alpha channels have special behaviours when composing images).</p> <p> Images
+can be combined by arithmetic (+,-,*,/,^).  The ..  operator combines images
+according to alpha blending (i.e. regular blend mode in Photoshop/Gimp).  Other
+blend modes are available via the mathematical operators.  You can therefore
+mask images using the multiplication operator, add using the add operator, etc
+(see examples above).</p>  <p>Individual pixel values of an image can be
+accessed using the function call syntax, e.g. img(10,20).  Other functionality
+is exposed via specific methods on images.  Images can be swizzled to extract
+specific channels.  If a swizzle's last character is a capital letter, this
+creates an alpha channel.  E.g. img.yX will yield a greyscale image with alpha
+channel.  The value channel is the old green channel and the alpha channel is
+the old red channel.  The two special swizzle characters f (full) and e (empty)
+create a channel containing 1 or 0, respectively.]],
 
     { "field", "allChannels", "number", "The number of channels in the image (including alpha).", },
     { "field", "colourChannels", "number", "The number of channels in the image (not including alpha).", },
@@ -490,6 +626,9 @@ respectively.]],
     },
 }
 
+-- }}}
+
+
 function emit_html_file(name, content_func)
 
     file = io.open(name,"w")
@@ -504,7 +643,7 @@ function emit_html_file(name, content_func)
     file:write("            <a class='toplink' href='examples.html'>Examples</a>")
     file:write("            <a class='toplink' href='download.html'>Download</a>")
     file:write("            <a class='toplink' href='usage.html'>Usage</a>")
-    file:write("            <a class='toplink' href='api.html'>API</a>")
+    file:write("            <a class='toplink' href='api.html'>Script API</a>")
     file:write("        </div>")
     file:write("    </div>")
 
@@ -537,7 +676,7 @@ emit_html_file("usage.html", function (file) file:write(file_as_string("usage_co
 emit_html_file("api.html", emit_api)
 
 
-if should_gen_images then
+if should_emit_images then
         generate_imgs()
         include "../examples/logo.lua"
         include "../examples/lena_blueprint.lua"

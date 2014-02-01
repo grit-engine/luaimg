@@ -2633,17 +2633,17 @@ HANDLE_BEGIN
             lua_newtable(L);
             int table_index = lua_gettop(L);
             push_mipmaps(L, file.cube.X);
-            lua_setfield(L, table_index, "X");
+            lua_setfield(L, table_index, "px");
             push_mipmaps(L, file.cube.x);
-            lua_setfield(L, table_index, "x");
+            lua_setfield(L, table_index, "nx");
             push_mipmaps(L, file.cube.Y);
-            lua_setfield(L, table_index, "Y");
+            lua_setfield(L, table_index, "py");
             push_mipmaps(L, file.cube.y);
-            lua_setfield(L, table_index, "y");
+            lua_setfield(L, table_index, "ny");
             push_mipmaps(L, file.cube.Z);
-            lua_setfield(L, table_index, "Z");
+            lua_setfield(L, table_index, "pz");
             push_mipmaps(L, file.cube.z);
-            lua_setfield(L, table_index, "z");
+            lua_setfield(L, table_index, "nz");
             lua_pushstring(L, "CUBE");
         } break;
         case DDS_VOLUME: {

@@ -57,6 +57,18 @@ h2 {
     color: #ffffff;
 }
 
+h3 {
+    padding: 0.3em;
+    margin-top: 2.0em;
+    margin-bottom: 1.6em;
+    font-weight: bold;
+    -moz-border-radius: 6px;
+    border-radius: 6px;
+    box-shadow: 12px 8px 16px #e4e4e4;
+    background-color: #305070;
+    color: #ffffff;
+}
+
 
 .prose {
     margin-left: 2em;

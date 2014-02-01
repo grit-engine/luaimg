@@ -6,8 +6,9 @@
 (Ubuntu).  The latest (alpha) builds containing Windows XP (32 bit) and Ubuntu Precise LTS (AMD64) are linked below:</p>
 
         <ul>
-            <li>Version 0.7: <a href="luaimg-0.7.0.zip">zip</a> and <a href="luaimg-0.7.0.tar.bz2">tar.bz2</a></li>
+            <li>Version 0.9: <a href="luaimg-0.9.0.zip">zip</a> and <a href="luaimg-0.9.0.tar.bz2">tar.bz2</a></li>
             <li>Version 0.8: <a href="luaimg-0.8.0.zip">zip</a> and <a href="luaimg-0.8.0.tar.bz2">tar.bz2</a></li>
+            <li>Version 0.7: <a href="luaimg-0.7.0.zip">zip</a> and <a href="luaimg-0.7.0.tar.bz2">tar.bz2</a></li>
         </ul>
 
     </div>
@@ -28,17 +29,28 @@ license.</p>
 
         <p>The source code for LuaImg lives in the Grit <a
 href="http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/">svn
-repository</a>.  On windows, use the VC project file.  On unix-based OS, use the following steps (makefiles may need to be tweaked if your system is weird):</p>
-        <ol>
-            <li>Build the lua-5.1.4 fork (type make in /dependencies/lua-5.1.4).</li>
-            <li>Install you have readline and freeimage installed.  On debian/ubuntu: libfreeimage-dev.  OSX users report: brew install freeimage.</li>
-            <li>Change to /luaimg and run make there.</li>
-            <li>The luaimg executable should be in /luaimg ready for deployment.</li>
-        </ol>
-        <p>There is more information on the Grit <a
-href="http://www.gritengine.com/game-engine-wiki/Compilation+Instructions">Compilation
-Instructions</a> page, but note these instructions build the whole of Grit which you may not want to do.  For community support, use the Grit <a
-href="http://www.gritengine.com/chat">IRC channel</a> and/or <a
-href="http://www.gritengine.com/game-engine-forum/">forums</a>.  </p>
+repository</a>.  Grit is much larger than Luaimg, as it is a full game engine
+with example content.  If you want to avoid checking out the entire repository,
+get the luaimg and dependencies directories only.  The compilation instructions
+for LuaImg are similar to the <a
+href="http://www.gritengine.com/game-engine-wiki/Compilation+Instructions">Grit
+Compilation Instructions</a> page, but with some differences (unless you want
+to build all of Grit as well).</p>
+
+        <p>On windows, use the VC solution file and build the Luaimg project.
+That will build all the necessary dependencies.</p>
+
+        <p>On unix-based OS, the steps required are a subset of those for the
+Grit project.  You do not need to build Bullet or Ogre (or Grit), you also do
+not need Boost.  You do still need to build ICU because of the text rendering
+support in Luaimg.  You also need to build squish, which is used for DXT
+compression (for dds export), and is not required by Grit.  You'll need
+libreadline installed, which Grit also does not need (on Ubuntu:
+libreadline-dev).  The actual Luaimg executable is built by running make in the
+luaimg dir.</p>
+
+        <p>If you have any trouble, contact us on the Grit IRC channel or
+forums, see the <a href="http://www.gritengine.com/">Grit website</a> for
+details.</p>
 
     </div>

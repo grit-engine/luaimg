@@ -24,10 +24,13 @@ function doc(tab)
     local name=tab[2]
     local entry = {
         desc = tab[3],
+        module = tab.module or "Misc"
     }
     if kind == "function" then
         doc_func(tab, entry)
-        docs.functions[name] = entry
+        module = entry.module
+        docs.functions[module] = docs.functions[module] or {}
+        docs.functions[module][name] = entry
     elseif kind == "class" then
         entry.fields = {}
         entry.methods = {}
@@ -67,8 +70,12 @@ end
 
 function emit_api(file)
     file:write('    <h2>Global Functions</h2>\n')
-    for _,name in ipairs(sorted_keys_from(docs.functions)) do
-        file:write(translate_func(name,docs.functions[name]))
+    for _,mname in ipairs(sorted_keys_from(docs.functions)) do
+        file:write("<h3>"..mname.."</h3>")
+        module = docs.functions[mname]
+        for _,name in ipairs(sorted_keys_from(module)) do
+            file:write(translate_func(name,module[name]))
+        end
     end
 
     file:write('    <h2>Classes</h2>\n')
