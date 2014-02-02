@@ -66,23 +66,27 @@ PACKAGED = \
 	doc/usage.html \
 	doc/api.html \
 	doc/doc.css \
-	examples/lena.jpg \
-	examples/bresenham_pattern.lua \
-	examples/colour_map.lua \
-	examples/colour_map_scurve.lua \
-	examples/compass_rose.lua \
-	examples/compass_ticks.lua \
-	examples/font.lua \
-	examples/gui_colourpicker.lua \
-	examples/gui_slider_tex.lua \
-	examples/lena_blueprint.lua \
-	examples/logo.lua \
-	examples/mandelbrot.lua \
-	examples/money_input.png \
-	examples/money.lua \
-	examples/northern_lights.lua \
-	examples/selftest.lua \
-	examples/unblend.lua \
+    examples/alpha_gen.lua \
+    examples/bresenham_pattern.lua \
+    examples/colour_map.lua \
+    examples/colour_map_scurve.lua \
+    examples/compass_rose.lua \
+    examples/compass_ticks.lua \
+    examples/cubemap.lua \
+    examples/dds_decompose.lua \
+    examples/font.lua \
+    examples/gui_slider_tex.lua \
+    examples/lena_blueprint.lua \
+    examples/lena_std.png \
+    examples/logo.lua \
+    examples/mandelbrot.lua \
+    examples/meme.lua \
+    examples/money.lua \
+    examples/money_input.png \
+    examples/northern_lights.lua \
+    examples/selftest.lua \
+    examples/unblend.lua \
+    examples/volumemap.lua \
 
 %.tar.bz2: $(PACKAGED)
 	ln -sf . $(shell basename $@ .tar.bz2)
