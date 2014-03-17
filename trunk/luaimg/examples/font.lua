@@ -29,8 +29,13 @@ all_codepoint_ranges = {
 limited_codepoint_ranges = {
     {0x00020, 0x0007e}, -- basic latin
 }
+
  
-function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoints, font_name)
+function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoints, font_name, extra_power)
+        -- used to help with fonts that appear 'too thin' at low resolution, due to antialiasing reducing the pixel
+        -- set to 1 for no effect, and increase from there
+        extra_power = extra_power or 1
+
         if wide_font == true then wide_font = font end
 
         new_tex = make(tex_sz, 1, false, 0)
@@ -52,6 +57,10 @@ function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoi
                 else
                         letter = text_codepoint(font, font_sz, char)
                 end
+                if extra_power > 1 then
+                    letter = letter ^ (1/extra_power) -- see comment above
+                end
+                letter = letter ^ (1/2.2) -- gamma correction
                 vert_sz = letter.height
                 if curr_x + letter.width >= new_tex.width then
                     curr_y = curr_y + vert_sz
@@ -69,10 +78,34 @@ function make_font(tex_sz, font_sz, font, wide_font, tex_name, lua_name, codepoi
 
         file:close()
 
+        new_tex:save('black_'..tex_name)
         new_tex.fX:save(tex_name)
 end
 
 make_font(vec(512,512), vec(6,13), "/usr/share/fonts/X11/misc/6x13.pcf.gz", "/usr/share/fonts/X11/misc/12x13ja.pcf.gz", "font_misc_fixed.png", "font_misc_fixed.lua", all_codepoint_ranges, "misc.fixed")
 
-make_font(vec(512,512), vec(50,50),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact50.png", "font_impact50.lua", limited_codepoint_ranges, "Impact50")
-make_font(vec(512,128), vec(24,24),  "/usr/share/fonts/truetype/msttcorefonts/impact.ttf", true, "font_impact24.png", "font_impact24.lua", limited_codepoint_ranges, "Impact24")
+function do_limited (tex_sz, sz, name, cap_name, extra_power)
+    make_font(tex_sz, vec(sz,sz),  "/usr/share/fonts/truetype/msttcorefonts/"..name..".ttf", true, ("font_%s%d.png"):format(name,sz), ("font_%s%d.lua"):format(name,sz), limited_codepoint_ranges, ("%s%d"):format(cap_name,sz), extra_power)
+end
+
+do_limited(vec(512,512), 50, "impact", "Impact")
+do_limited(vec(512,128), 24, "impact", "Impact")
+do_limited(vec(512,128), 12, "impact", "Impact")
+
+do_limited(vec(512,512), 50, "arial", "Arial")
+do_limited(vec(512,128), 24, "arial", "Arial")
+do_limited(vec(128,128), 12, "arial", "Arial")
+do_limited(vec(128,128), 13, "arial", "Arial")
+do_limited(vec(512,512), 50, "arialbd", "ArialBold")
+do_limited(vec(512,128), 24, "arialbd", "ArialBold")
+do_limited(vec(128,128), 12, "arialbd", "ArialBold")
+do_limited(vec(128,128), 13, "arialbd", "ArialBold")
+
+do_limited(vec(512,512), 50, "verdana", "Verdana")
+do_limited(vec(512,128), 24, "verdana", "Verdana")
+do_limited(vec(128,128), 12, "verdana", "Verdana")
+do_limited(vec(128,128), 13, "verdana", "Verdana")
+do_limited(vec(512,512), 50, "verdanab", "VerdanaBold")
+do_limited(vec(512,128), 24, "verdanab", "VerdanaBold")
+do_limited(vec(128,128), 12, "verdanab", "VerdanaBold")
+do_limited(vec(128,128), 13, "verdanab", "VerdanaBold")
