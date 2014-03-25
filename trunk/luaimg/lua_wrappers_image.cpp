@@ -1407,16 +1407,16 @@ static int image_crop_centre (lua_State *L)
         ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
         uimglen_t width, height;
         check_coord(L, 2, width, height);
-        simglen_t left = (width - self->width)/2;
-        simglen_t bottom = (height - self->height)/2;
+        simglen_t left = (simglen_t(self->width) - simglen_t(width))/2;
+        simglen_t bottom = (simglen_t(self->height) - simglen_t(height))/2;
         push_image(L, self->crop(left,bottom,width,height,NULL));
     } else {
         check_args(L,3);
         ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
         uimglen_t width, height;
         check_coord(L, 2, width, height);
-        simglen_t left = (width - self->width)/2;
-        simglen_t bottom = (height - self->height)/2;
+        simglen_t left = (simglen_t(self->width) - simglen_t(width))/2;
+        simglen_t bottom = (simglen_t(self->height) - simglen_t(height))/2;
         ColourBase *colour = alloc_colour(L, self->channels(), self->hasAlpha(), 3);
         push_image(L, self->crop(left,bottom,width,height,colour));
         delete colour;
