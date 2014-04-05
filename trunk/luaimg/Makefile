@@ -9,20 +9,21 @@ LUAIMG_LDFLAGS  = $(ICU_LDFLAGS) $(FREEIMAGE_LDFLAGS) $(LUA_LDFLAGS) $(shell pkg
 LUAIMG_LDLIBS   = $(ICU_LDLIBS) $(FREEIMAGE_LDLIBS) $(LUA_LDLIBS) -lm -lreadline $(shell pkg-config freetype2 --libs-only-l)
 
 OBJECTS = \
-	luaimg.o \
-	interpreter.o \
-	Image.o \
-	lua_wrappers_image.o \
-	text.o \
+	colour_conversion.o \
+	console.o \
 	dds.o \
-	sfi.o \
+	Image.o \
+	interpreter.o \
+	io_util.o \
+	luaimg.o \
+	lua_stack.o \
 	lua_utf8.o \
 	lua_util.o \
-	unicode_util.o \
-	console.o \
+	lua_wrappers_image.o \
 	posix_sleep.o \
-	io_util.o \
-	colour_conversion.o
+	sfi.o \
+	text.o \
+	unicode_util.o
 
 %.o: $(ROOT)/dependencies/util/%.cpp
 	$(CXX) -c $(LUAIMG_CXXFLAGS) $< -o $@

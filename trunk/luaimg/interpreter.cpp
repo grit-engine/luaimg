@@ -33,9 +33,10 @@ extern "C" {
     #include "lualib.h"
 }
 
-#include <lua_util.h>
-#include <lua_utf8.h>
 #include <console.h>
+#include <lua_stack.h>
+#include <lua_utf8.h>
+#include <lua_util.h>
 
 #include "interpreter.h"
 #include "lua_wrappers_image.h"
@@ -321,8 +322,18 @@ static int global_include (lua_State *L)
     return 0;
 }
 
+static int global_current_dir (lua_State *L)
+{
+    check_args(L, 0);
+    std::string dir = lua_current_dir(L);
+    push_string(L, dir);
+    return 1;
+}
+      
+
 static const luaL_reg global[] = {
     {"include", global_include},
+    {"current_dir", global_current_dir},
 
     {NULL, NULL}
 };
