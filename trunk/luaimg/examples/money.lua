@@ -2,7 +2,7 @@
 
 -- Create a seamless texture that resembles a floor buried in 20 dollar bills.
 
-money = open("../examples/money_input.png")
+money = open(`money_input.png`)
 
 -- precompute an image for every degree of rotation, choosing a random source bill from the money texture
 moneys = {}
