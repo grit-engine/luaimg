@@ -52,6 +52,7 @@ void HSVtoRGB (float H, float S, float L, float &R, float &G, float &B);
 #include <cmath>
 #include <cassert>
 
+#include <algorithm>
 #include <ostream>
 #include <string>
 
