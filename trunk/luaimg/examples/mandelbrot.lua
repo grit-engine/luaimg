@@ -15,7 +15,10 @@ function mb_generate (w, iters)
         local p = c
         for i=1,iters do
             p = vec(p.x*p.x - p.y*p.y, 2*p.x*p.y) + c
-            if #p > 2 then return i end
+            local len = #p
+            if len > 2 then
+                return i + 1 - math.log(math.log(len)) / math.log(2)
+            end
         end
         return iters+1
     end)
