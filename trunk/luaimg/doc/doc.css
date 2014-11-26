@@ -9,7 +9,7 @@ body {
 }
 
 .logo {
-    position: absolute;
+    float: left;
     margin-left: 12px;
 }
 
@@ -23,26 +23,21 @@ body {
 
 h1 {
     margin: 0;
-    margin-left: 64px;
     padding-top: 16px;
-/*
-    margin-top: 2em;
-    margin-bottom: 1.6em;
-*/
     text-align: center;
     font-size: 46pt;
 }
 
 .toplinks {
-    margin-left: 128px;
-    padding: 10px;
+    padding: 10px 10px 0 10px;
     text-align: center;
 }
 
 /* text-decoration: none; */
 .toplink {
     color: #ffffff;
-    margin: 1.5em;
+    margin: 0 1.5em;
+    padding: 0;
 }
 
 h2 {

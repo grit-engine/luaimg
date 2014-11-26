@@ -644,6 +644,7 @@ function emit_html_file(name, content_func)
     file:write("            <a class='toplink' href='download.html'>Download</a>")
     file:write("            <a class='toplink' href='usage.html'>Usage</a>")
     file:write("            <a class='toplink' href='api.html'>Script API</a>")
+    file:write("        <div style='clear: both'></div>")
     file:write("        </div>")
     file:write("    </div>")
 
