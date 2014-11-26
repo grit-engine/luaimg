@@ -3,7 +3,7 @@
 -- Create a lena "blueprint" image (just a bit of fun)
 
 -- greyscale Lena with a little gaussian blur to fix noise, etc
-lena = open(`lena_std.png`)
+lena = open("../examples/lena_std.png")
 lena = ((lena.x + lena.y + lena.z) / 3):convolveSep(gaussian(9))
 
 -- simple edge detection with a laplace kernel
