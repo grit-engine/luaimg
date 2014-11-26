@@ -1764,6 +1764,26 @@ static int image_normalise (lua_State *L)
     return 1;
 }
 
+DitherAlgorithm dither_algorithm_from_string (const std::string &s)
+{
+    if (s == "NONE") return DA_NONE;
+    if (s == "FLOYD_STEINBERG") return DA_FLOYD_STEINBERG;
+    EXCEPT << "Expected NONE, or FLOYD_STEINBERG.  Got: \"" << s << "\"" << ENDL;
+}
+
+static int image_quantise (lua_State *L)
+{
+    check_args(L,3);
+    if (lua_gettop(L) < 2 || lua_gettop(L) > 3)
+        my_lua_error(L, "image_quantise takes 2 or 3 arguments");
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    DitherAlgorithm dither = dither_algorithm_from_string(luaL_checkstring(L, 2));
+    ColourBase *res = alloc_colour(L, self->channels(), self->hasAlpha(), 3);
+    push_image(L, self->quantise(dither, res));
+    delete res;
+    return 1;
+}
+
 template<chan_t sch, chan_t scha, chan_t dch, chan_t dcha>
 ImageBase *image_swizzle3 (const Image<sch,scha> *src, int *mapping)
 {
@@ -1873,6 +1893,8 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_convolve_sep);
     } else if (!::strcmp(key, "normalise")) {
         lua_pushcfunction(L, image_normalise);
+    } else if (!::strcmp(key, "quantise")) {
+        lua_pushcfunction(L, image_quantise);
     } else if (!::strcmp(key, "draw")) {
         lua_pushcfunction(L, image_draw);
     } else if (!::strcmp(key, "drawLine")) {

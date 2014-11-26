@@ -75,6 +75,11 @@ enum ScaleFilter {
     SF_LANCZOS3
 };
 
+enum DitherAlgorithm {
+    DA_NONE,
+    DA_FLOYD_STEINBERG
+};
+
 struct ColourBase {
 /*
     virtual chan_t channels() const = 0;
@@ -262,7 +267,9 @@ class ImageBase {
 
     virtual ImageBase *scale (uimglen_t width, uimglen_t height, ScaleFilter filter) const;
     virtual ImageBase *rotate (float angle, const ColourBase *bg_) const = 0;
-    virtual ImageBase *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h, const ColourBase *bg) const = 0;
+    virtual ImageBase *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h,
+                             const ColourBase *bg) const = 0;
+    virtual ImageBase *quantise (DitherAlgorithm d, const ColourBase *res) const = 0;
 
     virtual void drawPixel (uimglen_t x, uimglen_t y, const ColourBase *c, float a=1) = 0;
     virtual void drawPixelSafe (uimglen_t x, uimglen_t y, const ColourBase *c, float a=1) = 0;
@@ -493,6 +500,41 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
                         ret->pixel(x,y)[c] = v / pos_total[c];
                     } else {
                         ret->pixel(x,y)[c] = v / neg_total[c];
+                    }
+                }
+            }
+        }
+        return ret;
+    }
+
+    Image<ch,ach> *quantise (DitherAlgorithm d, const ColourBase *res_) const
+    {
+        const auto &res = *static_cast<const Colour<ch,ach>*>(res_);
+        Image<ch,ach> *ret = new Image<ch,ach>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y)
+            for (uimglen_t x=0 ; x<width ; ++x)
+                ret->pixel(x,y) = this->pixel(x,y);
+
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                for (chan_t c=0 ; c<ch+ach ; ++c) {
+                    float desired = ret->pixel(x,y)[c] * (res[c] - 1);
+                    float actual = floorf(desired + 0.5);
+                    switch (d) {
+                        case DA_FLOYD_STEINBERG: {
+                            float err = (desired - actual) / (res[c] - 1);
+                            if (x+1 < width)
+                                ret->pixel(x+1,y  )[c] += err * 7.0/16;
+                            if (x-1 > 0 && y+1 < height)
+                                ret->pixel(x-1,y+1)[c] += err * 3.0/16;
+                            if (y+1 < height)
+                                ret->pixel(x  ,y+1)[c] += err * 5.0/16;
+                            if (x+1 < width && y+1 < height)
+                                ret->pixel(x+1,y+1)[c] += err * 1.0/16;
+                        } // follow through
+
+                        case DA_NONE:
+                        ret->pixel(x,y)[c] = actual / (res[c] - 1);
                     }
                 }
             }
