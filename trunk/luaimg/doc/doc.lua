@@ -726,11 +726,15 @@ emit_html_file("api.html", emit_api)
 
 
 if should_emit_images then
-        generate_imgs()
-        include "../examples/logo.lua"
-        include "../examples/lena_blueprint.lua"
-        include "../examples/money.lua"
-        include "../examples/bresenham_pattern.lua"
-        include "../examples/aniblur.lua"
-        include "../examples/anisharp.lua"
+    generate_imgs()
+    include "../examples/logo.lua"
+    include "../examples/lena_blueprint.lua"
+    include "../examples/money.lua"
+    include "../examples/bresenham_pattern.lua"
+    include "../examples/aniblur.lua"
+    include "../examples/anisharp.lua"
+    include "../examples/mandelbrot.lua"
+    fractal_centre = vec(-1.4, 0)
+    mb_generate(vec(256, 256), 200, fractal_centre - 0.1 , fractal_centre + 0.1)
+    visualise_blue2()
 end
