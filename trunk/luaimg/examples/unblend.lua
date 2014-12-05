@@ -40,5 +40,5 @@ open(input_name):map(3, true, function(I)
     local tmp1 = I/C
     local tmp2 = (1-I)/(1-C)
     local a = 1 - min(1, tmp1.x, tmp1.y, tmp1.z, tmp2.x, tmp2.y, tmp2.z)
-    return vec4(a==0 and 0 or ( I - (1-a)*C ) / a, a)
+    return vec4(a==0 and vec(0,0,0) or ( I - (1-a)*C ) / a, a)
 end):save(output_name)

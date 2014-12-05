@@ -371,6 +371,8 @@ void interpreter_init (void)
     luaL_register(L, "_G", global);
     lua_pop(L, 1);
 
+    lua_gc(L, LUA_GCSETSTEPMUL, 1000);
+
     lua_wrappers_image_init(L);
 }
 

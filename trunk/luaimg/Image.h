@@ -77,7 +77,8 @@ enum ScaleFilter {
 
 enum DitherAlgorithm {
     DA_NONE,
-    DA_FLOYD_STEINBERG
+    DA_FLOYD_STEINBERG,
+    DA_FLOYD_STEINBERG_LINEAR
 };
 
 struct ColourBase {
@@ -222,6 +223,13 @@ Colour<ch2,ach2> colour_lerp (const Colour<ch1,ach1> &a, const Colour<ch2,ach2> 
     return r;
 }
 
+static inline float gamma_decode(float x) { return (x < 0 ? -1 : 1) * pow(fabs(x), 2.2); }
+static inline float gamma_encode(float x) { return (x < 0 ? -1 : 1) * pow(fabs(x), 1/2.2); }
+
+static inline void add_gamma(float &a, float b)
+{
+    a = gamma_encode(gamma_decode(a) + b);
+}
 
 class ImageBase {
 
@@ -270,6 +278,8 @@ class ImageBase {
     virtual ImageBase *crop (simglen_t left, simglen_t bottom, uimglen_t w, uimglen_t h,
                              const ColourBase *bg) const = 0;
     virtual ImageBase *quantise (DitherAlgorithm d, const ColourBase *res) const = 0;
+    virtual ImageBase *clamp (const ColourBase *min, const ColourBase *max) const = 0;
+    virtual ImageBase *gamma (const ColourBase *n) const = 0;
 
     virtual void drawPixel (uimglen_t x, uimglen_t y, const ColourBase *c, float a=1) = 0;
     virtual void drawPixelSafe (uimglen_t x, uimglen_t y, const ColourBase *c, float a=1) = 0;
@@ -493,7 +503,6 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
         Image<ch,ach> *ret = new Image<ch,ach>(width, height);
         for (uimglen_t y=0 ; y<height ; ++y) {
             for (uimglen_t x=0 ; x<width ; ++x) {
-                Colour<ch,ach> norm_pix(0.0f);
                 for (chan_t c=0 ; c<ch+ach ; ++c) {
                     float v = this->pixel(x,y)[c];
                     if (v >= 0) {
@@ -501,6 +510,39 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
                     } else {
                         ret->pixel(x,y)[c] = v / neg_total[c];
                     }
+                }
+            }
+        }
+        return ret;
+    }
+
+    Image<ch,ach> *clamp (const ColourBase *min_, const ColourBase *max_) const
+    {
+        const auto &min = *static_cast<const Colour<ch,ach>*>(min_);
+        const auto &max = *static_cast<const Colour<ch,ach>*>(max_);
+        Image<ch,ach> *ret = new Image<ch,ach>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                for (chan_t c=0 ; c<ch+ach ; ++c) {
+                    float v = this->pixel(x,y)[c];
+                    if (v < min[c]) v = min[c];
+                    if (v > max[c]) v = max[c];
+                    ret->pixel(x,y)[c] = v;
+                }
+            }
+        }
+        return ret;
+    }
+
+    Image<ch,ach> *gamma (const ColourBase *n_) const
+    {
+        const auto &n = *static_cast<const Colour<ch,ach>*>(n_);
+        Image<ch,ach> *ret = new Image<ch,ach>(width, height);
+        for (uimglen_t y=0 ; y<height ; ++y) {
+            for (uimglen_t x=0 ; x<width ; ++x) {
+                for (chan_t c=0 ; c<ch+ach ; ++c) {
+                    float v = this->pixel(x,y)[c];
+                    ret->pixel(x,y)[c] = ((v < 0) ? -1 : 1) * pow(fabs(v), n[c]);
                 }
             }
         }
@@ -521,7 +563,25 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
                     float desired = ret->pixel(x,y)[c] * (res[c] - 1);
                     float actual = floorf(desired + 0.5);
                     switch (d) {
-                        case DA_FLOYD_STEINBERG: {
+                        case DA_FLOYD_STEINBERG:
+                        if (c < ch) {
+                            // err is linear
+                            float err = gamma_decode(desired / (res[c] - 1))
+                                      - gamma_decode(actual / (res[c] - 1));
+                            if (x+1 < width)
+                                add_gamma(ret->pixel(x+1,y  )[c], err * 7.0/16);
+                            if (x-1 > 0 && y+1 < height)
+                                add_gamma(ret->pixel(x-1,y+1)[c], err * 3.0/16);
+                            if (y+1 < height)
+                                add_gamma(ret->pixel(x  ,y+1)[c], err * 5.0/16);
+                            if (x+1 < width && y+1 < height)
+                                add_gamma(ret->pixel(x+1,y+1)[c], err * 1.0/16);
+                            break;
+                        } else {
+                            // follow through
+                        }
+
+                        case DA_FLOYD_STEINBERG_LINEAR: {
                             float err = (desired - actual) / (res[c] - 1);
                             if (x+1 < width)
                                 ret->pixel(x+1,y  )[c] += err * 7.0/16;
@@ -531,11 +591,12 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
                                 ret->pixel(x  ,y+1)[c] += err * 5.0/16;
                             if (x+1 < width && y+1 < height)
                                 ret->pixel(x+1,y+1)[c] += err * 1.0/16;
-                        } // follow through
+                        } break;
 
-                        case DA_NONE:
-                        ret->pixel(x,y)[c] = actual / (res[c] - 1);
+                        case DA_NONE: {
+                        } break;
                     }
+                    ret->pixel(x,y)[c] = actual / (res[c] - 1);
                 }
             }
         }

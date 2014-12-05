@@ -2,42 +2,44 @@
 
     <div class="prose">
 
-        <p>LuaImg is an open source commandline tool
-for scripted (i.e.  non-interactive) image manipulation.  It has been used for
-a variety of tasks, including detecting aurorae in photos, creating
-skins/fonts/textures for computer games, extracting alpha masks from blended
-images, experimenting with fractals, and more.</p>
+        <p>LuaImg is an open source commandline tool for scripted (i.e.  non-interactive) image
+        manipulation.  It has been used for a variety of tasks, including detecting aurorae in
+        photos, creating skins/fonts/textures for computer games, extracting alpha masks from
+        blended images, experimenting with fractals, and more.  It supports a wide variety of image
+        formats including animated GIFs and Direct Draw Surface (DDS).</p>
 
-        <p>As an image programming framework, LuaImg is ideal for complex,
-precise, or repetitive tasks that are too difficult or time-consuming to do in
-photoshop/gimp.  It is more flexible than ImageMagick/Netpbm.  It is much
-faster than Python and even easier to use.</p>
+        <p>As an image programming framework, LuaImg is ideal for complex, precise, or repetitive
+        tasks that are too difficult or time-consuming to do in photoshop/gimp.  It is more flexible
+        than ImageMagick/Netpbm.  It is much faster than Python and even easier to use.</p>
 
-        <p>LuaImg supports full HDR, since all images are stored in single
-precision floating point.  Images are manipulated with a powerful yet
-high-level scripting language (based on the <a
-href="http://www.lua.org/">Lua</a> fork from the <a
-href="http://www.gritengine.com/">Grit</a> project).  Image operations are
-consistent with layer blending modes from Gimp/Photoshop (but extended for
-HDR), mathematical operators are available, as well as convolutions,
-transformations, and per-pixel computations inspired by shader programming.  It
-is also possible to draw images on other images (i.e. use 'brushes'), draw
-lines, and render text.</p>
+        <p>LuaImg supports full HDR, since all images are stored in single precision floating point.
+        Images are manipulated with a powerful yet high-level scripting language (based on the <a
+        href="http://www.lua.org/">Lua</a> fork from the <a
+        href="http://www.gritengine.com/">Grit</a> project).  Image operations are consistent with
+        layer blending modes from Gimp/Photoshop (but extended for HDR), mathematical operators are
+        available, as well as convolutions, transformations, and per-pixel computations inspired by
+        shader programming.  It is also possible to draw images on other images (i.e. use
+        'brushes'), draw lines, and render text.</p>
 
-        <p>LuaImg strives firstly to allow all forms of image manipulation,
-secondly to be easy to use, and finally to be fast (via the customised Lua
-VM).  Complex image processing algorithms can be expressed in a natural way
-through combinations of simple operations.  Performance does not match cleverly
-optimised C++ code but is still good.  A 5760x3840 image can be processed
-with per-pixel scripting in a few seconds.</p>
+        <p>LuaImg strives firstly to allow all forms of image manipulation, secondly to be easy to
+        use, and finally to be fast (via the customised Lua VM).  Complex image processing
+        algorithms can be expressed in a natural way through combinations of simple operations.
+        Performance does not match cleverly optimised C++ code but is still good.  A 5760x3840 image
+        can be processed with per-pixel scripting in a few seconds.</p>
 
     </div>
 
     <h2>Gallery</h2>
 
     <p>
-    <a href="http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/money.lua"><img src="money.png" alt="money" /></a>
+    <a href="http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/money.lua"><img src="money.gif" alt="money" /></a>
     <a href="http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/lena_blueprint.lua"><img src="lena_blueprint.png" alt="lena" /></a>
+    <a href="http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/bresenham_pattern.lua?force=True"><img src="bresenham_pattern.png" alt="bresenham" /></a>
+    </p>
+
+    <p>
+    <a href="http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/aniblur.lua"><img src="aniblur.gif" alt="money" /></a>
+    <a href="http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/anisharp.lua"><img src="anisharp.gif" alt="lena" /></a>
     <a href="http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/bresenham_pattern.lua?force=True"><img src="bresenham_pattern.png" alt="bresenham" /></a>
     </p>
 
@@ -45,40 +47,36 @@ with per-pixel scripting in a few seconds.</p>
 
     <div class="prose">
 
-        <p>LuaImg is an extension of the Lua language.  The additional features
-provide good performance for computation involving compound floating point types
-(colours, coordinates, etc).  The VM supports such types as primitives, instead
-of heap allocated and garbage collected objects.</p>
+        <p>LuaImg is an extension of the Lua language.  The additional features provide good
+        performance for computation involving compound floating point types (colours, coordinates,
+        etc).  The VM supports such types as primitives, instead of heap allocated and garbage
+        collected objects.</p>
 
-        <p>These types are vector2, vector3, and vector4, the number
-representing the dimensionality.  Literal values of these types look like
-vec(10,20) or vec(1,2,3,4).  Individual fields can be accessed using .x, .y,
-.z, or .w field accesses (the fields can be read but not written).  It is also
-possible to swizzle, e.g., .xyz will produce a vector3, .xz will produce a
-vector2, etc.</p>
+        <p>These types are vector2, vector3, and vector4, the number representing the
+        dimensionality.  Literal values of these types look like vec(10,20) or vec(1,2,3,4).
+        Individual fields can be accessed using .x, .y, .z, or .w field accesses (the fields can be
+        read but not written).  It is also possible to swizzle, e.g., .xyz will produce a vector3,
+        .xz will produce a vector2, etc.</p>
 
-        <p>Arithmetic operations on the vector types operate in a point-wise
-manner, e.g.  vec(1,2,3) * vec(-1,2,1) = vec(-1,4,3).  The # operator on a
-vector provides its Euclidian length (Pythagoras).  </p>
+        <p>Arithmetic operations on the vector types operate in a point-wise manner, e.g.
+        vec(1,2,3) * vec(-1,2,1) = vec(-1,4,3).  The # operator on a vector provides its Euclidian
+        length (Pythagoras).  </p>
 
-        <p>Additionally, since most image manipulation involves math, all of
-the math functions have been made available in global scope and some of them
-have been lifted to operate on vector values (pow, ceil, floor, abs, clamp).
-The unpack function will convert vectors to their components.  Additional
-functions like dot product, etc, are described in the LuaImg <a
-href='api.html'>API</a> documentation.  </p>
+        <p>Additionally, since most image manipulation involves math, all of the math functions have
+        been made available in global scope and some of them have been lifted to operate on vector
+        values (pow, ceil, floor, abs, clamp).  The unpack function will convert vectors to their
+        components.  Additional functions like dot product, etc, are described in the LuaImg <a
+        href='api.html'>API</a> documentation.  </p>
 
-        <p>Finally, to facilitate text rendering, the Lua string library has
-been replaced by one that supports unicode.  The new string library is based on
-ICU and is backwards compatible with the old string library except for the
-regular expression syntax, which is documented <a
-href="http://userguide.icu-project.org/strings/regexp">here</a>.</p>
+        <p>Finally, to facilitate text rendering, the Lua string library has been replaced by one
+        that supports unicode.  The new string library is based on ICU and is backwards compatible
+        with the old string library except for the regular expression syntax, which is documented <a
+        href="http://userguide.icu-project.org/strings/regexp">here</a>.</p>
 
-        <p>All the old string functions are still present, but have been
-prefixed with an underscore, except len, which has been renamed byte.  There
-are also two new functions, codepoint, which is similar to _char and returns
-the codepoints in the string, and getProperty("PROP") which fetches unicode
-properties by name.
+        <p>All the old string functions are still present, but have been prefixed with an
+        underscore, except len, which has been renamed byte.  There are also two new functions,
+        codepoint, which is similar to _char and returns the codepoints in the string, and
+        getProperty("PROP") which fetches unicode properties by name.
 
     </div>
 

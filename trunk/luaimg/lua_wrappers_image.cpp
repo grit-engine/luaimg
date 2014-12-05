@@ -41,6 +41,7 @@ extern "C" {
 
 #include "Image.h"
 #include "text.h"
+#include "gif.h"
 //#include "VoxelImage.h"
 
 
@@ -1684,6 +1685,28 @@ static int image_min (lua_State *L)
     return 1;
 }
 
+static int image_clamp (lua_State *L)
+{
+    check_args(L, 3);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    ColourBase *min = alloc_colour(L, self->channels(), self->hasAlpha(), 2);
+    ColourBase *max = alloc_colour(L, self->channels(), self->hasAlpha(), 3);
+    push_image(L, self->clamp(min, max));
+    delete min;
+    delete max;
+    return 1;
+}
+
+static int image_gamma (lua_State *L)
+{
+    check_args(L, 2);
+    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+    ColourBase *n = alloc_colour(L, self->channels(), self->hasAlpha(), 2);
+    push_image(L, self->gamma(n));
+    delete n;
+    return 1;
+}
+
 static int global_lerp (lua_State *L)
 {
     check_args(L,3);
@@ -1768,6 +1791,7 @@ DitherAlgorithm dither_algorithm_from_string (const std::string &s)
 {
     if (s == "NONE") return DA_NONE;
     if (s == "FLOYD_STEINBERG") return DA_FLOYD_STEINBERG;
+    if (s == "FLOYD_STEINBERG_LINEAR") return DA_FLOYD_STEINBERG_LINEAR;
     EXCEPT << "Expected NONE, or FLOYD_STEINBERG.  Got: \"" << s << "\"" << ENDL;
 }
 
@@ -1887,6 +1911,10 @@ static int image_index (lua_State *L)
         lua_pushcfunction(L, image_max);
     } else if (!::strcmp(key, "min")) {
         lua_pushcfunction(L, image_min);
+    } else if (!::strcmp(key, "clamp")) {
+        lua_pushcfunction(L, image_clamp);
+    } else if (!::strcmp(key, "gamma")) {
+        lua_pushcfunction(L, image_gamma);
     } else if (!::strcmp(key, "convolve")) {
         lua_pushcfunction(L, image_convolve);
     } else if (!::strcmp(key, "convolveSep")) {
@@ -2187,22 +2215,38 @@ ImageBase *image_from_lua_table (lua_State *L, uimglen_t width, uimglen_t height
     return my_image;
 }
 
-uimglen_t fact (uimglen_t x)
+
+const unsigned pascal_lines = 68;
+unsigned long long *pascals_triangle[pascal_lines] = { nullptr };
+
+void pascals_triangle_init (void)
 {
-    uimglen_t counter = 1;
-    for (uimglen_t i=2 ; i<=x ; ++i) {
-        counter *= i;
+    for (unsigned i=0 ; i<pascal_lines ; ++i) {
+        pascals_triangle[i] = new unsigned long long[i+1];
+        pascals_triangle[i][0] = 1;
+        pascals_triangle[i][i] = 1;
+        for (unsigned j=1 ; j<i ; ++j) {
+            pascals_triangle[i][j] = pascals_triangle[i-1][j-1]
+                                   + pascals_triangle[i-1][j];
+        }
     }
-    return counter;
+}
+
+void pascals_triangle_shutdown (void)
+{
+    for (unsigned i=0 ; i<pascal_lines ; ++i) {
+        delete[] pascals_triangle[i];
+        pascals_triangle[i] = nullptr;
+    }
 }
 
 static int global_gaussian (lua_State *L)
 {
     check_args(L,1);
-    uimglen_t size = check_t<uimglen_t>(L, 1);
+    uimglen_t size = check_int(L, 1, 1, pascal_lines);
     Image<1,0> *my_image = new Image<1,0>(size, 1);
     for (uimglen_t x=0 ; x<size ; ++x) {
-        my_image->pixel(x,0) = fact(size-1) / (fact(x) * fact(size-1-x));
+        my_image->pixel(x,0) = pascals_triangle[size-1][x];
     }
     push_image(L, my_image->normalise());
     delete my_image;
@@ -2690,6 +2734,72 @@ HANDLE_BEGIN
 HANDLE_END
 }
 
+static int global_gif_open (lua_State *L)
+{
+HANDLE_BEGIN
+    check_args(L, 1);
+    std::string filename = luaL_checkstring(L, 1);
+    GifFile f = gif_open(filename);
+    lua_pushnumber(L, f.loops);
+    lua_createtable(L, f.frames.size(), 0);
+    int imgs_table = lua_gettop(L);
+    lua_createtable(L, f.frames.size(), 0);
+    int delays_table = lua_gettop(L);
+    for (unsigned i=0 ; i<f.frames.size() ; ++i) {
+        push_image(L, f.frames[i].image);
+        lua_rawseti(L, imgs_table, i + 1);
+        lua_pushnumber(L, f.frames[i].delay);
+        lua_rawseti(L, delays_table, i + 1);
+    }
+    return 3;
+HANDLE_END
+}
+
+static int global_gif_save (lua_State *L)
+{
+HANDLE_BEGIN
+    check_args(L, 4);
+    std::string filename = luaL_checkstring(L, 1);
+    unsigned long loops = check_int(L, 2, 0, 65536);
+    ImageBases images = get_image_vector(L, 3);
+    int delays_index = 4;
+    std::vector<float> delays;
+    if (lua_istable(L, delays_index)) {
+        int counter = 1;
+        while (true) {
+            lua_rawgeti(L, delays_index, counter);
+            if (lua_isnil(L, -1)) {
+                lua_pop(L, 1);
+                break;
+            }
+            delays.push_back(luaL_checknumber(L, -1));
+            lua_pop(L, 1);
+            counter++;
+        }
+    } else if (lua_isnumber(L, delays_index)) {
+        float interval = lua_tonumber(L, delays_index);
+        for (unsigned i=0 ; i<images.size() ; ++i)
+            delays.push_back(interval);
+    } else {
+        my_lua_error(L, "gif_save 3rd param should be an interval or array of delays");
+    }
+    if (images.size() != delays.size()) {
+        std::stringstream ss;
+        ss << "gif_save requires number of frames and number of delay values to be the same: "
+           << images.size() << " != " << delays.size();
+        my_lua_error(L, ss.str());
+    }
+    GifFile content;
+    content.loops = loops;
+    for (unsigned i=0 ; i<images.size() ; ++i) {
+        GifFrame frame = {images[i], delays[i]};
+        content.frames.push_back(frame);
+    }
+    gif_save(filename, content);
+    return 0;
+HANDLE_END
+}
+
 static int global_rgb_to_hsl (lua_State *L)
 {
     check_args(L,1);
@@ -2807,6 +2917,8 @@ static const luaL_reg global[] = {
     {"dds_save_cube", global_dds_save_cube},
     {"dds_save_volume", global_dds_save_volume},
     {"dds_open", global_dds_open},
+    {"gif_open", global_gif_open},
+    {"gif_save", global_gif_save},
     {"mipmaps", global_mipmaps},
     {"volume_mipmaps", global_volume_mipmaps},
     {"RGBtoHSL", global_rgb_to_hsl},
@@ -2827,6 +2939,8 @@ static const luaL_reg global[] = {
 
 void lua_wrappers_image_init (lua_State *L)
 {
+    pascals_triangle_init();
+
     luaL_newmetatable(L, IMAGE_TAG);
     luaL_register(L, NULL, image_meta_table);
     lua_pop(L,1);
@@ -2844,4 +2958,5 @@ void lua_wrappers_image_init (lua_State *L)
 void lua_wrappers_image_shutdown (lua_State *L)
 {
     (void) L;
+    pascals_triangle_shutdown();
 }

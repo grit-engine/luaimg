@@ -142,7 +142,7 @@ int main (int argc, char **argv)
         switch (i->first) {
             case F:
             if (!interpreter_exec_file(i->second, args)) {
-                exit(EXIT_FAILURE);
+                return EXIT_FAILURE;
             }
             break;
 
@@ -151,7 +151,7 @@ int main (int argc, char **argv)
                 std::stringstream ss;
                 ss << "[snippet" << snippet_counter << "]";
                 if (!interpreter_exec_snippet(i->second, args, ss.str())) {
-                    exit(EXIT_FAILURE);
+                    return EXIT_FAILURE;
                 }
             }
             break;

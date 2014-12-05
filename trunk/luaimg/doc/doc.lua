@@ -310,6 +310,31 @@ images.]],
     { "param", "mipmaps", "array of arrays of images" },
 }
 
+doc { "function", "gif_open", module="Disk I/O",
+
+[[Open a gif file.  While the regular open() call supports gifs, this function additionally supports
+reading the various frames from animated gifs.  Returned are 3 values, the first is the number of
+loops (0 to 56636 inclusive, 0 meaning infinite looping).  The second is an array of images, one for
+each frame, and the final value is a table of delays (in seconds).]],
+
+    { "param", "filename", "string" },
+}
+
+doc { "function", "gif_save", module="Disk I/O",
+
+[[Save a gif file.  While gifs can be saved with the save() method of an image, this call allows
+saving many frames to create an animated gif.  Specifying 0 loops means infinite looping.  The
+images must all be the same size and have 3 channels (with optional alpha).  Giving a single delay
+means the same delay is used for all frames, or an array can be used to give a different delay for
+each frame. In either case, the delays are in seconds, must be given in multiples of 0.01, and
+values less than 0.02 are not well-supported by browsers..]],
+
+    { "param", "filename", "string" },
+    { "param", "loops", "number" },
+    { "param", "frames", "array of images" },
+    { "param", "delays", {"number", "array of numbers" } },
+}
+
 -- }}}
 
 -- {{{ Image Globals
@@ -562,6 +587,14 @@ create a channel containing 1 or 0, respectively.]],
     },
     {
         "method",
+        "clamp",
+        "The returned image's pixels are forced within the given range (inclusive).",
+        { "param", "min", "colour" },
+        { "param", "max", "colour" },
+        { "return", "Image" },
+    },
+    {
+        "method",
         "abs",
         "The returned image is the absolute value of this image, i.e. negative pixel channel values are made positive.",
         { "return", "Image" },
@@ -582,6 +615,21 @@ create a channel containing 1 or 0, respectively.]],
         { "param", "kernel", "Image" },
         { "param", "wrapx", "boolean", optional=true },
         { "param", "wrapy", "boolean", optional=true },
+        { "return", "Image" },
+    },
+    {
+        "method",
+        "gamma",
+        "Gamma encode/decode the given image.  Use a value of n > 1 to decode (usually 2.2) and 1/n to encode.  ",
+        { "param", "n", "colour" },
+        { "return", "Image" },
+    },
+    {
+        "method",
+        "quantise",
+        "Reduce the colour fidelity of the image and also optionally dither it.  The available dither options are 'NONE', 'FLOYD_STEINBERG', and 'FLOYD_STEINBERG_LINEAR'.  FLOYD_STEINBERG assumes the image is in gamma space and temporarily converts the non-alpha channels to linear to do the dithering (you probably want this).  FLOYD_STEINBERG_LINEAR just does the dithering without that temporary conversion.  The number of colours is given as a vector with the same number of elements as the image has channels.  E.g. to reduce an RGB image to R5G6G5, use vec(32, 64, 32).  To use only 100% or 0% in each channel, use vec(2, 2, 2).",
+        { "param", "dither", "string" },
+        { "param", "num_colours", "vector" },
         { "return", "Image" },
     },
     {
@@ -683,4 +731,6 @@ if should_emit_images then
         include "../examples/lena_blueprint.lua"
         include "../examples/money.lua"
         include "../examples/bresenham_pattern.lua"
+        include "../examples/aniblur.lua"
+        include "../examples/anisharp.lua"
 end
