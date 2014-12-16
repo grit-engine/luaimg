@@ -10,8 +10,6 @@ square = make((sqsz - 2*side)*vec(1,1), 1, 0):cropCentre(sqsz*vec(1,1), 1)
 white = square.fffX
 black = square.eeeX
 
-bg = vec(0.65, 0.5, 1)
-bg = vec(48,80,112)/255
 bg = vec(77,128,180)/255
 
 function draw_ring(img, rad, offset)
