@@ -731,7 +731,7 @@ if should_emit_images then
     include "../examples/lena_blueprint.lua"
     include "../examples/money.lua"
     include "../examples/bresenham_pattern.lua"
-    include "../examples/aniblur.lua"
+    include "../examples/illusion2.lua"
     include "../examples/anisharp.lua"
     include "../examples/mandelbrot.lua"
     fractal_centre = vec(-1.4, 0)
