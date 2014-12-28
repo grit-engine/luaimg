@@ -13,7 +13,7 @@ OBJECTS = \
 	console.o \
 	dds.o \
 	gif.o \
-	Image.o \
+	image.o \
 	interpreter.o \
 	io_util.o \
 	luaimg.o \
@@ -106,24 +106,24 @@ dds.o: ../dependencies/util/io_util.h depend_stubs/cstdio
 dds.o: depend_stubs/cstring depend_stubs/string depend_stubs/iostream
 dds.o: depend_stubs/fstream ../dependencies/util/exception.h
 dds.o: depend_stubs/sstream ../dependencies/util/intrinsics.h dds.h
-dds.o: depend_stubs/vector Image.h depend_stubs/cinttypes depend_stubs/cmath
+dds.o: depend_stubs/vector image.h depend_stubs/cinttypes depend_stubs/cmath
 dds.o: depend_stubs/cassert depend_stubs/algorithm depend_stubs/ostream
 gif.o: depend_stubs/cstdlib depend_stubs/cstdint depend_stubs/memory
 gif.o: depend_stubs/gif_lib.h ../dependencies/util/io_util.h
 gif.o: depend_stubs/cstdio depend_stubs/cstring depend_stubs/string
 gif.o: depend_stubs/iostream depend_stubs/fstream
 gif.o: ../dependencies/util/exception.h depend_stubs/sstream
-gif.o: ../dependencies/util/intrinsics.h gif.h depend_stubs/vector Image.h
-gif.o: depend_stubs/cinttypes depend_stubs/cmath depend_stubs/cassert
-gif.o: depend_stubs/algorithm depend_stubs/ostream dds.h
-Image.o: depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
-Image.o: depend_stubs/cstring depend_stubs/string depend_stubs/iostream
-Image.o: depend_stubs/fstream depend_stubs/FreeImage.h
-Image.o: ../dependencies/util/exception.h depend_stubs/sstream
-Image.o: ../dependencies/util/intrinsics.h
-Image.o: ../dependencies/util/colour_conversion.h Image.h
-Image.o: depend_stubs/cinttypes depend_stubs/cassert depend_stubs/algorithm
-Image.o: depend_stubs/ostream dds.h depend_stubs/vector sfi.h
+gif.o: ../dependencies/util/intrinsics.h ../dependencies/util/console.h gif.h
+gif.o: depend_stubs/vector image.h depend_stubs/cinttypes depend_stubs/cmath
+gif.o: depend_stubs/cassert depend_stubs/algorithm depend_stubs/ostream dds.h
+image.o: depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
+image.o: depend_stubs/cstring depend_stubs/string depend_stubs/iostream
+image.o: depend_stubs/fstream depend_stubs/FreeImage.h
+image.o: ../dependencies/util/exception.h depend_stubs/sstream
+image.o: ../dependencies/util/intrinsics.h
+image.o: ../dependencies/util/colour_conversion.h image.h
+image.o: depend_stubs/cinttypes depend_stubs/cassert depend_stubs/algorithm
+image.o: depend_stubs/ostream dds.h depend_stubs/vector sfi.h
 interpreter.o: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
 interpreter.o: depend_stubs/iostream depend_stubs/signal.h depend_stubs/lua.h
 interpreter.o: depend_stubs/lauxlib.h depend_stubs/lualib.h
@@ -134,15 +134,9 @@ interpreter.o: ../dependencies/util/lua_util.h depend_stubs/sstream
 interpreter.o: depend_stubs/limits ../dependencies/util/exception.h
 interpreter.o: ../dependencies/util/intrinsics.h
 interpreter.o: ../dependencies/util/math_util.h depend_stubs/cmath
-interpreter.o: depend_stubs/cfloat interpreter.h lua_wrappers_image.h Image.h
+interpreter.o: depend_stubs/cfloat interpreter.h lua_wrappers_image.h image.h
 interpreter.o: depend_stubs/cinttypes depend_stubs/cassert
 interpreter.o: depend_stubs/algorithm depend_stubs/ostream dds.h
-luaimg.o: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
-luaimg.o: depend_stubs/sstream depend_stubs/iostream depend_stubs/FreeImage.h
-luaimg.o: depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
-luaimg.o: interpreter.h Image.h depend_stubs/cinttypes depend_stubs/cmath
-luaimg.o: depend_stubs/cassert depend_stubs/algorithm depend_stubs/ostream
-luaimg.o: dds.h text.h
 lua_wrappers_image.o: depend_stubs/iostream depend_stubs/string
 lua_wrappers_image.o: depend_stubs/sstream depend_stubs/vector
 lua_wrappers_image.o: depend_stubs/limits depend_stubs/algorithm
@@ -153,13 +147,19 @@ lua_wrappers_image.o: ../dependencies/util/intrinsics.h
 lua_wrappers_image.o: ../dependencies/util/math_util.h depend_stubs/cmath
 lua_wrappers_image.o: depend_stubs/cfloat ../dependencies/util/unicode_util.h
 lua_wrappers_image.o: ../dependencies/util/sleep.h lua_wrappers_image.h
-lua_wrappers_image.o: Image.h depend_stubs/cinttypes depend_stubs/cassert
+lua_wrappers_image.o: image.h depend_stubs/cinttypes depend_stubs/cassert
 lua_wrappers_image.o: depend_stubs/ostream dds.h text.h gif.h
+luaimg.o: depend_stubs/cstdlib depend_stubs/string depend_stubs/vector
+luaimg.o: depend_stubs/sstream depend_stubs/iostream depend_stubs/FreeImage.h
+luaimg.o: depend_stubs/lua.h depend_stubs/lauxlib.h depend_stubs/lualib.h
+luaimg.o: interpreter.h image.h depend_stubs/cinttypes depend_stubs/cmath
+luaimg.o: depend_stubs/cassert depend_stubs/algorithm depend_stubs/ostream
+luaimg.o: dds.h text.h
 sfi.o: depend_stubs/cstdlib depend_stubs/cstring depend_stubs/iostream
 sfi.o: depend_stubs/fstream depend_stubs/string
 sfi.o: ../dependencies/util/exception.h depend_stubs/sstream
 sfi.o: ../dependencies/util/intrinsics.h ../dependencies/util/io_util.h
-sfi.o: depend_stubs/cstdio sfi.h Image.h depend_stubs/cinttypes
+sfi.o: depend_stubs/cstdio sfi.h image.h depend_stubs/cinttypes
 sfi.o: depend_stubs/cmath depend_stubs/cassert depend_stubs/algorithm
 sfi.o: depend_stubs/ostream dds.h depend_stubs/vector
 text.o: depend_stubs/cstdlib depend_stubs/cstdio depend_stubs/cmath
@@ -171,13 +171,13 @@ text.o: depend_stubs/lauxlib.h depend_stubs/lualib.h
 text.o: ../dependencies/util/exception.h ../dependencies/util/intrinsics.h
 text.o: ../dependencies/util/math_util.h depend_stubs/cfloat
 text.o: ../dependencies/util/unicode_util.h text.h depend_stubs/ostream
-text.o: Image.h depend_stubs/cinttypes depend_stubs/cassert
+text.o: image.h depend_stubs/cinttypes depend_stubs/cassert
 text.o: depend_stubs/algorithm dds.h
-VoxelImage.o: depend_stubs/cstdlib depend_stubs/iostream
-VoxelImage.o: depend_stubs/volpack.h VoxelImage.h Image.h
-VoxelImage.o: depend_stubs/cinttypes depend_stubs/cmath depend_stubs/cassert
-VoxelImage.o: depend_stubs/algorithm depend_stubs/ostream depend_stubs/string
-VoxelImage.o: dds.h depend_stubs/vector
+voxel_image.o: depend_stubs/cstdlib depend_stubs/iostream
+voxel_image.o: depend_stubs/volpack.h voxel_image.h image.h
+voxel_image.o: depend_stubs/cinttypes depend_stubs/cmath depend_stubs/cassert
+voxel_image.o: depend_stubs/algorithm depend_stubs/ostream
+voxel_image.o: depend_stubs/string dds.h depend_stubs/vector
 colour_conversion.o: depend_stubs/cstdlib
 colour_conversion.o: depend_stubs/cmath
 colour_conversion.o: depend_stubs/algorithm

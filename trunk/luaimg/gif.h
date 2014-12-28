@@ -24,7 +24,7 @@
 
 #include <vector>
 
-#include "Image.h"
+#include "image.h"
 
 struct GifFrame {
     ImageBase* image;

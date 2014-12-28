@@ -27,7 +27,7 @@
 #include <ostream>
 #include <string>
 
-#include "Image.h"
+#include "image.h"
 
 void text_init (void);
 

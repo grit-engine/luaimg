@@ -24,7 +24,7 @@
 
 #include <string>
 
-#include "Image.h"
+#include "image.h"
 
 void sfi_save (const std::string &filename, ImageBase *img);
 

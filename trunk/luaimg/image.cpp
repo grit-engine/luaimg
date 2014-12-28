@@ -36,7 +36,7 @@ extern "C" {
 #include <exception.h>
 #include <colour_conversion.h>
 
-#include "Image.h"
+#include "image.h"
 #include "sfi.h"
 
 // supported values: <1,0>, <3,0>, <3,1>, <4,0>

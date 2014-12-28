@@ -34,7 +34,7 @@ extern "C" {
 #include <exception.h>
 
 #include "gif.h"
-#include "Image.h"
+#include "image.h"
 
 
 float clamp (float x)

@@ -67,7 +67,7 @@
     <ClCompile Include="..\dependencies\util\win32_sleep.cpp" />
     <ClCompile Include="dds.cpp" />
     <ClCompile Include="gif.cpp" />
-    <ClCompile Include="Image.cpp" />
+    <ClCompile Include="image.cpp" />
     <ClCompile Include="interpreter.cpp" />
     <ClCompile Include="luaimg.cpp" />
     <ClCompile Include="lua_wrappers_image.cpp" />

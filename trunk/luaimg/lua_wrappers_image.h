@@ -28,7 +28,7 @@ extern "C" {
     #include "lualib.h"
 }
 
-#include "Image.h"
+#include "image.h"
 
 #define IMAGE_TAG "Image"
 #define VIMAGE_TAG "VoxelImage"

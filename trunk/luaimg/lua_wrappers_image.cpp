@@ -39,7 +39,7 @@ extern "C" {
 
 #include "lua_wrappers_image.h"
 
-#include "Image.h"
+#include "image.h"
 #include "text.h"
 #include "gif.h"
 //#include "VoxelImage.h"

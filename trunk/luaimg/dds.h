@@ -24,7 +24,7 @@
 
 #include <vector>
 
-#include "Image.h"
+#include "image.h"
 
 enum DDSFormat {
     DDSF_R5G6B5,

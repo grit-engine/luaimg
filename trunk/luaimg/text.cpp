@@ -42,7 +42,7 @@ FT_Library ft2;
 #include <exception.h>
 
 #include "text.h"
-#include "Image.h"
+#include "image.h"
 
 void text_init (void)
 {

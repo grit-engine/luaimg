@@ -25,7 +25,7 @@ class VoxelImage;
 #define VOXEL_IMAGE_H
 
 #include <volpack.h>
-#include "Image.h"
+#include "image.h"
 
 class VoxelImage {
 

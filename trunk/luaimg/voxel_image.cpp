@@ -26,8 +26,8 @@
 
 #include <volpack.h>
 
-#include "VoxelImage.h"
-#include "Image.h"
+#include "voxel_image.h"
+#include "image.h"
 
 unsigned short rgb_4_4_4 (unsigned char r, unsigned char g, unsigned char b)
 {

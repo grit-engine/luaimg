@@ -36,7 +36,7 @@ extern "C" {
 
 
 #include "interpreter.h"
-#include "Image.h"
+#include "image.h"
 #include "text.h"
 
 #define LUAIMG_VERSION "0.9"
