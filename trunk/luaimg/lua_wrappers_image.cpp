@@ -832,25 +832,25 @@ static ColourBase *image_zip_reduce_lua1 (lua_State *L, const ImageBase *&some_i
     switch (get_colour_channels(L, 1)) {
         case 1: {
             Colour<1,0> colour;
-            check_colour(L,colour,1);
+            if (!check_colour(L,colour,1)) return nullptr;
             return image_zip_reduce_lua2<1,0,zop,rop>(L, &colour, some_image);
         }
 
         case 2: {
             Colour<2,0> colour;
-            check_colour(L,colour,1);
+            if (!check_colour(L,colour,1)) return nullptr;
             return image_zip_reduce_lua2<2,0,zop,rop>(L, &colour, some_image);
         }
 
         case 3: {
             Colour<3,0> colour;
-            check_colour(L,colour,1);
+            if (!check_colour(L,colour,1)) return nullptr;
             return image_zip_reduce_lua2<3,0,zop,rop>(L, &colour, some_image);
         }
 
         case 4: {
             Colour<4,0> colour;
-            check_colour(L,colour,1);
+            if (!check_colour(L,colour,1)) return nullptr;
             return image_zip_reduce_lua2<4,0,zop,rop>(L, &colour, some_image);
         }
 
