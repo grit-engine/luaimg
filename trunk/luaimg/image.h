@@ -995,7 +995,7 @@ Colour<ch1,ach1> global_lerp_colour_right_mask (const Colour<ch1,ach1> *a, const
 
 ImageBase *image_load (const std::string &filename);
 
-void image_save (ImageBase *image, const std::string &filename);
+void image_save (ImageBase *image, const std::string &filename, const std::string &type);
 
 template<chan_t ch, chan_t ach> Image<ch,ach> *image_make (uimglen_t width, uimglen_t height, const ColourBase &init_)
 {

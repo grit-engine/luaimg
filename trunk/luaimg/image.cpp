@@ -42,7 +42,7 @@ extern "C" {
 // supported values: <1,0>, <3,0>, <3,1>, <4,0>
 template<chan_t ch, chan_t ach> Image<ch,ach> *image_from_fibitmap (FIBITMAP *input, uimglen_t width, uimglen_t height)
 {
-    Image<ch,ach> *my_image = new Image<ch,ach>(width, height);
+    auto *my_image = new Image<ch,ach>(width, height);
 
     // from 1 to all of these used, depending on ch+ach
     int channel_offset[4] = { FI_RGBA_RED, FI_RGBA_GREEN, FI_RGBA_BLUE, FI_RGBA_ALPHA };
@@ -64,7 +64,7 @@ template<chan_t ch, chan_t ach> Image<ch,ach> *image_from_fibitmap (FIBITMAP *in
 }
 template<> Image<1,0> *image_from_fibitmap<1,0> (FIBITMAP *input, uimglen_t width, uimglen_t height)
 {
-    Image<1,0> *my_image = new Image<1,0>(width, height);
+    auto *my_image = new Image<1,0>(width, height);
 
     for (uimglen_t y=0 ; y<height ; y++) {
 
@@ -78,8 +78,80 @@ template<> Image<1,0> *image_from_fibitmap<1,0> (FIBITMAP *input, uimglen_t widt
     return my_image;
 }
             
+Image<3,0> *image_from_fibitmap_rgb16 (FIBITMAP *input, uimglen_t width, uimglen_t height)
+{
+    auto *my_image = new Image<3,0>(width, height);
 
-template<chan_t ch, chan_t ach> FIBITMAP *image_to_fibitmap (Image<ch,ach> *image, uimglen_t width, uimglen_t height)
+    for (uimglen_t y=0 ; y<height ; y++) {
+
+        auto *raw = reinterpret_cast<FIRGB16 *>(FreeImage_GetScanLine(input, y));
+
+        for (uimglen_t x=0 ; x<width ; x++) {
+            my_image->pixel(x, y)[0] = raw[x].red / 65535.0f;
+            my_image->pixel(x, y)[1] = raw[x].green / 65535.0f;
+            my_image->pixel(x, y)[2] = raw[x].blue / 65535.0f;
+        }
+    }
+
+    return my_image;
+}
+            
+Image<3,1> *image_from_fibitmap_rgba16 (FIBITMAP *input, uimglen_t width, uimglen_t height)
+{
+    auto *my_image = new Image<3,1>(width, height);
+
+    for (uimglen_t y=0 ; y<height ; y++) {
+
+        auto *raw = reinterpret_cast<FIRGBA16 *>(FreeImage_GetScanLine(input, y));
+
+        for (uimglen_t x=0 ; x<width ; x++) {
+            my_image->pixel(x, y)[0] = raw[x].red / 65535.0f;
+            my_image->pixel(x, y)[1] = raw[x].green / 65535.0f;
+            my_image->pixel(x, y)[2] = raw[x].blue / 65535.0f;
+            my_image->pixel(x, y)[3] = raw[x].alpha / 65535.0f;
+        }
+    }
+
+    return my_image;
+}
+            
+
+static float clamp(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+FIBITMAP *image_to_fibitmap_rgb (const Image<3,0> *image, uimglen_t width, uimglen_t height)
+{
+    FIBITMAP *output = FreeImage_AllocateT(FIT_RGB16, width, height, 3*16, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
+
+    for (uimglen_t y=0 ; y<height ; y++) {
+        auto *raw = reinterpret_cast<FIRGB16 *>(FreeImage_GetScanLine(output, y));
+        for (uimglen_t x=0 ; x<width ; x++) {
+            raw[x].red = uint16_t(clamp(image->pixel(x, y)[0]) * 65535 + 0.5f);
+            raw[x].green = uint16_t(clamp(image->pixel(x, y)[1]) * 65535 + 0.5f);
+            raw[x].blue = uint16_t(clamp(image->pixel(x, y)[2]) * 65535 + 0.5f);
+        }
+    }
+
+    return output;
+}
+
+FIBITMAP *image_to_fibitmap_rgba (const Image<3,1> *image, uimglen_t width, uimglen_t height)
+{
+    FIBITMAP *output = FreeImage_AllocateT(FIT_RGBA16, width, height, 3*16, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
+
+    for (uimglen_t y=0 ; y<height ; y++) {
+        auto *raw = reinterpret_cast<FIRGBA16 *>(FreeImage_GetScanLine(output, y));
+        for (uimglen_t x=0 ; x<width ; x++) {
+            raw[x].red = uint16_t(clamp(image->pixel(x, y)[0]) * 65535 + 0.5f);
+            raw[x].green = uint16_t(clamp(image->pixel(x, y)[1]) * 65535 + 0.5f);
+            raw[x].blue = uint16_t(clamp(image->pixel(x, y)[2]) * 65535 + 0.5f);
+            raw[x].alpha = uint16_t(clamp(image->pixel(x, y)[3]) * 65535 + 0.5f);
+        }
+    }
+
+    return output;
+}
+
+template<chan_t ch, chan_t ach> FIBITMAP *image_to_fibitmap (const Image<ch,ach> *image, uimglen_t width, uimglen_t height)
 {
     FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, (ach+ch)*8, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
 
@@ -94,8 +166,7 @@ template<chan_t ch, chan_t ach> FIBITMAP *image_to_fibitmap (Image<ch,ach> *imag
 
             for (chan_t c=0 ; c<ch+ach ; ++c) {
                 float v = image->pixel(x, y)[c];
-                v = v < 0 ? 0 : v > 1 ? 1 : v;
-                raw[channel_offset[c]] = BYTE(v * 255 + 0.5);
+                raw[channel_offset[c]] = BYTE(clamp(v) * 255 + 0.5f);
             }
 
             raw += ch+ach;
@@ -104,7 +175,7 @@ template<chan_t ch, chan_t ach> FIBITMAP *image_to_fibitmap (Image<ch,ach> *imag
 
     return output;
 }
-template<> FIBITMAP *image_to_fibitmap (Image<1,1> *image, uimglen_t width, uimglen_t height)
+template<> FIBITMAP *image_to_fibitmap (const Image<1,1> *image, uimglen_t width, uimglen_t height)
 {
     FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 32, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
 
@@ -114,15 +185,13 @@ template<> FIBITMAP *image_to_fibitmap (Image<1,1> *image, uimglen_t width, uimg
 
         for (uimglen_t x=0 ; x<width ; x++) {
 
-            float v = image->pixel(x, y)[0];
-            v = v < 0 ? 0 : v > 1 ? 1 : v;
-            raw[FI_RGBA_RED] = BYTE(v * 255 + 0.5);
-            raw[FI_RGBA_GREEN] = BYTE(v * 255 + 0.5);
-            raw[FI_RGBA_BLUE] = BYTE(v * 255 + 0.5);
+            float v = clamp(image->pixel(x, y)[0]);
+            raw[FI_RGBA_RED] = BYTE(v * 255 + 0.5f);
+            raw[FI_RGBA_GREEN] = BYTE(v * 255 + 0.5f);
+            raw[FI_RGBA_BLUE] = BYTE(v * 255 + 0.5f);
 
-            v = image->pixel(x, y)[1];
-            v = v < 0 ? 0 : v > 1 ? 1 : v;
-            raw[FI_RGBA_ALPHA] = BYTE(v * 255 + 0.5);
+            v = clamp(image->pixel(x, y)[1]);
+            raw[FI_RGBA_ALPHA] = BYTE(v * 255 + 0.5f);
 
             raw += 4;
         }
@@ -130,7 +199,7 @@ template<> FIBITMAP *image_to_fibitmap (Image<1,1> *image, uimglen_t width, uimg
 
     return output;
 }
-template<> FIBITMAP *image_to_fibitmap (Image<2,0> *image, uimglen_t width, uimglen_t height)
+template<> FIBITMAP *image_to_fibitmap (const Image<2,0> *image, uimglen_t width, uimglen_t height)
 {
     FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 24, FI_RGBA_RED_MASK, FI_RGBA_BLUE_MASK, FI_RGBA_GREEN_MASK);
 
@@ -141,14 +210,12 @@ template<> FIBITMAP *image_to_fibitmap (Image<2,0> *image, uimglen_t width, uimg
         for (uimglen_t x=0 ; x<width ; x++) {
 
             {
-                float v = image->pixel(x, y)[0];
-                v = v < 0 ? 0 : v > 1 ? 1 : v;
-                raw[FI_RGBA_RED] = BYTE(v * 255 + 0.5);
+                float v = clamp(image->pixel(x, y)[0]);
+                raw[FI_RGBA_RED] = BYTE(v * 255 + 0.5f);
             }
             {
-                float v = image->pixel(x, y)[1];
-                v = v < 0 ? 0 : v > 1 ? 1 : v;
-                raw[FI_RGBA_GREEN] = BYTE(v * 255 + 0.5);
+                float v = clamp(image->pixel(x, y)[1]);
+                raw[FI_RGBA_GREEN] = BYTE(v * 255 + 0.5f);
             }
             {
                 raw[FI_RGBA_BLUE] = 0;
@@ -160,7 +227,7 @@ template<> FIBITMAP *image_to_fibitmap (Image<2,0> *image, uimglen_t width, uimg
 
     return output;
 }
-template<> FIBITMAP *image_to_fibitmap (Image<1,0> *image, uimglen_t width, uimglen_t height)
+template<> FIBITMAP *image_to_fibitmap (const Image<1,0> *image, uimglen_t width, uimglen_t height)
 {
     FIBITMAP *output = FreeImage_AllocateT(FIT_BITMAP, width, height, 8);
 
@@ -169,9 +236,8 @@ template<> FIBITMAP *image_to_fibitmap (Image<1,0> *image, uimglen_t width, uimg
         BYTE *raw = FreeImage_GetScanLine(output, y);
 
         for (uimglen_t x=0 ; x<width ; x++) {
-            float v = image->pixel(x, y)[0];
-            v = v < 0 ? 0 : v > 1 ? 1 : v;
-            raw[x] = BYTE(v * 255 + 0.5);
+            float v = clamp(image->pixel(x, y)[0]);
+            raw[x] = BYTE(v * 255 + 0.5f);
         }
     }
 
@@ -292,13 +358,17 @@ ImageBase *image_load (const std::string &filename)
             FreeImage_Unload(input);
             EXCEPT << "Couldn't read "<<filename<<": Unsupported image type: COMPLEX." << ENDL;
 
-            case FIT_RGB16:
-            FreeImage_Unload(input);
-            EXCEPT << "Couldn't read "<<filename<<": Unsupported image type: RGB16." << ENDL;
+            case FIT_RGB16: {
+                Image<3,0> * my_image = image_from_fibitmap_rgb16(input, width, height);
+                FreeImage_Unload(input);
+                return my_image;
+            }
 
-            case FIT_RGBA16:
-            FreeImage_Unload(input);
-            EXCEPT << "Couldn't read "<<filename<<": Unsupported image type: RGBA16." << ENDL;
+            case FIT_RGBA16: {
+                Image<3,1> * my_image = image_from_fibitmap_rgba16(input, width, height);
+                FreeImage_Unload(input);
+                return my_image;
+            }
 
             case FIT_RGBF:
             FreeImage_Unload(input);
@@ -316,7 +386,7 @@ ImageBase *image_load (const std::string &filename)
     }
 }
 
-void image_save (ImageBase *image, const std::string &filename)
+void image_save (ImageBase *image, const std::string &filename, const std::string &type)
 {
     size_t dot = filename.rfind('.');
     if (dot == std::string::npos) {
@@ -337,10 +407,7 @@ void image_save (ImageBase *image, const std::string &filename)
 
     } else {
 
-        FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(filename.c_str(), 0);
-        if (fif == FIF_UNKNOWN) {
-            fif = FreeImage_GetFIFFromFilename(filename.c_str());
-        }
+        FREE_IMAGE_FORMAT fif = FreeImage_GetFIFFromFilename(filename.c_str());
         if (fif == FIF_UNKNOWN) {
             EXCEPT << "Unknown format: " << ext << ENDL;
         }
@@ -348,47 +415,67 @@ void image_save (ImageBase *image, const std::string &filename)
             EXCEPT << "Could not write files of format: " << ext << ENDL;
         }
 
-        // make new fibitmap as a copy of image
+        int flags = 0;
         FIBITMAP *output;
-        switch (channels) {
-            case 1:
-            if (image->hasAlpha()) {
-                output = image_to_fibitmap(static_cast<Image<0,1>*>(image), width, height);
-            } else {
-                output = image_to_fibitmap(static_cast<Image<1,0>*>(image), width, height);
-            }
-            break;
 
-            case 2:
-            if (image->hasAlpha()) {
-                output = image_to_fibitmap(static_cast<Image<1,1>*>(image), width, height);
-            } else {
-                output = image_to_fibitmap(static_cast<Image<2,0>*>(image), width, height);
+        if (type == "RGB16") {
+            if (channels != 3) {
+                EXCEPT << "RGB16 type requires 3 channels ("<<filename<<" had "<<channels<<")." << ENDL;
             }
-            break;
-
-            case 3:
             if (image->hasAlpha()) {
-                output = image_to_fibitmap(static_cast<Image<2,1>*>(image), width, height);
-            } else {
-                output = image_to_fibitmap(static_cast<Image<3,0>*>(image), width, height);
+                EXCEPT << "RGB16 type requires an image without alpha, ("<<filename<<")." << ENDL;
             }
-            break;
-
-            case 4:
-            if (image->hasAlpha()) {
-                output = image_to_fibitmap(static_cast<Image<3,1>*>(image), width, height);
-            } else {
-                output = image_to_fibitmap(static_cast<Image<4,0>*>(image), width, height);
+            output = image_to_fibitmap_rgb(static_cast<Image<3,0>*>(image), width, height);
+        } else if (type == "RGBA16") {
+            if (channels != 3) {
+                EXCEPT << "RGB16 type requires 3 channels ("<<filename<<" had "<<channels<<")." << ENDL;
             }
-            break;
+            if (!image->hasAlpha()) {
+                EXCEPT << "RGB16 type requires an image with alpha, ("<<filename<<")." << ENDL;
+            }
+            output = image_to_fibitmap_rgba(static_cast<Image<3,1>*>(image), width, height);
+        } else {
+            // make new fibitmap as a copy of image
+            switch (channels) {
+                case 1:
+                if (image->hasAlpha()) {
+                    output = image_to_fibitmap(static_cast<Image<0,1>*>(image), width, height);
+                } else {
+                    output = image_to_fibitmap(static_cast<Image<1,0>*>(image), width, height);
+                }
+                break;
 
-            default:
-            EXCEPT << "Can only save images with 1 to 4 channels ("<<filename<<" had "<<channels<<")." << ENDL;
+                case 2:
+                if (image->hasAlpha()) {
+                    output = image_to_fibitmap(static_cast<Image<1,1>*>(image), width, height);
+                } else {
+                    output = image_to_fibitmap(static_cast<Image<2,0>*>(image), width, height);
+                }
+                break;
+
+                case 3:
+                if (image->hasAlpha()) {
+                    output = image_to_fibitmap(static_cast<Image<2,1>*>(image), width, height);
+                } else {
+                    output = image_to_fibitmap(static_cast<Image<3,0>*>(image), width, height);
+                }
+                break;
+
+                case 4:
+                if (image->hasAlpha()) {
+                    output = image_to_fibitmap(static_cast<Image<3,1>*>(image), width, height);
+                } else {
+                    output = image_to_fibitmap(static_cast<Image<4,0>*>(image), width, height);
+                }
+                break;
+
+                default:
+                EXCEPT << "Can only save images with 1 to 4 channels ("<<filename<<" had "<<channels<<")." << ENDL;
+            }
         }
 
         // save it
-        bool status = 0!=FreeImage_Save(fif, output, filename.c_str());
+        bool status = 0!=FreeImage_Save(fif, output, filename.c_str(), flags);
 
         FreeImage_Unload(output);
 

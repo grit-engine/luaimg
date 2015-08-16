@@ -1083,10 +1083,19 @@ static int image_tostring (lua_State *L)
 static int image_save (lua_State *L)
 {
 HANDLE_BEGIN
-    check_args(L,2);
-    ImageBase *self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
-    std::string filename = lua_tostring(L, 2);
-    image_save(self, filename);
+    ImageBase *self;
+    std::string filename;
+    std::string type = "AUTO";
+    if (lua_gettop(L) == 3) {
+        self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        filename = lua_tostring(L, 2);
+        type = lua_tostring(L, 3);
+    } else {
+        check_args(L,2);
+        self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
+        filename = lua_tostring(L, 2);
+    }
+    image_save(self, filename, type);
     return 0;
 HANDLE_END
 }
