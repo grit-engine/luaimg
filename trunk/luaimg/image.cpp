@@ -434,7 +434,7 @@ void image_save (ImageBase *image, const std::string &filename, const std::strin
                 EXCEPT << "RGB16 type requires an image with alpha, ("<<filename<<")." << ENDL;
             }
             output = image_to_fibitmap_rgba(static_cast<Image<3,1>*>(image), width, height);
-        } else {
+        } else if (type == "AUTO") {
             // make new fibitmap as a copy of image
             switch (channels) {
                 case 1:
@@ -472,6 +472,8 @@ void image_save (ImageBase *image, const std::string &filename, const std::strin
                 default:
                 EXCEPT << "Can only save images with 1 to 4 channels ("<<filename<<" had "<<channels<<")." << ENDL;
             }
+        } else {
+            EXCEPT << "Couldn't understand type string: " << type << ENDL;
         }
 
         // save it
