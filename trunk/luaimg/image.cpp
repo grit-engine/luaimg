@@ -22,6 +22,7 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <cstdint>
 #include <cmath>
 #include <cstring>
 
