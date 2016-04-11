@@ -1,0 +1,4 @@
+luaimg.linux.*
+makedepend.mk
+*.o
+*~
