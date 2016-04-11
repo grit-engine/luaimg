@@ -1,0 +1,9 @@
+[submodule "dependencies/grit-lua"]
+	path = dependencies/grit-lua
+	url = git@github.com:sparkprime/grit-lua
+[submodule "dependencies/grit-util"]
+	path = dependencies/grit-util
+	url = git@github.com:sparkprime/grit-util
+[submodule "dependencies/libsquish"]
+	path = dependencies/libsquish
+	url = git@github.com:tito/libsquish
