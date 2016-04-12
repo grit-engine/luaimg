@@ -1,104 +1,179 @@
+# ============================
 # Makefile for building luaimg
+# ============================
 
-ROOT = .
 
-include $(ROOT)/common.mk
+# -----------------------
+# User-overrideable parts                                                                          #
+# -----------------------
 
-LUAIMG_CXXFLAGS = $(ICU_CXXFLAGS) $(GRIT_CXX_CONFORMANCE) $(GRIT_CXX_CODEGEN) $(FREEIMAGE_CXXFLAGS) $(LUA_CXXFLAGS) $(SQUISH_CXXFLAGS) $(GIFLIB_CXXFLAGS) -DLUA_USE_READLINE -Wno-type-limits $(shell pkg-config freetype2 --cflags) -I $(ROOT)/dependencies/grit-util
-LUAIMG_LDFLAGS  = $(ICU_LDFLAGS) $(FREEIMAGE_LDFLAGS) $(LUA_LDFLAGS) $(shell pkg-config freetype2 --libs-only-L)
-LUAIMG_LDLIBS   = $(ICU_LDLIBS) $(FREEIMAGE_LDLIBS) $(LUA_LDLIBS) -lm -lreadline $(shell pkg-config freetype2 --libs-only-l)
+CXX?= g++ 
+CC?= gcc
+OPT?=-O3 -DNDEBUG
+ARCH?= -march=native -mtune=native
 
-OBJECTS = \
-	colour_conversion.o \
-	console.o \
-	dds.o \
-	gif.o \
-	image.o \
-	interpreter.o \
-	io_util.o \
-	luaimg.o \
-	lua_stack.o \
-	lua_utf8.o \
-	lua_util.o \
-	lua_wrappers_image.o \
-	posix_sleep.o \
-	sfi.o \
-	text.o \
-	unicode_util.o \
+GRIT_C_CONFORMANCE ?= -std=c99 -Wall -Wextra -Wno-deprecated
+GRIT_CXX_CONFORMANCE ?= -std=c++0x -Wall -Wextra -Wno-deprecated
+GRIT_CXX_CODEGEN ?= -g -ffast-math $(GRIT_ARCH) $(GRIT_OPTIMISE) 
+GRIT_BASE_CXXFLAGS ?= $(GRIT_CXX_CONFORMANCE) $(GRIT_CXX_CODEGEN) -I $(ROOT)/dependencies/util
+GRIT_BASE_LDFLAGS  ?=
+GRIT_BASE_LDLIBS   ?= -lrt
 
-%.o: $(ROOT)/dependencies/grit-util/%.cpp
-	$(CXX) -c $(LUAIMG_CXXFLAGS) $< -o $@
 
-%.o: %.cpp
-	$(CXX) -c $(LUAIMG_CXXFLAGS) $< -o $@
+# -----------------
+# Compilation input
+# -----------------
 
-luaimg.$(GRIT_EXEC_SUFFIX): $(OBJECTS) $(LUA_ARCHIVES) $(ICU_ARCHIVES) $(SQUISH_ARCHIVES) $(GIFLIB_ARCHIVES)
-	$(CXX) $^ $(LUAIMG_LDFLAGS) $(LUAIMG_LDLIBS) $(SQUISH_LDFLAGS) $(SQUISH_LDLIBS) $(GIFLIB_LDFLAGS) $(GIFLIB_LDLIBS) -o $@
+include dependencies/giflib-5.1.0/grit.mk
+include dependencies/grit-lua/grit.mk
+include dependencies/grit-util/grit.mk
+include dependencies/squish-1.11/grit.mk
+
+ICU_LDFLAGS= \
+	-ldl \
+
+ICU_LDLIBS= \
+	/usr/lib/x86_64-linux-gnu/libicui18n.a \
+	/usr/lib/x86_64-linux-gnu/libicuuc.a \
+	/usr/lib/x86_64-linux-gnu/libicudata.a \
+
+
+FREEIMAGE_LDFLAGS= \
+	-lfreeimage \
+
+
+WEAK_C_SRCS= \
+	$(addprefix dependencies/giflib-5.1.0/,$(GIFLIB_WEAK_C_SRCS)) \
+	$(addprefix dependencies/grit-lua/,$(LUA_WEAK_C_SRCS)) \
+	$(addprefix dependencies/grit-util/,$(UTIL_WEAK_C_SRCS)) \
+	$(addprefix dependencies/squish-1.11/,$(SQUISH_WEAK_C_SRCS)) \
+	$(FREEIMAGE_WEAK_C_SRCS) \
+	$(ICU_WEAK_C_SRCS) \
+
+WEAK_CPP_SRCS= \
+	$(addprefix dependencies/giflib-5.1.0/,$(GIFLIB_WEAK_CPP_SRCS)) \
+	$(addprefix dependencies/grit-lua/,$(LUA_WEAK_CPP_SRCS)) \
+	$(addprefix dependencies/grit-util/,$(UTIL_WEAK_CPP_SRCS)) \
+	$(addprefix dependencies/squish-1.11/,$(SQUISH_WEAK_CPP_SRCS)) \
+	$(FREEIMAGE_WEAK_CPP_SRCS) \
+	$(ICU_WEAK_CPP_SRCS) \
+
+C_SRCS= \
+	$(addprefix dependencies/giflib-5.1.0/,$(GIFLIB_C_SRCS)) \
+	$(addprefix dependencies/grit-lua/,$(LUA_C_SRCS)) \
+	$(addprefix dependencies/grit-util/,$(UTIL_C_SRCS)) \
+	$(addprefix dependencies/squish-1.11/,$(SQUISH_C_SRCS)) \
+	$(FREEIMAGE_C_SRCS) \
+	$(ICU_C_SRCS) \
+
+CPP_SRCS= \
+	$(addprefix dependencies/giflib-5.1.0/,$(GIFLIB_CPP_SRCS)) \
+	$(addprefix dependencies/grit-lua/,$(LUA_CPP_SRCS)) \
+	$(addprefix dependencies/grit-util/,$(UTIL_CPP_SRCS)) \
+	$(addprefix dependencies/squish-1.11/,$(SQUISH_CPP_SRCS)) \
+	$(FREEIMAGE_CPP_SRCS) \
+	$(ICU_CPP_SRCS) \
+	dds.cpp \
+	gif.cpp \
+	image.cpp \
+	interpreter.cpp \
+	luaimg.cpp \
+	lua_wrappers_image.cpp \
+	sfi.cpp \
+	text.cpp \
+
+INCLUDE_DIRS= \
+	$(addprefix dependencies/giflib-5.1.0/,$(GIFLIB_INCLUDE_DIRS)) \
+	$(addprefix dependencies/grit-lua/,$(LUA_INCLUDE_DIRS)) \
+	$(addprefix dependencies/grit-util/,$(UTIL_INCLUDE_DIRS)) \
+	$(addprefix dependencies/squish-1.11/,$(SQUISH_INCLUDE_DIRS)) \
+	$(FREEIMAGE_INCLUDE_DIRS) \
+	$(ICU_INCLUDE_DIRS) \
+
+CFLAGS= \
+	$(GIFLIB_DEFS:%=-D%) \
+	$(LUA_DEFS:%=-D%) \
+	$(UTIL_DEFS:%=-D%) \
+	$(SQUISH_DEFS:%=-D%) \
+	$(FREEIMAGE_DEFS:%=-D%) \
+	$(ICU_DEFS:%=-D%) \
+	$(INCLUDE_DIRS:%=-I%)  \
+	$(shell pkg-config freetype2 --cflags) \
+
+LDFLAGS= \
+	$(GIFLIB_LDFLAGS) \
+	$(LUA_LDFLAGS) \
+	$(UTIL_LDFLAGS) \
+	$(SQUISH_LDFLAGS) \
+	$(FREEIMAGE_LDFLAGS) \
+	$(ICU_LDFLAGS) \
+	$(shell pkg-config freetype2 --libs-only-L) \
+
+LDLIBS= \
+	$(GIFLIB_LDLIBS) \
+	$(LUA_LDLIBS) \
+	$(UTIL_LDLIBS) \
+	$(SQUISH_LDLIBS) \
+	$(FREEIMAGE_LDLIBS) \
+	$(ICU_LDLIBS) \
+	$(shell pkg-config freetype2 --libs-only-l) \
+	-lreadline \
+	-lm \
+
+CODEGEN= \
+	$(OPT) \
+    $(ARCH) \
+	-Wno-type-limits \
+	-Wno-deprecated \
+	-g \
+	-ffast-math \
+
+
+# -----------
+# Build rules
+# -----------
+
+COMPILING= echo "Compiling: [32m$<[0m"
+LINKING= echo "Linking: ^[[1;32m$@^[[0m"
+
+
+build/%.cpp_o: %.cpp
+	@$(COMPILING)
+	@mkdir -p $(shell dirname $@)
+	@$(CXX) -c $(CODEGEN) -std=c++11 -Wall -Wextra $(CFLAGS) $< -o $@
+
+build/%.c_o: %.c
+	@$(COMPILING)
+	@mkdir -p $(shell dirname $@)
+	@$(CC) -c $(CODEGEN) -std=c99 -Wall -Wextra $(CFLAGS) $< -o $@
+
+build/%.weak_cpp_o: %.cpp
+	@$(COMPILING)
+	@mkdir -p $(shell dirname $@)
+	@$(CXX) -c $(CODEGEN) $(CFLAGS) $< -o $@
+
+build/%.weak_c_o: %.c
+	@$(COMPILING)
+	@mkdir -p $(shell dirname $@)
+	@$(CC) -c $(CODEGEN) $(CFLAGS) $< -o $@
+
+luaimg: $(addprefix build/,$(WEAK_CPP_SRCS:%.cpp=%.weak_cpp_o)) $(addprefix build/,$(WEAK_C_SRCS:%.c=%.weak_c_o)) $(addprefix build/,$(CPP_SRCS:%.cpp=%.cpp_o)) $(addprefix build/,$(C_SRCS:%.c=%.c_o))
+	@$(COMPILING)
+	@$(CXX) $^ $(LDFLAGS) $(LDLIBS) -o $@
+
+
+# ---------
+# Dev stuff
+# ---------
 
 depend:
-	makedepend -f- *.cpp $(ROOT)/dependencies/grit-util/*.cpp -I $(ROOT)/dependencies/grit-util > makedepend.mk
-	sed -i 's_^$(ROOT)/dependencies/grit-util/\([^.]*[.]o:\)_\1_g' makedepend.mk
+	makedepend -f- $(CFLAGS) $(WEAK_CPP_SRCS) | sed 's|\([^.]*\)[.]o:|build/\1.weak_cpp_o:|g' > makedepend.mk
+	makedepend -f- $(CFLAGS) $(WEAK_C_SRCS) | sed 's|\([^.]*\)[.]o:|build/\1.weak_c_o:|g' >> makedepend.mk
+	makedepend -f- $(CFLAGS) $(CPP_SRCS) | sed 's|\([^.]*\)[.]o:|build/\1.cpp_o:|g' >> makedepend.mk
+	makedepend -f- $(CFLAGS) $(C_SRCS) | sed 's|\([^.]*\)[.]o:|build/\1.c_o:|g' >> makedepend.mk
 
-
-PACKAGED = \
-	luaimg.$(GRIT_EXEC_SUFFIX) \
-	luaimg.exe \
-	icudt42.dll \
-	icuin42.dll \
-	icuuc42.dll \
-	doc/money.png \
-	doc/lena_blueprint.png \
-	doc/bresenham_pattern.png \
-	doc/logo_large.png \
-	doc/logo_med.png \
-	doc/logo_small.png \
-	doc/logo_tiny.png \
-	doc/noise_hifreq.png \
-	doc/perlin.png \
-	doc/random.png \
-	doc/red.png \
-	doc/redb.png \
-	doc/circle_bg_red.png \
-	doc/circle.png \
-	doc/circle_bg.png \
-	doc/circle_a.png \
-	doc/index.html \
-	doc/examples.html \
-	doc/download.html \
-	doc/usage.html \
-	doc/api.html \
-	doc/doc.css \
-    examples/alpha_gen.lua \
-    examples/bresenham_pattern.lua \
-    examples/colour_map.lua \
-    examples/colour_map_scurve.lua \
-    examples/compass_rose.lua \
-    examples/compass_ticks.lua \
-    examples/cubemap.lua \
-    examples/dds_decompose.lua \
-    examples/font.lua \
-    examples/gui_slider_tex.lua \
-    examples/lena_blueprint.lua \
-    examples/lena_std.png \
-    examples/logo.lua \
-    examples/mandelbrot.lua \
-    examples/meme.lua \
-    examples/money.lua \
-    examples/money_input.png \
-    examples/northern_lights.lua \
-    examples/selftest.lua \
-    examples/unblend.lua \
-    examples/volumemap.lua \
-
-%.tar.bz2: $(PACKAGED)
-	ln -sf . $(shell basename $@ .tar.bz2)
-	tar  -cjvf $@ $(patsubst %,$(shell basename $@ .tar.bz2)/%,$(PACKAGED))
-
-%.zip: $(PACKAGED)
-	zip $@ $(PACKAGED)
 
 clean:
-	rm -fv luaimg.$(GRIT_EXEC_SUFFIX) $(OBJECTS)
+	rm -rfv luaimg build
 
 -include makedepend.mk
-

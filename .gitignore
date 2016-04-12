@@ -1,4 +1,5 @@
-luaimg.linux.*
+build
+luaimg
 makedepend.mk
-*.o
 *~
+.*.swp
