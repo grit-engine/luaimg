@@ -134,7 +134,7 @@ CODEGEN= \
 # -----------
 
 COMPILING= echo "Compiling: [32m$<[0m"
-LINKING= echo "Linking: ^[[1;32m$@^[[0m"
+LINKING= echo "Linking: [1;32m$@[0m"
 
 
 build/%.cpp_o: %.cpp
@@ -158,7 +158,7 @@ build/%.weak_c_o: %.c
 	@$(CC) -c $(CODEGEN) $(CFLAGS) $< -o $@
 
 luaimg: $(addprefix build/,$(WEAK_CPP_SRCS:%.cpp=%.weak_cpp_o)) $(addprefix build/,$(WEAK_C_SRCS:%.c=%.weak_c_o)) $(addprefix build/,$(CPP_SRCS:%.cpp=%.cpp_o)) $(addprefix build/,$(C_SRCS:%.c=%.c_o))
-	@$(COMPILING)
+	@$(LINKING)
 	@$(CXX) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
 
