@@ -29,13 +29,11 @@ include dependencies/grit-lua/grit.mk
 include dependencies/grit-util/grit.mk
 include dependencies/squish-1.11/grit.mk
 
-ICU_LDFLAGS= \
-	-ldl \
-
 ICU_LDLIBS= \
 	/usr/lib/x86_64-linux-gnu/libicui18n.a \
 	/usr/lib/x86_64-linux-gnu/libicuuc.a \
 	/usr/lib/x86_64-linux-gnu/libicudata.a \
+	-ldl \
 
 
 FREEIMAGE_LDFLAGS= \
