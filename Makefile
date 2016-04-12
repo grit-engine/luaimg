@@ -4,7 +4,7 @@
 
 
 # -----------------------
-# User-overrideable parts                                                                          #
+# User-overrideable parts
 # -----------------------
 
 CXX?= g++ 
@@ -131,12 +131,12 @@ LINKING= echo "Linking: [1;32m$@[0m"
 build/%.cpp_o: %.cpp
 	@$(COMPILING)
 	@mkdir -p $(shell dirname $@)
-	@$(CXX) -c $(CODEGEN) -std=c++11 -Wall -Wextra $(CFLAGS) $< -o $@
+	@$(CXX) -c $(CODEGEN) -std=c++11 -pedantic -Wall -Wextra $(CFLAGS) $< -o $@
 
 build/%.c_o: %.c
 	@$(COMPILING)
 	@mkdir -p $(shell dirname $@)
-	@$(CC) -c $(CODEGEN) -std=c99 -Wall -Wextra $(CFLAGS) $< -o $@
+	@$(CC) -c $(CODEGEN) -std=c99 -pedantic -Wall -Wextra $(CFLAGS) $< -o $@
 
 build/%.weak_cpp_o: %.cpp
 	@$(COMPILING)
