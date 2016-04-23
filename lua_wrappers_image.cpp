@@ -20,6 +20,7 @@
  */
 
 #include <iostream>
+#include <cstring>
 #include <string>
 #include <sstream>
 #include <vector>
