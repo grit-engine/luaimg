@@ -183,9 +183,11 @@ build/%.weak_c.d: %.c
 	@mkdir -p $(shell dirname $@)
 	@$(CC) -MM $(CFLAGS) $< -o $@ -MT $(@:%.d=%.o)
 
--include makedepend.mk
 ALL_DEPS = $(addsuffix .d,$(ALL_TARGETS))
-depend: $(ALL_DEPS)
+
+clean_depend:
+	@rm -f $(ALL_DEPS)
+	@echo Dependencies cleaned.
 
 clean:
 	rm -rfv luaimg build
