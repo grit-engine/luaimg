@@ -1,5 +1,4 @@
 build
 luaimg
-makedepend.mk
 *~
 .*.swp
