@@ -1,4 +1,7 @@
 build
+Debug
+Normal
 luaimg
 *~
 .*.swp
+*.suo
