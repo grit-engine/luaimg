@@ -1,7 +1,10 @@
 build
-Debug
-Normal
 luaimg
 *~
 .*.swp
+
+# Visual Studio files
+Debug
+Normal
 *.suo
+*.sdf
