@@ -17,7 +17,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <CompileAsManaged>false</CompileAsManaged>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;NOMINMAX;WIN32_LEAN_AND_MEAN;LIBRAW_NODLL;FREEIMAGE_LIB;OPJ_STATIC;DISABLE_PERF_MEASUREMENT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;NOMINMAX;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <DisableLanguageExtensions>false</DisableLanguageExtensions>
       <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
@@ -28,7 +28,7 @@
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)\dependencies\grit-windows-prebuilt-dependencies\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>icudt.lib;icuin.lib;icuuc.lib;cg.lib;libogg_static.lib;libvorbisfile_static.lib;libvorbis_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>icudt.lib;icuin.lib;icuuc.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />
