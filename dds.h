@@ -49,6 +49,8 @@ enum DDSFormat {
     // in MSDN but I found some other code that handles them:
     // https://sourceforge.net/p/tgtl/code/HEAD/tree/trunk/src/Filters/DDSFilter.hpp#l422
     // There are probably more out there, as this doesn't look like a complete list.
+    // Actually, it looks like this is the list:
+    // https://msdn.microsoft.com/en-us/library/windows/desktop/bb172558(v=vs.85).aspx
     DDSF_R16F, // fourcc: 0x6f
     DDSF_G16R16F, // fourcc: 0x70
     DDSF_R16G16B16A16F, // fourcc: 0x71
