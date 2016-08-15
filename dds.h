@@ -40,11 +40,21 @@ enum DDSFormat {
     DDSF_A16R16,
     DDSF_R3G3B2,
     DDSF_A4R4G4B4,
-    DDSF_BC1,
-    DDSF_BC2,
-    DDSF_BC3,
-    DDSF_BC4,
-    DDSF_BC5,
+    DDSF_BC1,  // fourcc: DXT1
+    DDSF_BC2,  // fourcc: DXT2 or DXT3
+    DDSF_BC3,  // fourcc: DXT4 or DXT5
+    DDSF_BC4,  // fourcc: ATI1
+    DDSF_BC5,  // fourcc: ATI2
+    // Some other weird formats that cropped up in Ogre example dds files, undocumented
+    // in MSDN but I found some other code that handles them:
+    // https://sourceforge.net/p/tgtl/code/HEAD/tree/trunk/src/Filters/DDSFilter.hpp#l422
+    // There are probably more out there, as this doesn't look like a complete list.
+    DDSF_R16F, // fourcc: 0x6f
+    DDSF_G16R16F, // fourcc: 0x70
+    DDSF_R16G16B16A16F, // fourcc: 0x71
+    DDSF_R32F, // fourcc: 0x72
+    DDSF_G32R32F, // fourcc: 0x73
+    DDSF_R32G32B32A32F, // fourcc: 0x74
 };
 
 /** Bitwise OR of your chosen quality, and optionally enable perceptual colour error and/or alpha weighting. */
