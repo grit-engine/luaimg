@@ -93,6 +93,12 @@ DDSFormat format_from_string (const std::string &str)
     else if (str == "BC3") return DDSF_BC3;
     else if (str == "BC4") return DDSF_BC4;
     else if (str == "BC5") return DDSF_BC5;
+    else if (str == "R16F") return DDSF_R16F;
+    else if (str == "G16R16F") return DDSF_G16R16F;
+    else if (str == "R16G16B16A16F") return DDSF_R16G16B16A16F;
+    else if (str == "R32F") return DDSF_R32F;
+    else if (str == "G32R32F") return DDSF_G32R32F;
+    else if (str == "R32G32B32A32F") return DDSF_R32G32B32A32F;
     else {
         EXCEPT << "Unrecognised DDS Format: " << str << ENDL;
     }
@@ -119,6 +125,12 @@ std::string format_to_string (DDSFormat format)
         case DDSF_BC3: return "BC3";
         case DDSF_BC4: return "BC4";
         case DDSF_BC5: return "BC5";
+        case DDSF_R16F: return "R16F";
+        case DDSF_G16R16F: return "G16R16F";
+        case DDSF_R16G16B16A16F: return "R16G16B16A16F";
+        case DDSF_R32F: return "R32F";
+        case DDSF_G32R32F: return "G32R32F";
+        case DDSF_R32G32B32A32F: return "R32G32B32A32F";
         default: EXCEPTEX << format << ENDL;
     }
 }
@@ -128,12 +140,18 @@ namespace {
     void check_colour (DDSFormat format, chan_t ch, bool alpha)
     {
         switch (format) {
+            case DDSF_R16F:
+            case DDSF_R32F:
             case DDSF_BC4:
             if (ch==1 && !alpha) return;
             break;
+            case DDSF_G16R16F:
+            case DDSF_G32R32F:
             case DDSF_BC5:
             if (ch==2 && !alpha) return;
             break;
+            case DDSF_R16G16B16A16F:
+            case DDSF_R32G32B32A32F:
             case DDSF_A2R10G10B10:
             case DDSF_A1R5G5B5:
             case DDSF_A8R8G8B8:
@@ -181,6 +199,7 @@ namespace {
             case DDSF_A4R4:
             return 8;
 
+            case DDSF_R16F:
             case DDSF_R16:
             case DDSF_A8R8:
             case DDSF_R5G6B5:
@@ -191,11 +210,20 @@ namespace {
             case DDSF_R8G8B8:
             return 24;
 
+            case DDSF_R32F:
+            case DDSF_G16R16F:
             case DDSF_A16R16:
             case DDSF_A8R8G8B8:
             case DDSF_A2R10G10B10:
             case DDSF_G16R16:
             return 32;
+
+            case DDSF_R16G16B16A16F:
+            case DDSF_G32R32F:
+            return 64;
+
+            case DDSF_R32G32B32A32F:
+            return 128;
 
             default: EXCEPTEX << format << ENDL;
         }
@@ -338,6 +366,36 @@ namespace {
             flags = DDPF_FOURCC;
             fourcc = FOURCC('A','T','I','2');
             break;
+            case DDSF_R16F:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = 0x6f;
+            break;
+            case DDSF_G16R16F:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = 0x70;
+            break;
+            case DDSF_R16G16B16A16F:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = 0x71;
+            break;
+            case DDSF_R32F:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = 0x72;
+            break;
+            case DDSF_G32R32F:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = 0x73;
+            break;
+            case DDSF_R32G32B32A32F:
+            rgb_bitcount = 0;
+            flags = DDPF_FOURCC;
+            fourcc = 0x74;
+            break;
             default: EXCEPTEX << format << ENDL;
         }
         out.write(uint32_t(32));
@@ -437,6 +495,36 @@ namespace {
                 word |= to_range<unsigned>(col[1], 15) << 4;
                 word |= to_range<unsigned>(col[2], 15) << 0;
                 out.write(word);
+                break;
+            }
+            case DDSF_R16F: {
+                EXCEPTEX << "Float16 is not implemented." << ENDL;
+                break;
+            }
+            case DDSF_G16R16F: {
+                EXCEPTEX << "Float16 is not implemented." << ENDL;
+                break;
+            }
+            case DDSF_R16G16B16A16F: {
+                EXCEPTEX << "Float16 is not implemented." << ENDL;
+                break;
+            }
+            case DDSF_R32F: {
+                out.write(col[0]);
+                break;
+            }
+            case DDSF_G32R32F: {
+                // The ordering of channels here may be wrong, as this format is not documented.
+                out.write(col[0]);
+                out.write(col[1]);
+                break;
+            }
+            case DDSF_R32G32B32A32F: {
+                // The ordering of channels here may be wrong, as this format is not documented.
+                out.write(col[0]);
+                out.write(col[1]);
+                out.write(col[2]);
+                out.write(col[3]);
                 break;
             }
             default: EXCEPTEX << format << ENDL;
@@ -920,21 +1008,28 @@ namespace {
 
     ImageBase *read_compressed_image (InFile &in, uimglen_t width, uimglen_t height, uint32_t pf_fourcc)
     {
-        enum { BC1, BC2, BC3, BC4, BC5 } codec;
+        DDSFormat codec;
+        
         switch (pf_fourcc) {
-            case FOURCC('D', 'X', 'T', '1'): codec = BC1; break;
+            case FOURCC('D', 'X', 'T', '1'): codec = DDSF_BC1; break;
             case FOURCC('D', 'X', 'T', '2'):
-            case FOURCC('D', 'X', 'T', '3'): codec = BC2; break;
+            case FOURCC('D', 'X', 'T', '3'): codec = DDSF_BC2; break;
             case FOURCC('D', 'X', 'T', '4'):
-            case FOURCC('D', 'X', 'T', '5'): codec = BC3; break;
-            case FOURCC('A', 'T', 'I', '1'): codec = BC4; break;
-            case FOURCC('A', 'T', 'I', '2'): codec = BC5; break;
+            case FOURCC('D', 'X', 'T', '5'): codec = DDSF_BC3; break;
+            case FOURCC('A', 'T', 'I', '1'): codec = DDSF_BC4; break;
+            case FOURCC('A', 'T', 'I', '2'): codec = DDSF_BC5; break;
+            case 0x6F: codec = DDSF_R16F; break;
+            case 0x70: codec = DDSF_G16R16F; break;
+            case 0x71: codec = DDSF_R16G16B16A16F; break;
+            case 0x72: codec = DDSF_R32F; break;
+            case 0x73: codec = DDSF_G32R32F; break;
+            case 0x74: codec = DDSF_R32G32B32A32F; break;
             default:
             EXCEPT << "DDS file \""<<in.filename<<"\" has unrecognised fourcc:" << std::hex << pf_fourcc << ENDL;
         }
         switch (codec) {
-            case BC1: {
-                Image<3,1> *nu = new Image<3,1>(width, height);
+            case DDSF_BC1: {
+                auto *nu = new Image<3,1>(width, height);
                 for (uimglen_t y=0 ; y<height ; y+=4) {
                     for (uimglen_t x=0 ; x<width ; x+=4) {
                         auto col1 = in.read<uint16_t>();
@@ -945,8 +1040,8 @@ namespace {
                 }
                 return nu;
             }
-            case BC2: {
-                Image<3,1> *nu = new Image<3,1>(width, height);
+            case DDSF_BC2: {
+                auto *nu = new Image<3,1>(width, height);
                 for (uimglen_t y=0 ; y<height ; y+=4) {
                     for (uimglen_t x=0 ; x<width ; x+=4) {
                         auto alpha = in.read<uint64_t>();
@@ -968,8 +1063,8 @@ namespace {
                 }
                 return nu;
             }
-            case BC3: {
-                Image<3,1> *nu = new Image<3,1>(width, height);
+            case DDSF_BC3: {
+                auto *nu = new Image<3,1>(width, height);
                 for (uimglen_t y=0 ; y<height ; y+=4) {
                     for (uimglen_t x=0 ; x<width ; x+=4) {
                         auto alpha_blob = in.read<uint64_t>();
@@ -982,8 +1077,8 @@ namespace {
                 }
                 return nu;
             }
-            case BC4: {
-                Image<1,0> *nu = new Image<1,0>(width, height);
+            case DDSF_BC4: {
+                auto *nu = new Image<1,0>(width, height);
                 for (uimglen_t y=0 ; y<height ; y+=4) {
                     for (uimglen_t x=0 ; x<width ; x+=4) {
                         auto alpha_blob = in.read<uint64_t>();
@@ -992,14 +1087,64 @@ namespace {
                 }
                 return nu;
             }
-            case BC5: {
-                Image<2,0> *nu = new Image<2,0>(width, height);
+            case DDSF_BC5: {
+                auto *nu = new Image<2,0>(width, height);
                 for (uimglen_t y=0 ; y<height ; y+=4) {
                     for (uimglen_t x=0 ; x<width ; x+=4) {
                         auto alpha_blob1 = in.read<uint64_t>();
                         auto alpha_blob2 = in.read<uint64_t>();
                         draw_compressed_alpha_block<2,0,1>(nu, x, y, alpha_blob1);
                         draw_compressed_alpha_block<2,0,0>(nu, x, y, alpha_blob2);
+                    }
+                }
+                return nu;
+            }
+            case DDSF_R16F: {
+                auto *nu = new Image<1,0>(width, height);
+                EXCEPTEX << "Float16 not implemented." << ENDL;
+                return nu;
+            }
+            case DDSF_G16R16F: {
+                auto *nu = new Image<2,0>(width, height);
+                EXCEPTEX << "Float16 not implemented." << ENDL;
+                return nu;
+            }
+            case DDSF_R16G16B16A16F: {
+                auto *nu = new Image<3,1>(width, height);
+                EXCEPTEX << "Float16 not implemented." << ENDL;
+                return nu;
+            }
+            case DDSF_R32F: {
+                auto *nu = new Image<1,0>(width, height);
+                for (uimglen_t y=0 ; y<height ; ++y) {
+                    for (uimglen_t x=0 ; x<width ; ++x) {
+                        nu->pixel(x, y)[0] = in.read<float>();
+                    }
+                }
+                return nu;
+            }
+            case DDSF_G32R32F: {
+                auto *nu = new Image<2,0>(width, height);
+                for (uimglen_t y=0 ; y<height ; ++y) {
+                    for (uimglen_t x=0 ; x<width ; ++x) {
+                        // The ordering of channels may be wrong here, as this format is not
+                        // documented.
+                        nu->pixel(x, y)[1] = in.read<float>();
+                        nu->pixel(x, y)[0] = in.read<float>();
+                    }
+                }
+                return nu;
+            }
+            case DDSF_R32G32B32A32F: {
+                auto *nu = new Image<3,1>(width, height);
+                for (uimglen_t y=0 ; y<height ; ++y) {
+                    for (uimglen_t x=0 ; x<width ; ++x) {
+                        // The ordering of channels may be wrong here, as this format is not
+                        // documented.
+                        nu->pixel(x, y)[0] = in.read<float>();
+                        nu->pixel(x, y)[1] = in.read<float>();
+                        nu->pixel(x, y)[2] = in.read<float>();
+                        nu->pixel(x, y)[3] = in.read<float>();
                     }
                 }
                 return nu;

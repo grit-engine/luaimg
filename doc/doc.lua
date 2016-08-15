@@ -269,12 +269,13 @@ doc { "function", "dds_save_simple", module="Disk I/O",
 [[Save a simple dds (Direct Draw Surface) file to disk.  This will save a 2D
 texture, there are 2 other functions for saving cube maps and volume maps.  The
 available formats are R5G6B5, R8G8B8, A8R8G8B8, A2R10G10B10, A1R5G5B5, R8, R16,
-G16R16, A8R8, A4R4, A16R16, R3G3B2, A4R4G4B4, and BC1-5.  You must give an
-array of mipmaps to this function.  If you only want to save the top mipmap
-then use a single element array.  You can also use the mipmaps() function to
-generate mipmaps for you.</p><p>Note that the supplied images must have the right
-number of channels/alpha for the chosen format.  Don't forget that BC1 has an
-alpha channel.  To add a 100% alpha channel to an RGB image, use the img.xyzF
+G16R16, A8R8, A4R4, A16R16, R3G3B2, A4R4G4B4, BC1, BC2, BC3, BC4, BC5, R16F,
+G16R16F R16G16B16A16F, R32F, G32FR32F, and R32G32B32A32F.  You must give an
+array of mipmaps to this function.  If you only want to save the top mipmap then
+use a single element array.  You can also use the mipmaps() function to generate
+mipmaps for you.</p><p>Note that the supplied images must have the right number
+of channels/alpha for the chosen format.  Don't forget that BC1 has an alpha
+channel.  To add a 100% alpha channel to an RGB image, use the img.xyzF
 swizzle.]],
 
     { "param", "filename", "string" },
@@ -284,7 +285,8 @@ swizzle.]],
 
 doc { "function", "dds_save_cube", module="Disk I/O",
 
-[[Save a cubemap dds (Direct Draw Surface) file to disk.  This behaves much like dds_save_simple() except all sides of the cube must be supplied.]],
+[[Save a cubemap dds (Direct Draw Surface) file to disk.  This behaves much like
+dds_save_simple() except all sides of the cube must be supplied.]],
 
     { "param", "filename", "string" },
     { "param", "format", "string" },
