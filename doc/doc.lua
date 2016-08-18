@@ -1,5 +1,3 @@
-#!../luaimg.linux.x86_64 -F
-
 include "docgen.lua"
 
 if select("#",...) ~= 3 then
