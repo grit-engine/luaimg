@@ -121,7 +121,6 @@ CODEGEN= \
 	-Wno-type-limits \
 	-Wno-deprecated \
 	-g \
-	-ffast-math \
 
 
 # -----------
