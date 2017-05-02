@@ -1,12 +1,12 @@
 [submodule "dependencies/grit-lua"]
-	path = dependencies/grit-lua
-	url = git@github.com:grit-engine/grit-lua
+    path = dependencies/grit-lua
+    url = https://github.com/grit-engine/grit-lua.git
 [submodule "dependencies/grit-util"]
 	path = dependencies/grit-util
-	url = git@github.com:grit-engine/grit-util
+    url = https://github.com/grit-engine/grit-util.git
 [submodule "dependencies/libsquish"]
 	path = dependencies/libsquish
-	url = git@github.com:tito/libsquish
+    url = https://github.com/tito/libsquish.git
 [submodule "dependencies/grit-windows-prebuilt-dependencies"]
 	path = dependencies/grit-windows-prebuilt-dependencies
 	url = https://github.com/grit-engine/grit-windows-prebuilt-dependencies.git
