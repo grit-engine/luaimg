@@ -56,10 +56,8 @@ Image<1,0> *make_text_codepoint (const std::string &font, uimglen_t font_w, uimg
     FT_Face face;
     int error = FT_New_Face(ft2, font.c_str(), 0, &face);
     if (error == FT_Err_Unknown_File_Format) {
-        FT_Done_Face(face);
         EXCEPT<<"Unknown file format reading: "<<font<<std::endl;
     } else if (error != 0) {
-        FT_Done_Face(face);
         EXCEPT<<"Could not read "<<font<<": "<<error<<std::endl;
     }
 
@@ -124,10 +122,8 @@ Image<1,0> *make_text (const std::string &font, uimglen_t font_w, uimglen_t font
     FT_Face face;
     int error = FT_New_Face(ft2, font.c_str(), 0, &face);
     if (error == FT_Err_Unknown_File_Format) {
-        FT_Done_Face(face);
         EXCEPT<<"Unknown file format reading: "<<font<<std::endl;
     } else if (error != 0) {
-        FT_Done_Face(face);
         EXCEPT<<"Could not read "<<font<<": "<<error<<std::endl;
     }
 
