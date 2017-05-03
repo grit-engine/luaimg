@@ -144,10 +144,10 @@ Image<1,0> *make_text (const std::string &font, uimglen_t font_w, uimglen_t font
     pen.y = 0;
 
     // record max in here
-    uimglen_t max_x = 0;
-    uimglen_t max_y = 0;
-    uimglen_t min_x = 0;
-    uimglen_t min_y = 0;
+    simglen_t max_x = 0;
+    simglen_t max_y = 0;
+    simglen_t min_x = 0;
+    simglen_t min_y = 0;
 
     // calculate size
     for (size_t i=0 ; i<text.length() ; ++i) {
@@ -163,8 +163,8 @@ Image<1,0> *make_text (const std::string &font, uimglen_t font_w, uimglen_t font
 
         for (uimglen_t p=0 ; p<face->glyph->bitmap.width ; p++) {
             for (uimglen_t q=0 ; q<face->glyph->bitmap.rows ; q++) {
-                uimglen_t x = simglen_t(face->glyph->bitmap_left) + p;
-                uimglen_t y = simglen_t(face->glyph->bitmap_top) - q;
+                simglen_t x = simglen_t(face->glyph->bitmap_left) + p;
+                simglen_t y = simglen_t(face->glyph->bitmap_top) - q;
                 if (!FT_IS_SCALABLE(face)) {
                     x += pen.x / 64;
                     y += pen.y / 64;
