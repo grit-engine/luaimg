@@ -578,7 +578,7 @@ template<chan_t ch, chan_t ach> class Image : public ImageBase {
                                 add_gamma(ret->pixel(x+1,y+1)[c], err * 1.0/16);
                             break;
                         } else {
-                            // follow through
+                            __attribute__((fallthrough));
                         }
 
                         case DA_FLOYD_STEINBERG_LINEAR: {

@@ -1729,8 +1729,8 @@ static int image_convolve (lua_State *L)
     bool wrap_x = false;
     bool wrap_y = false;
     switch (lua_gettop(L)) {
-        case 4: wrap_y = check_bool(L, 4);
-        case 3: wrap_x = check_bool(L, 3);
+        case 4: wrap_y = check_bool(L, 4); __attribute__((fallthrough));
+        case 3: wrap_x = check_bool(L, 3); __attribute__((fallthrough));
         case 2: break;
         default: 
         my_lua_error(L, "image_convolve takes 2, 3, or 4 arguments");
@@ -1759,8 +1759,8 @@ static int image_convolve_sep (lua_State *L)
     bool wrap_x = false;
     bool wrap_y = false;
     switch (lua_gettop(L)) {
-        case 4: wrap_y = check_bool(L, 4);
-        case 3: wrap_x = check_bool(L, 3);
+        case 4: wrap_y = check_bool(L, 4); __attribute__((fallthrough));
+        case 3: wrap_x = check_bool(L, 3); __attribute__((fallthrough));
         case 2: break;
         default: 
         my_lua_error(L, "image_convolve_sep takes 2, 3, or 4 arguments");
@@ -2390,6 +2390,7 @@ HANDLE_BEGIN
     switch (lua_gettop(L)) {
         case 2:
         scale_filter = scale_filter_from_string(luaL_checkstring(L, 2));
+        __attribute__((fallthrough));
         case 1:
         self = check_ptr<ImageBase>(L, 1, IMAGE_TAG);
         break;
