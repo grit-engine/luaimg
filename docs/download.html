@@ -1,0 +1,71 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>LuaImg Documentation</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+    <link rel="stylesheet" type="text/css" href="doc.css" />
+    <link rel="icon" type="image/png" href="logo_tiny.png" />
+</head>
+
+<body>
+    <div class='titleblock'>        <a href='http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/logo.lua'><img class='logo' src='logo_large.png' alt='logo' /></a>        <h1>LuaImg</h1>        <div class='toplinks'>            <a class='toplink' href='./'>Overview</a>            <a class='toplink' href='examples.html'>Examples</a>            <a class='toplink' href='download.html'>Download</a>            <a class='toplink' href='usage.html'>Usage</a>            <a class='toplink' href='api.html'>Script API</a>        <div style='clear: both'></div>        </div>    </div>    <h2>Download</h2>
+
+    <div class="prose">
+
+        <p>Static builds of LuaImg are available for Windows and Linux (Ubuntu).  The latest (alpha)
+        builds containing Windows XP (32 bit) and Ubuntu Precise LTS (AMD64) are linked below:</p>
+
+        <ul>
+
+            <li>Version 0.9: <a href="luaimg-0.9.0.zip">zip</a> and <a
+            href="luaimg-0.9.0.tar.bz2">tar.bz2</a></li>
+
+            <li>Version 0.8: <a href="luaimg-0.8.0.zip">zip</a> and <a
+            href="luaimg-0.8.0.tar.bz2">tar.bz2</a></li>
+
+            <li>Version 0.7: <a href="luaimg-0.7.0.zip">zip</a> and <a
+            href="luaimg-0.7.0.tar.bz2">tar.bz2</a></li>
+
+        </ul>
+
+    </div>
+
+    <h2>License</h2>
+
+    <div class="prose">
+
+        <p>Lua is MIT licensed and (c) PUC-Rio.  The extensions to the Lua VM and the LuaImg code
+        are (c) David Cunningham and also released under the MIT license.</p>
+
+    </div>
+
+    <h2>Building from Source</h2>
+
+    <div class="prose">
+
+        <p>The source code for LuaImg lives in the Grit <a
+        href="http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/">svn repository</a>.  Grit
+        is much larger than Luaimg, as it is a full game engine with example content.  If you want
+        to avoid checking out the entire repository, get the luaimg and dependencies directories
+        only.  The compilation instructions for LuaImg are similar to the <a
+        href="http://www.gritengine.com/game-engine-wiki/Compilation+Instructions">Grit Compilation
+        Instructions</a> page, but with some differences (unless you want to build all of Grit as
+        well).</p>
+
+        <p>On windows, use the VC solution file and build the Luaimg project.  That will build all
+        the necessary dependencies.</p>
+
+        <p>On unix-based OS, the steps required are a subset of those for the Grit project.  You do
+        not need to build Bullet or Ogre (or Grit).  You do still need to build ICU because of the
+        text rendering support in Luaimg.  You also need to build squish, which is used for DXT
+        compression (for dds export), and gif_lib.  Run make in their directories in dependencies/
+        You'll need libreadline installed (on Ubuntu: libreadline-dev).  The actual Luaimg
+        executable is built by running make in the luaimg dir.</p>
+
+        <p>If you have any trouble, contact us on the Grit IRC channel or forums, see the <a
+        href="http://www.gritengine.com/">Grit website</a> for details.</p>
+
+    </div>
+    <p style="float:right;"><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a></p><script type="text/javascript">    (function(i,s,o,g,r,a,m){i["GoogleAnalyticsObject"]=r;i[r]=i[r]||function(){    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)    })(window,document,"script","//www.google-analytics.com/analytics.js","ga");    ga("create", "UA-45157876-1", "gritengine.com");    ga("send", "pageview");</script></body>
+
+</html>

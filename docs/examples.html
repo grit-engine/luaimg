@@ -1,0 +1,55 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>LuaImg Documentation</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+    <link rel="stylesheet" type="text/css" href="doc.css" />
+    <link rel="icon" type="image/png" href="logo_tiny.png" />
+</head>
+
+<body>
+    <div class='titleblock'>        <a href='http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/logo.lua'><img class='logo' src='logo_large.png' alt='logo' /></a>        <h1>LuaImg</h1>        <div class='toplinks'>            <a class='toplink' href='./'>Overview</a>            <a class='toplink' href='examples.html'>Examples</a>            <a class='toplink' href='download.html'>Download</a>            <a class='toplink' href='usage.html'>Usage</a>            <a class='toplink' href='api.html'>Script API</a>        <div style='clear: both'></div>        </div>    </div>    <h2>Script Language Examples</h2>
+    <div class="prose">
+        <p>Lua programs are also LuaImg programs, so the Lua hello world program stands:</p>
+<div class='code'>print&nbsp;<span class='codestring'>"Hello&nbsp;world!"</span></div>
+
+        <p>Create a 32x32 image with 3 channels containing solid red (vec(1,0,0)).  Save to a file (can also be written on one line):</p>
+        <img src="red.png" style="float:right;" alt="LuaImg output" />
+<div class='code'>my_img&nbsp;=&nbsp;make(vec(<span class='codeliteral'>32</span>,<span class='codeliteral'>32</span>),&nbsp;<span class='codeliteral'>3</span>,&nbsp;vec(<span class='codeliteral'>1</span>,<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>))<br/>my_img:save(<span class='codestring'>"red<span class='codeliteral'>.</span>png"</span>)</div>
+
+        <p>Draw a black border around that image and a few white pixels in it.</p>
+        <img src="redb.png" style="float:right;" alt="LuaImg output" />
+<div class='code'>my_img:drawLine(vec(<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>),vec(<span class='codeliteral'>0</span>,<span class='codeliteral'>31</span>),<span class='codeliteral'>1</span>,vec(<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>))<br/>my_img:drawLine(vec(<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>),vec(<span class='codeliteral'>31</span>,<span class='codeliteral'>0</span>),<span class='codeliteral'>1</span>,vec(<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>))<br/>my_img:drawLine(vec(<span class='codeliteral'>31</span>,<span class='codeliteral'>31</span>),vec(<span class='codeliteral'>0</span>,<span class='codeliteral'>31</span>),<span class='codeliteral'>1</span>,vec(<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>))<br/>my_img:drawLine(vec(<span class='codeliteral'>31</span>,<span class='codeliteral'>31</span>),vec(<span class='codeliteral'>31</span>,<span class='codeliteral'>0</span>),<span class='codeliteral'>1</span>,vec(<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>))<br/>my_img:draw(vec(<span class='codeliteral'>10</span>,<span class='codeliteral'>15</span>),vec(<span class='codeliteral'>1</span>,<span class='codeliteral'>1</span>,<span class='codeliteral'>1</span>))<br/>my_img:draw(vec(<span class='codeliteral'>15</span>,<span class='codeliteral'>15</span>),vec(<span class='codeliteral'>1</span>,<span class='codeliteral'>1</span>,<span class='codeliteral'>1</span>))<br/>my_img:draw(vec(<span class='codeliteral'>15</span>,<span class='codeliteral'>10</span>),vec(<span class='codeliteral'>1</span>,<span class='codeliteral'>1</span>,<span class='codeliteral'>1</span>))<br/>my_img:save(<span class='codestring'>"redb<span class='codeliteral'>.</span>png"</span>)</div>
+
+        <p>Initialising a 3 channel + alpha image using a function (computes an antialiased blue circle with alpha):</p>
+        <img src="circle.png" style="float:right;" alt="LuaImg output" />
+<div class='code'><span class='codekeyword'>local</span>&nbsp;sz&nbsp;=&nbsp;vec(<span class='codeliteral'>64</span>,<span class='codeliteral'>64</span>)<br/><span class='codekeyword'>function</span>&nbsp;init(pos)<br/>&nbsp;&nbsp;&nbsp;&nbsp;<span class='codekeyword'>local</span>&nbsp;rad&nbsp;=&nbsp;#(pos&nbsp;-&nbsp;sz/<span class='codeliteral'>2</span>);<br/>&nbsp;&nbsp;&nbsp;&nbsp;<span class='codekeyword'>local</span>&nbsp;alpha&nbsp;=&nbsp;clamp(<span class='codeliteral'>30</span>-rad,&nbsp;<span class='codeliteral'>0</span>,&nbsp;<span class='codeliteral'>1</span>)<br/>&nbsp;&nbsp;&nbsp;&nbsp;<span class='codekeyword'>return</span>&nbsp;vec(<span class='codeliteral'>0</span>,&nbsp;<span class='codeliteral'>0</span>,&nbsp;<span class='codeliteral'>1</span>,&nbsp;alpha)<br/><span class='codekeyword'>end</span><br/>circle&nbsp;=&nbsp;make(sz,&nbsp;<span class='codeliteral'>3</span>,&nbsp;<span class='codeliteral'>true</span>,&nbsp;init)<br/>circle:save(<span class='codestring'>"circle<span class='codeliteral'>.</span>png"</span>)</div>
+
+        <p>From the circle image, rotate the colour channels (preserving the alpha), and blend onto a solid yellow background, then enlarge it to get a black border:</p>
+        <img src="circle_bg.png" style="float:right;" alt="LuaImg output" />
+<div class='code'>img&nbsp;=&nbsp;(circle<span class='codeliteral'>.</span>zxyW&nbsp;<span class='codeliteral'>..</span>&nbsp;vec(<span class='codeliteral'>1</span>,<span class='codeliteral'>1</span>,<span class='codeliteral'>0</span>)):crop(vec(-<span class='codeliteral'>1</span>,-<span class='codeliteral'>1</span>),&nbsp;vec(<span class='codeliteral'>66</span>,<span class='codeliteral'>66</span>),&nbsp;<span class='codeliteral'>0</span>)<br/>img:save(<span class='codestring'>"circle_bg<span class='codeliteral'>.</span>png"</span>)</div>
+
+        <p>Blend the circle image onto red.png:</p>
+        <img src="circle_bg_red.png" style="float:right;" alt="LuaImg output" />
+<div class='code'>smaller&nbsp;=&nbsp;circle:scale(vec(<span class='codeliteral'>32</span>,<span class='codeliteral'>32</span>),<span class='codestring'>"BICUBIC"</span>)<br/>blended&nbsp;=&nbsp;smaller&nbsp;<span class='codeliteral'>..</span>&nbsp;open(<span class='codestring'>"red<span class='codeliteral'>.</span>png"</span>)<br/>blended:save(<span class='codestring'>"circle_bg_red<span class='codeliteral'>.</span>png"</span>)</div>
+
+        <p>Extract alpha channel and save it:</p>
+        <img src="circle_a.png" style="float:right;" alt="LuaImg output" />
+<div class='code'>my_mask&nbsp;=&nbsp;circle<span class='codeliteral'>.</span>w<br/>my_mask:save(<span class='codestring'>"circle_a<span class='codeliteral'>.</span>png"</span>)</div>
+
+        <p>Random RGB noise:</p>
+        <img src="random.png" style="float:right;" alt="LuaImg output" />
+<div class='code'><span class='codekeyword'>function</span>&nbsp;randvec()&nbsp;<span class='codekeyword'>return</span>&nbsp;vec(random(),&nbsp;random(),&nbsp;random())&nbsp;<span class='codekeyword'>end</span><br/>my_noise&nbsp;=&nbsp;make(vec(<span class='codeliteral'>64</span>,<span class='codeliteral'>64</span>),&nbsp;<span class='codeliteral'>3</span>,&nbsp;randvec)<br/>my_noise:save(<span class='codestring'>"random<span class='codeliteral'>.</span>png"</span>)</div>
+
+        <p>Random noise with gaussian blur.  The gaussian(n) function returns an nx1 image that represents a separated normalised gaussian blur kernel.  One can also use custom kernels by providing an image instead of using the result of gaussian() -- and these can be provided either in separated form, or as a general rectangular matrix.</p>
+        <img src="perlin.png" style="float:right;" alt="LuaImg output" />
+<div class='code'>my_perlin&nbsp;=&nbsp;my_noise:convolveSep(gaussian(<span class='codeliteral'>7</span>),&nbsp;<span class='codeliteral'>true</span>,&nbsp;<span class='codeliteral'>true</span>)<br/>my_perlin:save(<span class='codestring'>"perlin<span class='codeliteral'>.</span>png"</span>)</div>
+
+        <p>Subtract the two to create a high frequency noise texture.  Generally, using arithmetic to combine images is supported.</p>
+        <img src="noise_hifreq.png" style="float:right;" alt="LuaImg output" />
+<div class='code'>((my_noise-my_perlin)&nbsp;+&nbsp;<span class='codeliteral'>0.5</span>):save(<span class='codestring'>"noise_hifreq<span class='codeliteral'>.</span>png"</span>)</div>
+
+    </div>
+    <p style="float:right;"><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a></p><script type="text/javascript">    (function(i,s,o,g,r,a,m){i["GoogleAnalyticsObject"]=r;i[r]=i[r]||function(){    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)    })(window,document,"script","//www.google-analytics.com/analytics.js","ga");    ga("create", "UA-45157876-1", "gritengine.com");    ga("send", "pageview");</script></body>
+
+</html>

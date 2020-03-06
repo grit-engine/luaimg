@@ -1,0 +1,57 @@
+    <h2>Usage</h2>
+
+    <div class="prose">
+
+        <p>LuaImg is a commandline interpreter that can execute snippets, files, or be an interactive console.  To execute simple snippets from the shell, run luaimg as follows:</p>
+
+        <div class='code'>
+            $ luaimg -e 'make(vec(<span class='codeliteral'>100</span>,<span class='codeliteral'>100</span>),<span class='codeliteral'>3</span>,vec(<span class='codeliteral'>1</span>,<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>)):save(<span class='codestring'>"red_square.png"</span>)'<br />
+            $ ls -l red_square.png<br />
+            -rw-r----- 1 user user 308 Oct 11 19:56 red_square.png
+        </div>
+
+        <p>To execute a script file, use the -f option:</p>
+
+        <div class='code'>
+            $ luaimg -f myfile.lua
+        </div>
+
+        <p>The interpreter can execute multiple snippets and files, they are
+executed in the order they appear along the comandline.  Any additional
+commandline parameters (ones that do not begin with a -) are available in the
+script as Lua varags (...).  The -- parameter causes all subsequent commandline
+options to be treated as script arguments, as is standard in many unix shell
+executables.</p>
+
+        <div class='code'>
+            $ luaimg -e 'print(<span class='codestring'>"foo"</span>)' -e 'print(...)' hello world<br />
+            foo<br />
+            hello&nbsp;&nbsp;&nbsp;&nbsp;world
+        </div>
+
+
+        <p>The -i parameter enters an interactive shell where LuaImg script
+fragments can be typed.  This is extremely useful for debugging and rapid
+prototyping, and can be combined with the other parameters.</p>
+
+        <p>Finally, the -F parameter is a shorthand for -f --, and allows using
+a hashbang first line annotation for unix scripts.  These scripts can then have
+execute permissions and be run as regular unix executables (with their own commandline
+parameters:</p>
+
+        <div class='code'>
+            $ cat execute_me.lua <br />
+            <span class='codecomment'>#!/usr/bin/luaimg -F</span> <br />
+            <span class='codekeyword'>local</span> name = select(<span class='codeliteral'>1</span>, ...) <br />
+            print (<span class='codestring'>"Hello "</span>..name..<span class='codestring'>"!"</span>) <br />
+            $ chmod a+x execute_me.lua <br />
+            $ ./execute_me.lua Dave <br />
+            Hello Dave!
+        </div>
+
+        <p>See the examples directory in the repository for examples of non-trivial
+programs.  In particular the logo (seen on this web site) is generated with the
+logo.lua script in this directory.</p>
+
+    </div>
+

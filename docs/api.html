@@ -1,0 +1,711 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>LuaImg Documentation</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+    <link rel="stylesheet" type="text/css" href="doc.css" />
+    <link rel="icon" type="image/png" href="logo_tiny.png" />
+</head>
+
+<body>
+    <div class='titleblock'>        <a href='http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/logo.lua'><img class='logo' src='logo_large.png' alt='logo' /></a>        <h1>LuaImg</h1>        <div class='toplinks'>            <a class='toplink' href='./'>Overview</a>            <a class='toplink' href='examples.html'>Examples</a>            <a class='toplink' href='download.html'>Download</a>            <a class='toplink' href='usage.html'>Usage</a>            <a class='toplink' href='api.html'>Script API</a>        <div style='clear: both'></div>        </div>    </div>    <h2>Global Functions</h2>
+<h3>Disk I/O</h3>    <div class="function">
+    <div class="functionhead">dds_open (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">dds_open<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">filename</span><span class="paramtype"> : string</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Load a dds (Direct Draw Surface) file from disk.  This format is different
+from the other supported formats because it is a package of image files with
+associated metadata.  The first return value is the content of the dds file,
+which can consist of more than one image.  The second is a string indicating
+the kind of file that was opened, of which there are 3 possibilities.</p><p>If
+the kind is SIMPLE, then the dds file was a simple 2D texture so the content is
+a table containing the mipmaps (in descending order of size).  If the kind is
+CUBE, then the table contains 6 sides of this cube, e.g. in the field px is the
+positive x side, nx is the negative x side, and similarly for the y and z axes.
+Such textures are typically used for 360 degree panoramas.  Finally, if the
+kind is VOLUME, then this is a 3D texture.  The content is a table of volume
+mipmaps, each of which is a table containing all the single images that
+comprise the volume, one slice at a time.</p><p>BC1-5 are supported, as
+well as the basic raw formats.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">table</span><span class="returncomma">, </span><span class="paramtype">{ "SIMPLE", "CUBE", "VOLUME" }</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">dds_save_cube (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">dds_save_cube<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">filename</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/><span class="paramname">format</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/><span class="paramname">pos_x</span><span class="paramtype"> : array of images</span><span class="paramparen">,</span> <br/><span class="paramname">neg_x</span><span class="paramtype"> : array of images</span><span class="paramparen">,</span> <br/><span class="paramname">pos_y</span><span class="paramtype"> : array of images</span><span class="paramparen">,</span> <br/><span class="paramname">neg_y</span><span class="paramtype"> : array of images</span><span class="paramparen">,</span> <br/><span class="paramname">pos_z</span><span class="paramtype"> : array of images</span><span class="paramparen">,</span> <br/><span class="paramname">neg_z</span><span class="paramtype"> : array of images</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Save a cubemap dds (Direct Draw Surface) file to disk.  This behaves much like
+dds_save_simple() except all sides of the cube must be supplied.</p></div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">dds_save_simple (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">dds_save_simple<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">filename</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/><span class="paramname">format</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/><span class="paramname">mipmaps</span><span class="paramtype"> : array of images</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Save a simple dds (Direct Draw Surface) file to disk.  This will save a 2D
+texture, there are 2 other functions for saving cube maps and volume maps.  The
+available formats are R5G6B5, R8G8B8, A8R8G8B8, A2R10G10B10, A1R5G5B5, R8, R16,
+G16R16, A8R8, A4R4, A16R16, R3G3B2, A4R4G4B4, BC1, BC2, BC3, BC4, BC5, R16F,
+G16R16F R16G16B16A16F, R32F, G32FR32F, and R32G32B32A32F.  You must give an
+array of mipmaps to this function.  If you only want to save the top mipmap then
+use a single element array.  You can also use the mipmaps() function to generate
+mipmaps for you.</p><p>Note that the supplied images must have the right number
+of channels/alpha for the chosen format.  Don't forget that BC1 has an alpha
+channel.  To add a 100% alpha channel to an RGB image, use the img.xyzF
+swizzle.</p></div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">dds_save_volume (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">dds_save_volume<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">filename</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/><span class="paramname">format</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/><span class="paramname">mipmaps</span><span class="paramtype"> : array of arrays of images</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Save a volume dds (Direct Draw Surface) file to disk.  This behaves much like
+dds_save_simple() except each mipmap is a table of slices (images), thus the
+input is an array of arrays of images.  If you do not want images, give a
+singleton array containing the array of the slices in your volume.  You can
+also use volume_mipmaps() to generate the array of arrays from an array of
+images.</p></div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">gif_open (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">gif_open<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">filename</span><span class="paramtype"> : string</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Open a gif file.  While the regular open() call supports gifs, this function additionally supports
+reading the various frames from animated gifs.  Returned are 3 values, the first is the number of
+loops (0 to 56636 inclusive, 0 meaning infinite looping).  The second is an array of images, one for
+each frame, and the final value is a table of delays (in seconds).</p></div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">gif_save (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">gif_save<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">filename</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/><span class="paramname">loops</span><span class="paramtype"> : number</span><span class="paramparen">,</span> <br/><span class="paramname">frames</span><span class="paramtype"> : array of images</span><span class="paramparen">,</span> <br/><span class="paramname">delays</span><span class="paramtype"> : { number, array of numbers }</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Save a gif file.  While gifs can be saved with the save() method of an image, this call allows
+saving many frames to create an animated gif.  Specifying 0 loops means infinite looping.  The
+images must all be the same size and have 3 channels (with optional alpha).  Giving a single delay
+means the same delay is used for all frames, or an array can be used to give a different delay for
+each frame. In either case, the delays are in seconds, must be given in multiples of 0.01, and
+values less than 0.02 are not well-supported by browsers..</p></div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">open (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">open<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">filename</span><span class="paramtype"> : string</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Load an image file from disk.  The file extension is used to determine the
+format.  The extension 'sfi' is a special raw format.  This can be used to save
+and restore images in LuaImg's internal representation, which is 4 bytes per
+pixel per channel.  All other formats are loaded with libfreeimage.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">Image</span></div>
+        </div>
+    </div>
+    </div>
+<h3>General Utilities</h3>    <div class="function">
+    <div class="functionhead">HSLtoRGB (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">HSLtoRGB<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">colour</span><span class="paramtype"> : vector3</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>There are 6 functions for converting between the various combinations of RGB,
+HSV, and HSL.  HSV is distinguished from HSL because in HSL, 100% brightness is
+white (i.e. it desaturates), whereas in HSV it retains saturation.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">vector3</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">colour (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">colour<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">d</span><span class="paramtype"> : number</span><span class="paramparen">,</span><span class="paramname">n</span><span class="paramtype"> : number</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Return a vector value of the given dimensionality, all of whose elements
+are the given value.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">vector</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">cross (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">cross<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">a</span><span class="paramtype"> : vector3</span><span class="paramparen">,</span><span class="paramname">b</span><span class="paramtype"> : vector3</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Compute the cross product of the given vectors.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">vector3</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">dot (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">dot<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">a</span><span class="paramtype"> : vector</span><span class="paramparen">,</span><span class="paramname">b</span><span class="paramtype"> : vector</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Compute the dot product of the given vectors.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">number</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">inv (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">inv<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">a</span><span class="paramtype"> : quat</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Invert a quaternion.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">quat</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">norm (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">norm<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">a</span><span class="paramtype"> : { vector, quat }</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Normalise the vector or quaternion (return a value that has length 1 but is
+otherwise equivalent).</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">{ vector, quat }</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">seconds (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">seconds<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Return the number of seconds since reboot.  Useful for benchmarking.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">number</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">slerp (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">slerp<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">a</span><span class="paramtype"> : quat</span><span class="paramparen">,</span> <br/><span class="paramname">b</span><span class="paramtype"> : quat</span><span class="paramparen">,</span> <br/><span class="paramname">alpha</span><span class="paramtype"> : number</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Interpolate between two quaternions.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">quat</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">vec (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">vec<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">x</span><span class="paramtype"> : number</span><span class="paramparen">,</span> <br/>[<span class="paramname">y</span><span class="paramtype"> : number</span>]<span class="paramparen">,</span> <br/>[<span class="paramname">z</span><span class="paramtype"> : number</span>]<span class="paramparen">,</span> <br/>[<span class="paramname">w</span><span class="paramtype"> : number</span>]<span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Convert to a vector value, the number of arguments determines the number of
+dimensions of the vector.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">vector</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">vec4 (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">vec4<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">...</span><span class="paramtype"> : { number, vector, ... }</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Convert to a vector4 value.  The arguments can be either numbers or other
+vectors of any size as long as the total number of elements is 2.  There are
+similar functions vec2 and vec3 for creating vectors of other sizes.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">vector4</span></div>
+        </div>
+    </div>
+    </div>
+<h3>Image Globals</h3>    <div class="function">
+    <div class="functionhead">gaussian (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">gaussian<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">n</span><span class="paramtype"> : number</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Generate a separated Gaussian convolution kernel.  This is an nx1 image
+containing that row of Pascal's triangle, normalised so it all sums to 1.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">Image</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">lerp (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">lerp<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">v1</span><span class="paramtype"> : T</span><span class="paramparen">,</span> <br/><span class="paramname">v2</span><span class="paramtype"> : T</span><span class="paramparen">,</span> <br/><span class="paramname">alpha</span><span class="paramtype"> : number</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Interpolate between two colours / images.  T can be number, vector2/3/4, or
+Image.  If lerping images, they must be compatible.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">T</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">make (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">make<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">size</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span> <br/><span class="paramname">channels</span><span class="paramtype"> : { 1, 2, 3, 4 }</span><span class="paramparen">,</span> <br/>[<span class="paramname">alpha</span><span class="paramtype"> : boolean</span>]<span class="paramparen">,</span> <br/><span class="paramname">init</span><span class="paramtype"> : { colour, array[colour], (vector2)->(colour) }</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Create a new image of the specificed size, with the specified number of
+colour channels.  If channels&lt;4, one can also add an alpha channel.  Alpha
+channels behave differently than regular channels.  The init parameter can be
+either a single colour (for a solid image), an array of colours of size W*H, or
+a function that provides the colour at each pixel.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">Image</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">mipmaps (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">mipmaps<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">img</span><span class="paramtype"> : Image</span><span class="paramparen">,</span><span class="paramname">filter</span><span class="paramtype"> : string</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Takes an image, and creates an array of scaled versions of the image, where
+each successive image is half the size of the previous one in both dimensions.
+This is mainly useful for the dds_save family of functions.  The available
+filters are the same as for the image:scale() method.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">array of Images</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">volume_mipmaps (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">volume_mipmaps<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">volume</span><span class="paramtype"> : array of Images</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Takes a volume (an array of images), and creates an array of scaled versions
+of the volume, where each successive volume is half the size of the previous
+one in all 3 dimensions.  This is mainly useful for the dds_save_volume
+function.  The volume must have power of 2 size in all dimensions, and is
+filtered with a BOX filter.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">array of arrays of Images</span></div>
+        </div>
+    </div>
+    </div>
+<h3>Text</h3>    <div class="function">
+    <div class="functionhead">text (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">text<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">font</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/><span class="paramname">size</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span> <br/><span class="paramname">text</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/>[<span class="paramname">matrix_row1</span><span class="paramtype"> : vector2</span>]<span class="paramparen">,</span> <br/>[<span class="paramname">matrix_row2</span><span class="paramtype"> : vector2</span>]<span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Create a new image containing the rendered line of text.  The image is
+automatically sized to fit the text.  Bitmap or scalable fonts can be used, and
+are specified as a path e.g. to the ttf or the pcf.gz file.  The font size can
+be chosen (width and height).  Optionally, a 2x2 matrix can be supplied, which
+defines an affine transformation on the rendered text (rotation, scale, skew).
+If given, this is applied after the scaling due to the font size.  The returned
+grey scale image has the text rendered, antialiased, in white, on a black
+background.  Combine this call with other features of luaimg to achieve drop
+shadows, colour, etc.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">Image</span></div>
+        </div>
+    </div>
+    </div>
+    <div class="function">
+    <div class="functionhead">text_codepoint (global function)</div>
+    <div class="functionbody">
+        <div class="signature">
+            <div class="name">text_codepoint<span class="paramparen">(</span></div>
+            <div class="paramlist"><span class="paramname">font</span><span class="paramtype"> : string</span><span class="paramparen">,</span> <br/><span class="paramname">size</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span> <br/><span class="paramname">char</span><span class="paramtype"> : string</span><span class="paramparen">)</span></div>
+        </div>
+        <div class="desc"><p>Similar to the text() function but renders a single character (codepoint) of
+text (provided as a UTF8 string).  The size of the returned image includes
+spacing around the letter that is appropriate for collating this character with
+others from the same font and size to form paragraphs of text.  The text() call
+always removes blank pixels around the text so is not suitable for this
+purpose.  Kerning information is not provided.</p></div>
+        <div class="returns_sec">
+            <span class="returns">Returns:</span>
+            <div class="returnlist"><span class="paramtype">Image</span></div>
+        </div>
+    </div>
+    </div>
+    <h2>Classes</h2>
+    <div class="class">
+        <div class="classhead">Image (class)</div>
+        <div class="classbody">
+            <div class="desc"><p>A 2d rectangular grid of pixels.  Pixels are represented in single precision
+floating point.  The image can have 1,2,3, or 4 colour channels.  If an image
+has less than 4 channels, it is allowed to additionally have an alpha channel
+(alpha channels have special behaviours when composing images).</p> <p> Images
+can be combined by arithmetic (+,-,*,/,^).  The ..  operator combines images
+according to alpha blending (i.e. regular blend mode in Photoshop/Gimp).  Other
+blend modes are available via the mathematical operators.  You can therefore
+mask images using the multiplication operator, add using the add operator, etc
+(see examples above).</p>  <p>Individual pixel values of an image can be
+accessed using the function call syntax, e.g. img(10,20).  Other functionality
+is exposed via specific methods on images.  Images can be swizzled to extract
+specific channels.  If a swizzle's last character is a capital letter, this
+creates an alpha channel.  E.g. img.yX will yield a greyscale image with alpha
+channel.  The value channel is the old green channel and the alpha channel is
+the old red channel.  The two special swizzle characters f (full) and e (empty)
+create a channel containing 1 or 0, respectively.</p></div>
+            <div class="classdivider">Fields:</div>
+            <div class="classfieldlist">
+                <div class="classfield"><span class="classfieldname">allChannels</span><span class="paramtype"> : number</span><div class="classfielddesc"><p>The number of channels in the image (including alpha).</p></div></div>
+                <div class="classfield"><span class="classfieldname">colourChannels</span><span class="paramtype"> : number</span><div class="classfielddesc"><p>The number of channels in the image (not including alpha).</p></div></div>
+                <div class="classfield"><span class="classfieldname">hasAlpha</span><span class="paramtype"> : boolean</span><div class="classfielddesc"><p>Whether or not the last channel is an alpha channel.</p></div></div>
+                <div class="classfield"><span class="classfieldname">height</span><span class="paramtype"> : number</span><div class="classfielddesc"><p>The number of pixels in a column of the image.</p></div></div>
+                <div class="classfield"><span class="classfieldname">numPixels</span><span class="paramtype"> : vector2</span><div class="classfielddesc"><p>The width x height.</p></div></div>
+                <div class="classfield"><span class="classfieldname">size</span><span class="paramtype"> : vector2</span><div class="classfielddesc"><p>The width and height as a single value.</p></div></div>
+                <div class="classfield"><span class="classfieldname">width</span><span class="paramtype"> : number</span><div class="classfielddesc"><p>The number of pixels in a row of the image.</p></div></div>
+            </div>
+            <div class="classdivider">Methods:</div>
+            <div class="classmethodlist">
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">abs<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>The returned image is the absolute value of this image, i.e. negative pixel channel values are made positive.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">clamp<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">min</span><span class="paramtype"> : colour</span><span class="paramparen">,</span><span class="paramname">max</span><span class="paramtype"> : colour</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>The returned image's pixels are forced within the given range (inclusive).</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">clone<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Create a new image identical to this one.  This is useful if you then modify it with set, drawImage, etc.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">convolve<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">kernel</span><span class="paramtype"> : Image</span><span class="paramparen">,</span> <br/>[<span class="paramname">wrapx</span><span class="paramtype"> : boolean</span>]<span class="paramparen">,</span> <br/>[<span class="paramname">wrapy</span><span class="paramtype"> : boolean</span>]<span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Perform a convolution operation on this image, using the given kernel, to yield a new image.  The kernel must have a single channel and have an odd width and height.  The wrapx and wrapy control the behaviour at the edge of the image and default to false.  When not wrapping, the effect is to 'clamp' the lookups at the pixel border.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">convolveSep<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">kernel</span><span class="paramtype"> : Image</span><span class="paramparen">,</span> <br/>[<span class="paramname">wrapx</span><span class="paramtype"> : boolean</span>]<span class="paramparen">,</span> <br/>[<span class="paramname">wrapy</span><span class="paramtype"> : boolean</span>]<span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Perform a convolution operation on this image, using the given separable kernel, to yield a new image.  The kernel must have a single channel, an odd width, and a height of 1.  The kernel is used to first convolve horizontally, and then vertically.  This is often more efficient than creating a square kernel and doing a single convolution operation.  The wrapx and wrapy control the behaviour at the edge of the image and default to false.  When not wrapping, the effect is to 'clamp' the lookups at the pixel border.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">crop<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">bottom_left</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span> <br/><span class="paramname">size</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span> <br/>[<span class="paramname">background</span><span class="paramtype"> : colour</span>]<span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Create a new image of the given size that is initialised to a copied version of this image, or the background colour if the pixel is not within the bounds of this image.  If no background colour is given, the image is wrapped (repeated).</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">cropCentre<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">size</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span>[<span class="paramname">background</span><span class="paramtype"> : colour</span>]<span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>As the crop method, except the location is fixed to the center.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">draw<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">pos</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span><span class="paramname">colour</span><span class="paramtype"> : colour</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Assign a given colour to a single pixel coordinate.</p></div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">drawImage<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">other</span><span class="paramtype"> : Image</span><span class="paramparen">,</span> <br/><span class="paramname">bottom_left</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span> <br/>[<span class="paramname">wrap_x</span><span class="paramtype"> : boolean</span>]<span class="paramparen">,</span> <br/>[<span class="paramname">wrap_y</span><span class="paramtype"> : boolean</span>]<span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Draw another image on top of this image, in the position given.  Both images must have the same number of non-alpha channels.  The image being drawn on top must have an alpha channel but this image need not.  The two boolean parameters cause the other image to wrap around this image if it is drawn at the edges.  This is useful when creating wrappable textures.  The wrap parameters both default to false.</p></div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">drawImageAt<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">other</span><span class="paramtype"> : Image</span><span class="paramparen">,</span> <br/><span class="paramname">pos</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span> <br/>[<span class="paramname">wrap_x</span><span class="paramtype"> : boolean</span>]<span class="paramparen">,</span> <br/>[<span class="paramname">wrap_y</span><span class="paramtype"> : boolean</span>]<span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>The same as drawImage but draws the image centered at the given location instead of with its bottom left corner at that location.  </p></div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">drawLine<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">start</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span> <br/><span class="paramname">end</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span> <br/><span class="paramname">width</span><span class="paramtype"> : number</span><span class="paramparen">,</span> <br/><span class="paramname">colour</span><span class="paramtype"> : colour</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Draw a line between two points.</p></div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">flip<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Create a new image identical to this one but inverted on the Y axis.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">foreach<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">func</span><span class="paramtype"> : (vector2)->()</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Execute the given closure once for each pixel of the image.</p></div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">gamma<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">n</span><span class="paramtype"> : colour</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Gamma encode/decode the given image.  Use a value of n > 1 to decode (usually 2.2) and 1/n to encode.  </p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">map<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">channels</span><span class="paramtype"> : number</span><span class="paramparen">,</span> <br/>[<span class="paramname">alpha</span><span class="paramtype"> : boolean</span>]<span class="paramparen">,</span> <br/><span class="paramname">func</span><span class="paramtype"> : (colour, vector2)->(colour)</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Create a new image with the given number of channels, the same size as this image, initialised by executing the function provided to map each pixel from this image into the new image.  The function is called with two params: the pixel from the existing image, and the coordinate being set (like make).</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">max<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">other</span><span class="paramtype"> : Image/colour</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>The returned image is the max of the two given images (they must be compatible).  The max of two pixels is the max of each of their channels.  This is sometimes called 'lighten only'.  It is also allowed to give a single colour value in place of the other image.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">meanDiff<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">other</span><span class="paramtype"> : Image</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>The average difference between pixels in two compatible images.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">colour</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">min<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">other</span><span class="paramtype"> : Image/colour</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>The returned image is the min of the two given images (they must be compatible).  The min of two pixels is the min of each of their channels.  This is sometimes called 'darken only'.  It is also allowed to give a single colour value in place of the other image.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">mirror<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Create a new image identical to this one but inverted on the X axis.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">normalise<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Return a new image where the sum of all the positive pixel channels is 1, and the sum of all the negative pixel channels is -1.  This is useful for normalising kernels for convolutions, so that the overall brightness of the image is unchanged during the convolution.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">quantise<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">dither</span><span class="paramtype"> : string</span><span class="paramparen">,</span><span class="paramname">num_colours</span><span class="paramtype"> : vector</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Reduce the colour fidelity of the image and also optionally dither it.  The available dither options are 'NONE', 'FLOYD_STEINBERG', and 'FLOYD_STEINBERG_LINEAR'.  FLOYD_STEINBERG assumes the image is in gamma space and temporarily converts the non-alpha channels to linear to do the dithering (you probably want this).  FLOYD_STEINBERG_LINEAR just does the dithering without that temporary conversion.  The number of colours is given as a vector with the same number of elements as the image has channels.  E.g. to reduce an RGB image to R5G6G5, use vec(32, 64, 32).  To use only 100% or 0% in each channel, use vec(2, 2, 2).</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">reduce<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">zero</span><span class="paramtype"> : colour</span><span class="paramparen">,</span><span class="paramname">func</span><span class="paramtype"> : (colour,colour,vector2)->(colour)</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Compute a single value from this image in a generic fashion.  The computed value has the same number of channels as the image.  The given function is called for each pixel.  It is provided with the old running total, the current pixel value, and the current pixel position.  It is expected to return the new running total.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">colour</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">rmsDiff<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">other</span><span class="paramtype"> : Image</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Subtract one image from the other.  Square every pixel channel value, average them all, and square root the result.  This is a common method for objectively measuring the difference between two compatible images.  The resulting value is a colour, but you can use the # operator to reduce this to a single value, e.g. #img:rms(other).</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">colour</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">rotate<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">angle</span><span class="paramtype"> : number</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Create a new image the same as this one but rotated by the given angle (degrees).  The resulting image will have larger area if the angle is not a multiple of 90.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">save<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">filename</span><span class="paramtype"> : string</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Write the contents of the file to disk, guessing the format from the file extension.</p></div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">scale<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">size</span><span class="paramtype"> : vector2</span><span class="paramparen">,</span><span class="paramname">filter</span><span class="paramtype"> : string</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Create a new image the same as this one but a different size.  The available filter methods are BOX, BILINEAR, BSPLINE, BICUBIC, CATMULLROM, and LANCZOS3.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+                <div class="classmethod">
+                    <div class="signature">
+                        <div class="classmethodname">scaleBy<span class="paramparen">(</span></div>
+                        <div class="paramlist"><span class="paramname">factor</span><span class="paramtype"> : { vector2, number }</span><span class="paramparen">,</span><span class="paramname">filter</span><span class="paramtype"> : string</span><span class="paramparen">)</span></div>
+                    </div>
+                    <div class="classmethoddesc"><p>Just like scale(), except the new size is given as a multiple of the old size.</p></div>
+                    <div class="returns_sec">
+                        <span class="returns">Returns:</span>
+                        <div class="returnlist"><span class="paramtype">Image</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <p style="float:right;"><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a></p><script type="text/javascript">    (function(i,s,o,g,r,a,m){i["GoogleAnalyticsObject"]=r;i[r]=i[r]||function(){    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)    })(window,document,"script","//www.google-analytics.com/analytics.js","ga");    ga("create", "UA-45157876-1", "gritengine.com");    ga("send", "pageview");</script></body>
+
+</html>

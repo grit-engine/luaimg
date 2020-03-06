@@ -1,0 +1,70 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>LuaImg Documentation</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+    <link rel="stylesheet" type="text/css" href="doc.css" />
+    <link rel="icon" type="image/png" href="logo_tiny.png" />
+</head>
+
+<body>
+    <div class='titleblock'>        <a href='http://sourceforge.net/p/gritengine/code/HEAD/tree/trunk/luaimg/examples/logo.lua'><img class='logo' src='logo_large.png' alt='logo' /></a>        <h1>LuaImg</h1>        <div class='toplinks'>            <a class='toplink' href='./'>Overview</a>            <a class='toplink' href='examples.html'>Examples</a>            <a class='toplink' href='download.html'>Download</a>            <a class='toplink' href='usage.html'>Usage</a>            <a class='toplink' href='api.html'>Script API</a>        <div style='clear: both'></div>        </div>    </div>    <h2>Usage</h2>
+
+    <div class="prose">
+
+        <p>LuaImg is a commandline interpreter that can execute snippets, files, or be an interactive console.  To execute simple snippets from the shell, run luaimg as follows:</p>
+
+        <div class='code'>
+            $ luaimg -e 'make(vec(<span class='codeliteral'>100</span>,<span class='codeliteral'>100</span>),<span class='codeliteral'>3</span>,vec(<span class='codeliteral'>1</span>,<span class='codeliteral'>0</span>,<span class='codeliteral'>0</span>)):save(<span class='codestring'>"red_square.png"</span>)'<br />
+            $ ls -l red_square.png<br />
+            -rw-r----- 1 user user 308 Oct 11 19:56 red_square.png
+        </div>
+
+        <p>To execute a script file, use the -f option:</p>
+
+        <div class='code'>
+            $ luaimg -f myfile.lua
+        </div>
+
+        <p>The interpreter can execute multiple snippets and files, they are
+executed in the order they appear along the comandline.  Any additional
+commandline parameters (ones that do not begin with a -) are available in the
+script as Lua varags (...).  The -- parameter causes all subsequent commandline
+options to be treated as script arguments, as is standard in many unix shell
+executables.</p>
+
+        <div class='code'>
+            $ luaimg -e 'print(<span class='codestring'>"foo"</span>)' -e 'print(...)' hello world<br />
+            foo<br />
+            hello&nbsp;&nbsp;&nbsp;&nbsp;world
+        </div>
+
+
+        <p>The -i parameter enters an interactive shell where LuaImg script
+fragments can be typed.  This is extremely useful for debugging and rapid
+prototyping, and can be combined with the other parameters.</p>
+
+        <p>Finally, the -F parameter is a shorthand for -f --, and allows using
+a hashbang first line annotation for unix scripts.  These scripts can then have
+execute permissions and be run as regular unix executables (with their own commandline
+parameters:</p>
+
+        <div class='code'>
+            $ cat execute_me.lua <br />
+            <span class='codecomment'>#!/usr/bin/luaimg -F</span> <br />
+            <span class='codekeyword'>local</span> name = select(<span class='codeliteral'>1</span>, ...) <br />
+            print (<span class='codestring'>"Hello "</span>..name..<span class='codestring'>"!"</span>) <br />
+            $ chmod a+x execute_me.lua <br />
+            $ ./execute_me.lua Dave <br />
+            Hello Dave!
+        </div>
+
+        <p>See the examples directory in the repository for examples of non-trivial
+programs.  In particular the logo (seen on this web site) is generated with the
+logo.lua script in this directory.</p>
+
+    </div>
+
+    <p style="float:right;"><a href="http://validator.w3.org/check?uri=referer"><img src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a></p><script type="text/javascript">    (function(i,s,o,g,r,a,m){i["GoogleAnalyticsObject"]=r;i[r]=i[r]||function(){    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)    })(window,document,"script","//www.google-analytics.com/analytics.js","ga");    ga("create", "UA-45157876-1", "gritengine.com");    ga("send", "pageview");</script></body>
+
+</html>
